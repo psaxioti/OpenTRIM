@@ -49,20 +49,20 @@
 /* Some predefined lists: */
 /* inverf list loaded from file with a fixed length (using corteo's data): */
 #define MAXERFLIST 79999
-float inverse_erf_list[MAXERFLIST]; /* list of evenly distributed but randomly ordered values of inverse erf of -1+1/MAXERFLIST to 1-1/MAXERFLIST */
-unsigned int erflist_pointer; /* points to next erf element to use */
-unsigned int iazimAngle;      /* Points to next azimutal angle to choose */
-unsigned int iranlist;        /* Points to next entry in the random list */
-unsigned int iranloglist;     /* Points to next entry in the random sqrt logarithmic list */
+extern float inverse_erf_list[MAXERFLIST]; /* list of evenly distributed but randomly ordered values of inverse erf of -1+1/MAXERFLIST to 1-1/MAXERFLIST */
+extern unsigned int erflist_pointer; /* points to next erf element to use */
+extern unsigned int iazimAngle;      /* Points to next azimutal angle to choose */
+extern unsigned int iranlist;        /* Points to next entry in the random list */
+extern unsigned int iranloglist;     /* Points to next entry in the random sqrt logarithmic list */
 
-int stopping_target_index;    /* In case of -s option: target index */
+extern int stopping_target_index;    /* In case of -s option: target index */
 
-int conv_create_separate_elements; /* if 1 then, separate elements are created for each material, so some elements may appear more than once */
+extern int conv_create_separate_elements; /* if 1 then, separate elements are created for each material, so some elements may appear more than once */
 
-int store_joined_output;      /* if 1, then put output data into one file */
-int dpa_output;               /* outputs are in dpa (read only if ion_dose > 0 ; dpa values are meaningful only at a given dose) */
-float* dscaled;               /* Introduced by J.P.Croc., required for output scaling in case of output in dpa */
-char* message_buffer;         /* String buffer for message to print out to console */
+extern int store_joined_output;      /* if 1, then put output data into one file */
+extern int dpa_output;               /* outputs are in dpa (read only if ion_dose > 0 ; dpa values are meaningful only at a given dose) */
+extern float* dscaled;               /* Introduced by J.P.Croc., required for output scaling in case of output in dpa */
+extern char* message_buffer;         /* String buffer for message to print out to console */
 
 
 /************************** functions ****************/

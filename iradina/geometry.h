@@ -59,13 +59,13 @@ float special_CalcSurfaceNormal(int new_cell, int cell,float x, float y, float z
 /* The functions below are special for the nanoparticle module   */
 /*****************************************************************/
 
-float NP_diameter;
-float NP_radius;
-float NP_radius_sqr;
+extern float NP_diameter;
+extern float NP_radius;
+extern float NP_radius_sqr;
 
-float target_half_x;
-float target_half_y;
-float target_half_z;
+extern float target_half_x;
+extern float target_half_y;
+extern float target_half_z;
 
 int NP_DataBlockReader(char* BlockName); /* Needs to be called from the ini file reader
 					    while the nanoparticle structure file is read */

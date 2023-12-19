@@ -33,6 +33,7 @@
 
 #include "fileio.h"
 
+int single_input_file;
 
 int IniFileReader(int(*DataBlockReader)(char* BlockName), int(*DataReader)(char* ParName, char* ParValue), char* filename) {
 	/* A general reader for the various input config files. It parses
@@ -1037,13 +1038,20 @@ int WriteResArrayToFile(char* Filename,int* SourceArray, int Count, int FileType
   return 0;
 }
 
-int file_readable(const char *filename){
+int file_readable(const char *filename)
+{
     /* returns 1 if file filename can be opened for reading */
-    FILE *file;
-    if ((file = fopen(filename, "r"))){
-        fclose(file);
-        return 1;
-    }
-    return 0;
+    FILE *file;
+
+    if ((file = fopen(filename, "r"))){
+
+        fclose(file);
+
+        return 1;
+
+    }
+
+    return 0;
+
 }
 

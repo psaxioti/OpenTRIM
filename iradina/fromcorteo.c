@@ -40,6 +40,33 @@ May 2014: some changes have been made in order to adapt from 32 to 64 bit
 
 #include "fromcorteo.h"
 
+/*************** Adapted from corteo.h ***********************/
+float       randomlist[MAXRANLIST];     /* list of evenly distributed but randomly ordered values between 0 and 1 */
+float       sqrtrandomlist[MAXRANLIST]; /* sqrt of randomlist */
+float       sqrtloglist[MAXLOGLIST];    /* list of evenly distributed but randomly ordered values of sqrt of -log of 1/MAXLOGLIST to 1 */
+float       sqrtloglist1[MAXLOGLIST];   /* 1/sqrtloglist */
+float       sinAzimAngle[MAXAZILIST];   /* list cos and sin components of angles... */
+float       cosAzimAngle[MAXAZILIST];   /*   ...this angle are evenly distributed but randomly ordered between 0 and 2*PI */
+
+/*************** Adapted from constants.h ***********************/
+float MostAbundantIsotope[NUMBERELEMENTS];
+float AtomicMass[NUMBERELEMENTS];
+char  AtomicNames[NUMBERELEMENTS][3];
+
+/*************** Adapted from corteoindex.h ***********************/
+unsigned long EminErr, EmaxErr, SminErr, SmaxErr, DminErr, DmaxErr; 
+
+/*************** Adapted from corteoutil.h ***********************/
+
+float myInvSqrtTableExp[256];
+float mySqrtTableExp[256];
+float myInvSqrtTable[1<<16];
+float mySqrtTable[1<<16];
+
+/*************** Adapted from randomx.h ***********************/
+
+int seed1,seed2;
+
 /*************** Functions adapted from corteo.c ***********************/
 
 /* fill the table of cos and sin of the scattering angle in the lab frame given a mass ratio */

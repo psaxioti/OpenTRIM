@@ -40,7 +40,7 @@
 
 
 /* gloval variables */
-int single_input_file;   /* if 0, then multiple files (normal). If 1, then a single input file is used */
+extern int single_input_file;   /* if 0, then multiple files (normal). If 1, then a single input file is used */
 
 /** functions **/
 int IniFileReader(int(*DataBlockReader)(char* BlockName), int(*DataReader)(char* ParName, char* ParValue), char* filename);
@@ -87,6 +87,7 @@ int WriteEnergyFileHeader(char* filename, char * title, char * ct4 , char * cn4)
 int WriteResArrayToFile(char* Filename,int* SourceArray, int Count, int FileType, float conc);
 /*CROC : deals with dpa output and header of files*/
 
-int file_readable(const char *filename);  /* returns 1 if file filename can be opened for reading */
+int file_readable(const char *filename)
+;  /* returns 1 if file filename can be opened for reading */
 
 #endif

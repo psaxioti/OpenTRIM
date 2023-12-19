@@ -120,6 +120,18 @@ float special_CalcSurfaceNormal(int new_cell, int cell,float x, float y, float z
 	return 0;
 }
 
+/*****************************************************************/
+/* The functions below are special for the nanoparticle module   */
+/*****************************************************************/
+
+float NP_diameter;
+float NP_radius;
+float NP_radius_sqr;
+
+float target_half_x;
+float target_half_y;
+float target_half_z;
+
 int NP_DataBlockReader(char* BlockName){
 	return 0;
 }

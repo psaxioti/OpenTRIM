@@ -25,6 +25,86 @@
 
 #include "target.h"
 
+/*
+ *  Global Variables
+ */
+struct material ListOfMaterials[MAX_NO_MATERIALS];
+int NumberOfMaterials;               /* Points to first free index in the ListOfMaterials */
+int number_of_all_target_elements;   /* without ion. */
+
+int existing_elements[MAX_ELEMENT_NO];  /* This array holds a 1 for any element that might exist in the target,
+					so all these elements might occur as projectiles. */
+int hydrogen_in_target;                 /* Hydrogen is always included in the existing_elements_list, because
+					we need its stopping powers. However, we do only need it in the element
+					file, if it is really in the target.*/
+int ionZ_in_target;                     /* The ion is always included in the existing_elements_list.
+					However, we only need it as an extra element in the element file,
+					if it is really in the target.*/
+
+/*	The following structures hold scattering matrices for each possible projectile and target combination.
+	The ion gets its own matrix, because the ion might be a specific isotope which is not the naturally most abundant.
+	For the other elements, we will assume most abundant isotopes only, because memory is not unlimited.
+	In case we need to care about specific target isotopes, the MAGIC algorithm should be used instead of the ScatBase approach. */
+struct scattering_matrix ion_scattering_matrix[MAX_ELEMENT_NO];
+struct scattering_matrix scattering_matrices[MAX_ELEMENT_NO][MAX_ELEMENT_NO]; /* First index: projectile, second: target */
+
+int cell_count_x;     /* Number of cells in x-direction (>=1) */
+int cell_count_y;     /* Number of cells in y-direction (>=1) */
+int cell_count_z;     /* Number of cells in z-direction (>=1) */
+int layer_count_yz;   /* cell_count_y * cell_count_z */
+int cell_count;       /* Total number of cells */
+
+float cell_size_x;      /* Size of cells in x-direction in nm */
+float cell_size_y;      /* Size of cells in x-direction in nm */
+float cell_size_z;      /* Size of cells in x-direction in nm */
+double cell_volume;     /* product of the above three */
+
+float target_size_x;    /* Size of target in x-direction in nm */
+float target_size_y;    /* They are calculated */
+float target_size_z; 
+float target_max_x;     /* Maximum allowed position in x-direction in nm */
+float target_max_y;     /* These positions are the largest possible values, */
+float target_max_z;     /* which are smaller target_size_x etc. */
+
+int boundary_x;         /* 0 if no specific boundary condition */
+int boundary_y;         /* 1 means periodic boundary condition */
+int boundary_z;
+
+int special_geometry;   /* if 1, then the current material and surface are not checked
+			using the rectangular cell grid, but other parameters instead */
+
+/* We need to declare some target arrays (or actually pointers to them) */
+int   *TargetComposition;       /* Material of each cell */
+float *TargetDensityMult;       /* Multiplicators for material density in each cell */
+int   UseDensityMult;           /* 0 if multiplicators not used, 1 if used */
+int   *TargetImplantedIons;     /* Implanted ions per cell (interstitials+replacements) */
+int   *TargetReplacingIons;     /* Implanted ions that replaced identical target atoms */
+int   *TargetTotalVacancies;    /* Vacancies per cell (of all types) */
+int   *TargetTotalReplacements; /* Replacements per cell (of all types) */
+int   *TargetTotalDisplacements; /* Displacements per cell (of all types) */ /* Disp = Vac + Repl */
+int   *TargetTotalInterstitials; /* Sum of interstitials per cell (of all recoil
+					types, NOT including the implanted ions) */
+
+
+int  *TargetTotalSputtered;     /* Sum of sputtered atoms from each cell */
+char *TargetVacuumNeighbors;    /* Describes for each cell, which of its neighbors are
+				vacuum (bitwise), this is helpful for determining sputtering */
+
+int TotalSputterCounter[6];     /* Number of target atoms leaving the sample in each of the 6 directions */
+char* TargetCompositionFileName;
+/* char* TargetDensityMultFileName;  */
+int TargetCompositionFileType;   /* The file which hold the info of what material is in
+					which cell can have two types: either just one column of
+					values, which are indexed like the TargetIndexFunction does;
+					or: four columns with x,y,z values and the material index */
+
+double *TargetEnergyPhonons;    /* All energy deposited into the phononic system */
+double *TargetEnergyElectrons;  /* All energy deposited by electronic stopping.
+				Note: these two arrays must be of type double, because small values
+				might be added to gigantic number, and should not be lost (happens
+				for large number of ions and high energys. Doubles reduce this risk
+				as compared to floats) */
+
 
 /* Error codes used in this modul: between 550 and 700                       */
 

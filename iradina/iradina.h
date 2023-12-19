@@ -88,31 +88,31 @@
 
 /* -- Some global variables -- */
 
-int print_level;               /* Determines how much stuff is printed to the console.
+extern int print_level;               /* Determines how much stuff is printed to the console.
 				  0 means normal, positive values mean more, negative less */
-int mem_usage_only;            /* if 1, then do not simulate anything, just estimate memory usage */
-int mem_usage_details;         /* if 1, print more details for memory usage */
-unsigned long int mem_usage;   /* if mem_usage active, then sum it up here (in bytes) */
+extern int mem_usage_only;            /* if 1, then do not simulate anything, just estimate memory usage */
+extern int mem_usage_details;         /* if 1, print more details for memory usage */
+extern unsigned long int mem_usage;   /* if mem_usage active, then sum it up here (in bytes) */
 
-char* ConfigFileName;          /* Name of the general input config file */
-char* TargetStructureFileName; /* Filename of the file that define the structure of the target */
-char* OutputFileBaseName;      /* All outputfiles begin with this name, so that's put them in a distinct directory if included in this name */
-char* MaterialsFileName;       /* Name of the file that defines the materials in the target */
-char* ConversionFileName;      /* Name of the converted input file (when converting from materials to elements) */
-char* ElementsFileName;        /* Name of the file that defines the elements in the target.
+extern char* ConfigFileName;          /* Name of the general input config file */
+extern char* TargetStructureFileName; /* Filename of the file that define the structure of the target */
+extern char* OutputFileBaseName;      /* All outputfiles begin with this name, so that's put them in a distinct directory if included in this name */
+extern char* MaterialsFileName;       /* Name of the file that defines the materials in the target */
+extern char* ConversionFileName;      /* Name of the converted input file (when converting from materials to elements) */
+extern char* ElementsFileName;        /* Name of the file that defines the elements in the target.
 				  This is not needed for standard material based operation,
 				  but for conversion of one to another... so it is defined in both cases. */
-char* DirectoryData;           /* Name of the data corteo directory */
-char* TargetDensityMultFileName; /* */
+extern char* DirectoryData;           /* Name of the data corteo directory */
+extern char* TargetDensityMultFileName; /* */
 
-int wait_before_end;           /* if 1, the program only quits after pressing return key */
-int normalize_output;          /* if 1, the output of the program will be normalized to (1/cm^3)/(ions/cm^2) */
-double unit_conversion_factor; /* This converts output to unit of (1/cm^3)per(1/cm^2) */
-int create_status_file;        /* if this is 1, then iradina output its status regularly to a file that can be read by another program */
-char* start_id_string;         /* string that helps other programs to identify iradina output */
-int do_not_store_damage;       /* if this is 1, then far fewer data are stored to disc... saves memory */
-int no_headers_in_files;       /* if this is 1, then files have no header. Default=0 */
-int store_info_file;           /* if 1, then iradina creates an output file with some information on the simulation and the other outputfiles */
+extern int wait_before_end;           /* if 1, the program only quits after pressing return key */
+extern int normalize_output;          /* if 1, the output of the program will be normalized to (1/cm^3)/(ions/cm^2) */
+extern double unit_conversion_factor; /* This converts output to unit of (1/cm^3)per(1/cm^2) */
+extern int create_status_file;        /* if this is 1, then iradina output its status regularly to a file that can be read by another program */
+extern char* start_id_string;         /* string that helps other programs to identify iradina output */
+extern int do_not_store_damage;       /* if this is 1, then far fewer data are stored to disc... saves memory */
+extern int no_headers_in_files;       /* if this is 1, then files have no header. Default=0 */
+extern int store_info_file;           /* if 1, then iradina creates an output file with some information on the simulation and the other outputfiles */
 
 /******************************************************************************/
 /* Function declarations:                                                     */
@@ -121,6 +121,6 @@ int store_info_file;           /* if 1, then iradina creates an output file with
 int main();                    /* The program */
 int display_startup_message(); /* does what you think it does */
 
-struct tm * timeinfo;
+extern struct tm * timeinfo;
 
 #endif

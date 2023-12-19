@@ -62,12 +62,12 @@
 #define MAXRANLIST 1000003
 
 
-float       randomlist[MAXRANLIST];     /* list of evenly distributed but randomly ordered values between 0 and 1 */
-float       sqrtrandomlist[MAXRANLIST]; /* sqrt of randomlist */
-float       sqrtloglist[MAXLOGLIST];    /* list of evenly distributed but randomly ordered values of sqrt of -log of 1/MAXLOGLIST to 1 */
-float       sqrtloglist1[MAXLOGLIST];   /* 1/sqrtloglist */
-float       sinAzimAngle[MAXAZILIST];   /* list cos and sin components of angles... */
-float       cosAzimAngle[MAXAZILIST];   /*   ...this angle are evenly distributed but randomly ordered between 0 and 2*PI */
+extern float       randomlist[MAXRANLIST];     /* list of evenly distributed but randomly ordered values between 0 and 1 */
+extern float       sqrtrandomlist[MAXRANLIST]; /* sqrt of randomlist */
+extern float       sqrtloglist[MAXLOGLIST];    /* list of evenly distributed but randomly ordered values of sqrt of -log of 1/MAXLOGLIST to 1 */
+extern float       sqrtloglist1[MAXLOGLIST];   /* 1/sqrtloglist */
+extern float       sinAzimAngle[MAXAZILIST];   /* list cos and sin components of angles... */
+extern float       cosAzimAngle[MAXAZILIST];   /*   ...this angle are evenly distributed but randomly ordered between 0 and 2*PI */
 
 void fillCosSinTable(float * cosTable, float * sinTable, float mr); /* corteo function to calc cos and sin of scattering angles */
 
@@ -84,14 +84,14 @@ void computelists();
 #define ELEMENTARY_CHARGE 1.602176487E-19 
 
 #define NUMBERELEMENTS 101
-float MostAbundantIsotope[NUMBERELEMENTS];
-float AtomicMass[NUMBERELEMENTS];
-char  AtomicNames[NUMBERELEMENTS][3];
+extern float MostAbundantIsotope[NUMBERELEMENTS];
+extern float AtomicMass[NUMBERELEMENTS];
+extern char  AtomicNames[NUMBERELEMENTS][3];
 
 /*************** Adapted from corteoindex.h ***********************/
 
 /* Global variables: number of errors during index fuction calls (in work if INDEX_BOUND_CHECKING is defined) */
-unsigned long EminErr, EmaxErr, SminErr, SmaxErr, DminErr, DmaxErr; 
+extern unsigned long EminErr, EmaxErr, SminErr, SmaxErr, DminErr, DmaxErr; 
 
 #define INDEX_BOUND_CHECKING  /* Perform bound cheking during index evaluation (whole program 10-15% slower).
                                  No check may result out-of-bound matrix access: crash or wrong value, */
@@ -120,14 +120,14 @@ double crossSectionScreenPot(double E, unsigned int Z1, unsigned int Z2, double 
 
 /*************** Adapted from corteoutil.h ***********************/
 
-float myInvSqrtTableExp[256];
-float mySqrtTableExp[256];
-float myInvSqrtTable[1<<16];
-float mySqrtTable[1<<16];
+extern float myInvSqrtTableExp[256];
+extern float mySqrtTableExp[256];
+extern float myInvSqrtTable[1<<16];
+extern float mySqrtTable[1<<16];
 
-void  mySqrtTableFill();
-float myInvSqrt(float val);
-float mySqrt(float val);
+extern void  mySqrtTableFill();
+extern float myInvSqrt(float val);
+extern float mySqrt(float val);
 
 void randomizelist(float *list, unsigned int maxlist);
 void ignoreline(FILE *ifp);
@@ -137,7 +137,7 @@ float a2f(char * s);
 
 /*************** Adapted from randomx.h ***********************/
 
-int seed1,seed2;
+extern int seed1,seed2;
 double randomx();
 
 /************** Adapted from corteo20130715 (for 64 bit compatibility) ***/
