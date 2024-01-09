@@ -19,6 +19,66 @@ template<>
 struct h5traits<unsigned int> {
     static const PredType& predType() { return PredType::NATIVE_UINT; }
 };
+template<>
+struct h5traits<int> {
+    static const PredType& predType() { return PredType::NATIVE_INT; }
+};
+
+template<typename T>
+int save_scalar(H5File* f, const char* name, const T& data)
+{
+
+    /*
+     * Try block to detect exceptions raised by any of the calls inside it
+     */
+    try
+    {
+
+        /*
+     * Turn off the auto-printing when failure occurs so that we can
+     * handle the errors appropriately
+     */
+        Exception::dontPrint();
+
+        /*
+     * Create dataspace for the dataset in the file.
+     */
+        DataSpace fspace; // default = scalar
+
+        /*
+       * Create a new dataset within the file using defined dataspace and
+       * datatype and default dataset creation properties.
+       */
+        DataSet dataset = f->createDataSet( name, h5traits<T>::predType(), fspace );
+
+        /*
+       * Write the data to the dataset using default memory space, file
+       * space, and transfer properties.
+       */
+        dataset.write( &data, h5traits<T>::predType() );
+
+    }  // end of try block
+
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    return 0;
+}
 
 template<typename T>
 int save_array(H5File* f, const char* name,
@@ -110,6 +170,15 @@ struct array_traits<T, Array3D<T> > {
     }
     typedef h5traits<T> scalar_traits;
 };
+template <>
+struct array_traits<float, grid1D > {
+    static std::vector<hsize_t> dims(const grid1D& A) {
+        std::vector<hsize_t> d(1);
+        d[0] = A.size();
+        return d;
+    }
+    typedef h5traits<float> scalar_traits;
+};
 
 template<typename T, class _ArrT>
 int save_array(H5File* f, const char* name, const _ArrT& A) {
@@ -160,6 +229,14 @@ int out_file::open(const char* fname)
 
 int out_file::save()
 {
+    save_scalar(h5f, "N", sim_->ion_histories());
+
+    // save grid
+    save_array<float, grid1D>(h5f, "X", sim_->grid().x());
+    save_array<float, grid1D>(h5f, "Y", sim_->grid().y());
+    save_array<float, grid1D>(h5f, "Z", sim_->grid().z());
+
+
     // save tallys
     if (sim_->simulation_type == simulation::FullCascade) {
 

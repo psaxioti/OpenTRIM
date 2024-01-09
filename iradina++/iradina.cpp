@@ -66,16 +66,16 @@ int testini(int argc, char* argv[])
 
 int test_run()
 {
-    //reducedXS_quad xs;
-    //reducedXS_corteo4bit* cXS = new reducedXS_corteo4bit(xs);
-    reducedXS cXS(reducedXS::ZBL, reducedXS::Corteo4bitTable);
-    cXS.init(&std::cout);
+    reducedXS XS(reducedXS::ZBL, reducedXS::Corteo4bitTable);
+    //reducedXS XS(reducedXS::ZBL, reducedXS::ZBL_Magick);
+    XS.init(&std::cout);
 
-    simulation S("Test",cXS);
+    simulation S("Test", XS);
 
-    material* Fe = S.addMaterial("FeCr", 7.8658);
+    material* Fe = S.addMaterial("Fe", 7.8658);
     int Zfe = elements::atomicNum("Fe");
-    Fe->addAtom(Zfe, elements::mass(Zfe), 1.f, 40.f,
+    float Mfe = elements::mass(Zfe);
+    Fe->addAtom(Zfe, Mfe, 1.f, 40.f,
                   1.f, 1.f, 40.f);
 
 //    material* FeCr = S.addMaterial("FeCr", 7.8658);
@@ -90,12 +90,14 @@ int test_run()
 //    Si->addAtom(Zsi, elements::mass(Zsi), 1.f, 25.f,
 //                1.f, 1.f, 25.f);
 
-    S.setProjectile(1, elements::mostAbundantIsotope(1), 5E6);
+    S.setProjectile(Zfe, Mfe, 2E6);
+    S.setStragglingModel(NoStraggling);
 
     grid3D& g = S.grid();
-    g.setX(0,100000,100);
-    g.setY(0,100000,1,true);
-    g.setZ(0,100000,1,true);
+    float L = 1200;
+    g.setX(0,L,100);
+    g.setY(0,L,1,true);
+    g.setZ(0,L,1,true);
 
     box3D box = g.box();
     S.fill(box,Fe);
@@ -104,7 +106,7 @@ int test_run()
     // S.fill(box,Si);
 
     S.init();
-    S.run(200,"testrun.h5");
+    S.run(10,"testrun.h5");
 
     cout << "ms/ion =" << S.ms_per_ion() << endl;
 

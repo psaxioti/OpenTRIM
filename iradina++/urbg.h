@@ -3,8 +3,9 @@
 
 #include <random>
 
-struct URBG : public std::mt19937
+struct URBG : public  std::minstd_rand // 1: std::mt19937 2: std::minstd_rand (20 % faster)
 {
+
     float u01() { return 1.f*(*this)()/(*this).max(); }
     float u01no1() {
         float u;

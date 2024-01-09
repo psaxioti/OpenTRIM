@@ -4,7 +4,7 @@
 
 /* prime numbers for lists length */
 #define MAXLOGLIST 104729
-#define MAXAZILIST 72211
+#define MAXAZILIST 72211   //  (1 << 17)
 #define MAXRANLIST 1000003
 
 /* generate and randomize lists randomlist,sqrtloglist, sinAzimAngle & cosAzimAngle   */
@@ -42,6 +42,7 @@ void random_vars_tbl::initTables()
 
     for(int i=0; i<cosAzimAngle.size(); i++) {
         /* compute the cos and sine of these angles */
+        // float phi = 2*M_PI*i/cosAzimAngle.size();
         sinAzimAngle[i] = std::sin(cosAzimAngle[i]);
         cosAzimAngle[i] = std::cos(cosAzimAngle[i]);
     }

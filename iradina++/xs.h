@@ -32,8 +32,6 @@ public:
     } ScreeningPotentialType;
 
     struct reducedXS_impl {
-        virtual IntegrationMethod integrationMethod() const = 0;
-        virtual ScreeningPotentialType potentialType() const = 0;
         virtual double screeningLength(int Z1, int Z2) const = 0;
         virtual double screeningFunction(const double& x) const = 0;
         virtual double sin2Thetaby2(const double& epsilon, const double& s) const = 0;
@@ -45,6 +43,10 @@ private:
 
     std::shared_ptr<reducedXS_impl> xs_;
 
+    ScreeningPotentialType screening_t_;
+    IntegrationMethod integ_t_;
+
+
 public:
     reducedXS();
     reducedXS(ScreeningPotentialType S, IntegrationMethod I, unsigned int n = 100);
@@ -52,9 +54,10 @@ public:
     {}
 
     IntegrationMethod integrationMethod() const
-    { return xs_->integrationMethod(); }
+    { return integ_t_; }
+    const char* integrationMethodName() const;
     ScreeningPotentialType potentialType() const
-    { return xs_->potentialType(); }
+    { return screening_t_; }
     double screeningLength(int Z1, int Z2) const
     { return xs_->screeningLength(Z1,Z2); }
     double screeningFunction(const double& x) const
@@ -166,10 +169,6 @@ struct reducedXS_quad : public reducedXS::reducedXS_impl
 
     typedef PHI screening_function;
 
-    virtual reducedXS::IntegrationMethod integrationMethod() const override
-    { return reducedXS::GaussMehlerQuad; }
-    virtual reducedXS::ScreeningPotentialType potentialType() const override
-    { return PHI::type(); }
     virtual double screeningLength(int Z1, int Z2) const override
     {
         return PHI::screeningLength(Z1, Z2);
@@ -211,11 +210,6 @@ protected:
 struct reducedXS_zbl_magic : public reducedXS::reducedXS_impl
 {
     typedef screening<reducedXS::ZBL> screening_function;
-
-    virtual reducedXS::IntegrationMethod integrationMethod() const override
-    { return reducedXS::ZBL_Magick; }
-    virtual reducedXS::ScreeningPotentialType potentialType() const override
-    { return screening_function::type(); }
 
     static double theta(double epsilon, double s)
     {
@@ -278,10 +272,6 @@ public:
         xs_impl_(other.xs_impl_), matrix_(other.matrix_)
     {}
 
-    virtual reducedXS::IntegrationMethod integrationMethod() const override
-    { return reducedXS::Corteo4bitTable; }
-    virtual reducedXS::ScreeningPotentialType potentialType() const override
-    { return xs_impl_->potentialType(); }
     virtual double screeningLength(int Z1, int Z2) const override
     {
         return xs_impl_->screeningLength(Z1, Z2);

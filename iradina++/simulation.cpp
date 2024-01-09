@@ -8,7 +8,7 @@
 
 simulation::simulation(const char *name, const reducedXS &x) :
     name_(name), xs_(x),
-    rnd(new random_vars(urbg)),
+    rnd(new random_vars_tbl(urbg)), // rnd(new random_vars(urbg)), rnd(new random_vars_tbl(urbg)),
     flight_path_type(Poisson),
     simulation_type(FullCascade),
     straggling_model(YangStraggling),
@@ -75,6 +75,10 @@ int simulation::init() {
         IonizationEnergyTally = Array2Dd(1,nCells);
         PhononEnergyTally = Array2Dd(1,nCells);
     }
+
+    // reset counters
+    ion_histories_ = 0;
+
     return 0;
 }
 
@@ -108,11 +112,24 @@ int simulation::run(int count, const char *outfname)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
     for(int k=0; k<count; k++) {
+
+        // generate ion
         ion* i = new_ion();
         source_.source_ion(urbg, target_, *i);
+
+        // transport the ion
         transport(i);
+
+        // transport all ion recoils
         while (!ion_queue_.empty())
             transport(pop_ion());
+
+        // count history
+        ion_histories_++;
+
+        if (ion_histories_ % 100 ==0) {
+            std::cout << "Ion: " << ion_histories_ << std::endl;
+        }
     }
 
     // CALC TIME/ion
@@ -147,27 +164,30 @@ int simulation::transport(ion* i)
 
             int ie = dedx_index::fromValue(i->erg);
             float de_stopping = fp * de_stopping_tbl[ie];
-            float de_straggling = de_straggling_tbl[ie] * rnd->normal() * sqrtfp;
+            if (straggling_model != NoStraggling) {
 
-            /*
-             * Due to gaussian distribution, the straggling can in some cases
-             * get so large that the projectile gains energy or suddenly looses
-             * a huge amount of energy. Is this realistic? This might actually
-             * happen. However, in the simulation, ions may have higher energy
-             * than the initial energy.
-             * We will therefore limit the |straggling| to |stopping|.
-             * Furthermore, with hydrogen, the straggling is often so big,
-             * that ions gain huge amount of energy, and the phononic system
-             * would actually gain energy.
-             */
-            if (std::abs(de_straggling)>de_stopping) {
-                if(de_straggling<0){
-                    de_straggling = -de_stopping;
-                } else {
-                    de_straggling =  de_stopping;
+                float de_straggling = de_straggling_tbl[ie] * rnd->normal() * sqrtfp;
+
+                /*
+                 * Due to gaussian distribution, the straggling can in some cases
+                 * get so large that the projectile gains energy or suddenly looses
+                 * a huge amount of energy. Is this realistic? This might actually
+                 * happen. However, in the simulation, ions may have higher energy
+                 * than the initial energy.
+                 * We will therefore limit the |straggling| to |stopping|.
+                 * Furthermore, with hydrogen, the straggling is often so big,
+                 * that ions gain huge amount of energy, and the phononic system
+                 * would actually gain energy.
+                 */
+                if (std::abs(de_straggling)>de_stopping) {
+                    if(de_straggling<0){
+                        de_straggling = -de_stopping;
+                    } else {
+                        de_straggling =  de_stopping;
+                    }
                 }
+                de_stopping += de_straggling;
             }
-            de_stopping += de_straggling;
 
             /*
              * The stopping tables have no values below minVal = 16 eV.
@@ -322,10 +342,6 @@ int simulation::transport(ion* i)
             break; // history ends
         } /* else: Enough energy to advance to next collision site */
 
-    }
-
-    if (i->atom_->id()==0) {
-        std::cout << "Ion: " << i->ion_id << std::endl;
     }
 
     // ion finished

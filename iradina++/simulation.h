@@ -76,6 +76,8 @@ private:
 
     double ms_per_ion_;
 
+    unsigned int ion_histories_;
+
     /*
      * Tallys
      */
@@ -98,6 +100,9 @@ public:
     const reducedXS& xs() { return xs_; }
     void setXS(const reducedXS& x) { xs_ = x; }
 
+    void setStragglingModel(StragglingModel m) { straggling_model = m; }
+
+    unsigned int ion_histories() const { return ion_histories_; }
     double ms_per_ion() const { return ms_per_ion_; }
 
     material* addMaterial(const char* name, const float& density) {
@@ -106,6 +111,7 @@ public:
     void setProjectile(int Z, float M, float E0);
 
     grid3D& grid() { return target_.grid(); }
+    const grid3D& grid() const { return target_.grid(); }
     void fill(const box3D& box, const material* m) {
         target_.fill(box,m);
     }

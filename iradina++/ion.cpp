@@ -16,7 +16,7 @@ void ion::propagate(const float& s)
     pos_ += s*dir;
     assert(pos_.allFinite());
     grid.applyBC(pos_);
-    if (grid.contains(pos_)) {
+    if (grid.periodic_contains(pos_)) {
         if (!grid.contains(icell_,pos_)) {
             icell_ = grid.pos2cell(pos_); // TODO: improve algorithm (e.g. search nn cells)
             assert(!grid3D::isNull(icell_));

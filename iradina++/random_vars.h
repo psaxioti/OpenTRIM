@@ -58,7 +58,9 @@ struct random_vars_tbl : public random_vars
 {
 
     random_vars_tbl(URBG& g) : random_vars(g)
-    {}
+    {
+        initTables();
+    }
 
     virtual void uniform01(float& u, float& sqrtu) override
     {
@@ -89,6 +91,11 @@ struct random_vars_tbl : public random_vars
         ny = sinAzimAngle[iAzimuth];
         nx = cosAzimAngle[iAzimuth++];
         iAzimuth %= sinAzimAngle.size();
+
+//        const int mask = (1 << 17) - 1;
+//        int i = urbg() & mask;
+//        ny = sinAzimAngle[i];
+//        nx = cosAzimAngle[i];
     }
 
 private:
