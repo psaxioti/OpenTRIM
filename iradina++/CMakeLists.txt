@@ -23,7 +23,6 @@ add_executable(iradina++
     ion_beam.h ion_beam.cpp
     straggling.cpp
     arrays.h
-    tallys.h
     event_recorder.h event_recorder.cpp
     out_file.h out_file.cpp)
 
