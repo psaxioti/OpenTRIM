@@ -103,6 +103,10 @@ int simulation::run(int count, const char *outfname)
     out_file_ = new out_file(this);
     if (out_file_->open(outfname)!=0) return -1;
 
+    // TIMING
+    struct timespec start, end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
     for(int k=0; k<count; k++) {
         ion* i = new_ion();
         source_.source_ion(urbg, target_, *i);
@@ -110,6 +114,11 @@ int simulation::run(int count, const char *outfname)
         while (!ion_queue_.empty())
             transport(pop_ion());
     }
+
+    // CALC TIME/ion
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / count;
+    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / count;
 
     out_file_->save();
     out_file_->close();

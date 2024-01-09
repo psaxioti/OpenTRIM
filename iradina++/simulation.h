@@ -74,6 +74,8 @@ private:
 
     float energy_cutoff_;
 
+    double ms_per_ion_;
+
     /*
      * Tallys
      */
@@ -95,6 +97,8 @@ public:
     void setName(const char* n) { name_ = n; }
     const reducedXS& xs() { return xs_; }
     void setXS(const reducedXS& x) { xs_ = x; }
+
+    double ms_per_ion() const { return ms_per_ion_; }
 
     material* addMaterial(const char* name, const float& density) {
         return inventory_.addMaterial(name, density);

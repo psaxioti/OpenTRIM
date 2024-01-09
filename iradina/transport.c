@@ -157,249 +157,264 @@ int single_ion_sputter_counter;
 int replacer_escaped;
 
 int IrradiateTarget(){
-  /* Let ions impinge at the entry side of the target */
-  /* The entry positions can be random or more defined */
+    /* Let ions impinge at the entry side of the target */
+    /* The entry positions can be random or more defined */
 
-  /*CROC x=0 initialization to allow from inside bulk irradiation */
-  float x,y,z;
-  int   i;    /* count ions */
-  x=0.0;   y=0.0;   z=0.0;
+    // GA TIMING
+    struct timespec start, end;
+    double ms_per_ion;
 
-  sim_start_time=time(NULL);
+    /*CROC x=0 initialization to allow from inside bulk irradiation */
+    float x,y,z;
+    int   i;    /* count ions */
+    x=0.0;   y=0.0;   z=0.0;
 
-  /* init counters: */
-	disp_c=0;
-	miss_c=0;
-	coll_c=0;
-	sputter_c=0;
-	ion_c=0;
-	repl_c=0;
-	leaving_ions_c=0;
-	leaving_recoils_c=0;
-	vac_c=0;
-	int_c=0;
-	escape_solid_c=0;
-	replacer_escaped=0;
-	recoil_counter=0;
+    sim_start_time=time(NULL);
 
-	/*
-	subreplace_c=0;
-	superthres_leave_c=0;
-	subthres_created_c=0;
-	subthres_reach_egde_c=0;
-	superthres_created_counter_c=0;
-	sub_become_super_c=0;
-	*/
+    /* init counters: */
+    disp_c=0;
+    miss_c=0;
+    coll_c=0;
+    sputter_c=0;
+    ion_c=0;
+    repl_c=0;
+    leaving_ions_c=0;
+    leaving_recoils_c=0;
+    vac_c=0;
+    int_c=0;
+    escape_solid_c=0;
+    replacer_escaped=0;
+    recoil_counter=0;
 
-  if(store_ion_paths==1){ /* if requested, store the exact paths of the ions */
-    ion_paths_fp=OpenFileContinuous(OutputFileBaseName,".ionpaths");
-    if(ion_paths_fp==NULL){
-      message_error(-1,"Cannot open file for storing ion paths!\n");
-      return -1;
+    /*
+    subreplace_c=0;
+    superthres_leave_c=0;
+    subthres_created_c=0;
+    subthres_reach_egde_c=0;
+    superthres_created_counter_c=0;
+    sub_become_super_c=0;
+    */
+
+    if(store_ion_paths==1){ /* if requested, store the exact paths of the ions */
+        ion_paths_fp=OpenFileContinuous(OutputFileBaseName,".ionpaths");
+        if(ion_paths_fp==NULL){
+            message_error(-1,"Cannot open file for storing ion paths!\n");
+            return -1;
+        }
     }
-  }
-  if(store_recoil_cascades==1){ /* if requested, store the exact paths of the ions */
-    recoil_cascades_fp=OpenFileContinuous(OutputFileBaseName,".cascades");
-    if(recoil_cascades_fp==NULL){
-      message_error(-1,"Cannot open file for storing recoil cascades!\n");
-      return -1;
+    if(store_recoil_cascades==1){ /* if requested, store the exact paths of the ions */
+        recoil_cascades_fp=OpenFileContinuous(OutputFileBaseName,".cascades");
+        if(recoil_cascades_fp==NULL){
+            message_error(-1,"Cannot open file for storing recoil cascades!\n");
+            return -1;
+        }
     }
-  }
-  /*CROC if store_range3d=2 storage of interstitials and vacancy positions*/
-  if(store_range3d>=1){ /* if requested, store the final positions of ions, similar to TRIMs range_3d.txt (only ions stopped inside target!) */
-    store_range3d_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3d");
-    if(store_range3d_fp==NULL){
-      message_error(-1002,"Cannot open range3d-file!\n");
-      return -1002;
+    /*CROC if store_range3d=2 storage of interstitials and vacancy positions*/
+    if(store_range3d>=1){ /* if requested, store the final positions of ions, similar to TRIMs range_3d.txt (only ions stopped inside target!) */
+        store_range3d_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3d");
+        if(store_range3d_fp==NULL){
+            message_error(-1002,"Cannot open range3d-file!\n");
+            return -1002;
+        }
     }
-  }
-  if(store_PKA>=1){ /* if requested, store each PKA with type, positions, direction, energy, ...!) */
-    store_PKA_fp=OpenFileContinuous(OutputFileBaseName,".PKAs");
-    if(store_PKA_fp==NULL){
-      message_error(-1005,"Cannot open PKA file!\n");
-      return -1005;
-    } else {
-      /* header */
-      fprintf(store_PKA_fp,"#x\ty\tz\tvx\tvy\tvz\tmat_index\telem_index\tZ\tm\tenergy\n");
-      fprintf(store_PKA_fp,"#nm\tnm\tnm\t1\t1\t1\ti\ti\t1\tAMU\teV\n");
+    if(store_PKA>=1){ /* if requested, store each PKA with type, positions, direction, energy, ...!) */
+        store_PKA_fp=OpenFileContinuous(OutputFileBaseName,".PKAs");
+        if(store_PKA_fp==NULL){
+            message_error(-1005,"Cannot open PKA file!\n");
+            return -1005;
+        } else {
+            /* header */
+            fprintf(store_PKA_fp,"#x\ty\tz\tvx\tvy\tvz\tmat_index\telem_index\tZ\tm\tenergy\n");
+            fprintf(store_PKA_fp,"#nm\tnm\tnm\t1\t1\t1\ti\ti\t1\tAMU\teV\n");
+        }
     }
-  }
-  if(store_range3d==2){ /* CROC: if requested, store the final positions of interstitials and vacancies*/
-    store_range3dV_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3dV");
-    if(store_range3dV_fp==NULL){
-      message_error(-1003,"Cannot open range3dV-file!\n");
-      return -1003;
+    if(store_range3d==2){ /* CROC: if requested, store the final positions of interstitials and vacancies*/
+        store_range3dV_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3dV");
+        if(store_range3dV_fp==NULL){
+            message_error(-1003,"Cannot open range3dV-file!\n");
+            return -1003;
+        }
+        store_range3dI_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3dI");
+        if(store_range3dI_fp==NULL){
+            message_error(-1004,"Cannot open range3dI-file!\n");
+            return -1004;
+        }
     }
-    store_range3dI_fp=OpenFileContinuous(OutputFileBaseName,".ions.range3dI");
-    if(store_range3dI_fp==NULL){
-      message_error(-1004,"Cannot open range3dI-file!\n");
-      return -1004;
-    }
-  }
 
 
-  single_ion_sputter_counter=0;
+    single_ion_sputter_counter=0;
 
-  /*  fEnergy=OpenFileContinuous(OutputFileBaseName,".SurfEnergy"); */
-  /* CROC call to building of KP tables if simulation_type==5*/
-  if(simulation_type==5){ 
-    prepare_KP_tables2 ();
-  }
+    /*  fEnergy=OpenFileContinuous(OutputFileBaseName,".SurfEnergy"); */
+    /* CROC call to building of KP tables if simulation_type==5*/
+    if(simulation_type==5){
+        prepare_KP_tables2 ();
+    }
 
-  for(i=0;i<max_no_ions;i++){ /* Create the ions and let them impinge on the target */
+    // GA: timing
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    for(i=0;i<max_no_ions;i++){ /* Create the ions and let them impinge on the target */
 
 #ifdef DEBUG_MODE
-    message_debug(__FILE__,__LINE__,"\n");
+        message_debug(__FILE__,__LINE__,"\n");
 #endif
-    /* Write status file */
-    if(create_status_file==1){ /* Status file, which can be read by other programs */
-      if(i%status_update_interval==0){
-	write_status_file("sim", i);
-      }
-    }
+        /* Write status file */
+        if(create_status_file==1){ /* Status file, which can be read by other programs */
+            if(i%status_update_interval==0){
+                write_status_file("sim", i);
+            }
+        }
 
-    /* Display progress */
-    if(i%display_interval==0){message(-1,"Ions completed: %i\n",i);fflush(stdout);}
-    ion_c++;
+        /* Display progress */
+        if(i%display_interval==0){message(-1,"Ions completed: %i\n",i);fflush(stdout);}
+        ion_c++;
 
 #ifdef DEBUG_MODE
-    message_debug(__FILE__,__LINE__,"\n");
+        message_debug(__FILE__,__LINE__,"\n");
 #endif
 
-    /* Store ion paths */
-    if(i==store_path_limit){ /* Stop storing paths after so many ions */
-      /* Close files if necessary */
-      if(store_ion_paths==1){
-	fflush(ion_paths_fp);
-	fclose(ion_paths_fp);
-      }
-      store_ion_paths=0; 	/* Stop further logging */
-      message(1,"Ion paths are no longer stored after %i ions.\n",i);fflush(stdout);
-    }
-		if(i==store_path_limit_recoils){ /* Stop storing recoil paths after so many ions */
-      if(store_recoil_cascades==1){
-	fflush(recoil_cascades_fp);
-	fclose(recoil_cascades_fp);
-      }
-      store_recoil_cascades=0; /* Stop further logging */
-      message(1,"Recoil cascades are no longer stored after %i ions.\n",i);fflush(stdout);
+        /* Store ion paths */
+        if(i==store_path_limit){ /* Stop storing paths after so many ions */
+            /* Close files if necessary */
+            if(store_ion_paths==1){
+                fflush(ion_paths_fp);
+                fclose(ion_paths_fp);
+            }
+            store_ion_paths=0; 	/* Stop further logging */
+            message(1,"Ion paths are no longer stored after %i ions.\n",i);fflush(stdout);
+        }
+        if(i==store_path_limit_recoils){ /* Stop storing recoil paths after so many ions */
+            if(store_recoil_cascades==1){
+                fflush(recoil_cascades_fp);
+                fclose(recoil_cascades_fp);
+            }
+            store_recoil_cascades=0; /* Stop further logging */
+            message(1,"Recoil cascades are no longer stored after %i ions.\n",i);fflush(stdout);
+        }
+
+#ifdef DEBUG_MODE
+        message_debug(__FILE__,__LINE__,"\n");
+#endif
+
+        if(store_ion_paths==1){ /* Make sure data get into file */
+            fflush(ion_paths_fp);
+        }
+        if(store_recoil_cascades==1){
+            fflush(recoil_cascades_fp);
+        }
+        if(store_range3d==1){fflush(store_range3d_fp);}
+        if(store_range3d==2){fflush(store_range3dV_fp);}
+        if(store_range3d==2){fflush(store_range3dI_fp);}
+        if(store_PKA>=1)    {fflush(store_PKA_fp);}
+
+        if(single_ion_sputter_yields==1){ /* store single ion sputter yields */
+            if(single_ion_sputter_counter<=MAX_SPUTTERED){
+                sputter_yield_histogram[single_ion_sputter_counter]++;
+                single_ion_sputter_counter=0;
+
+            }
+        }
+
+        if(((i%storage_interval)==0)&&(i>0)){ /* Intermediate storing */
+
+            /*      message(-1,"Storing results after ion no. %i, %i displacements, %i replacements, %i missed collision...",i,disp_c,repl_c,miss_c);fflush(stdout);*/
+            message(-1,"Storing results after ion no. %i ...\n",i);fflush(stdout);
+            calculate_normalization_factor(i);
+
+            store_results(OutputFileBaseName,i);
+            message(-1,"done.\n");
+
+        }
+
+        if(store_ion_paths==1){ /* store empty line in ion paths file to separate ions*/
+            fprintf(ion_paths_fp,"\n");
+        }
+
+#ifdef DEBUG_MODE
+        message_debug(__FILE__,__LINE__,"\n");
+#endif
+
+        /**************************************** Define ion entry position and let ion start ******/
+        /* Define ion entry positions: */
+        x=0.0;
+        switch(ion_distribution){
+        case 0: /* Random */
+            y=randomx()*target_size_y;
+            z=randomx()*target_size_z;
+            /*printf("Entry pos: y: %g, z: %g\n",y,z);*/
+            break;
+        case 1:  /* centered */
+            y=target_size_y/2.0;
+            z=target_size_z/2.0;
+            break;
+        case 2:  /* defined position */
+            x=enter_x;
+            y=enter_y;
+            z=enter_z;
+            break;
+        case 3:  /* random square around predefined position */
+            y=enter_y+(0.5-randomx())*beam_spread;
+            z=enter_z+(0.5-randomx())*beam_spread;
+            break;
+        case 4:  /* CROC : BULK centered initial position */
+            x=target_size_x/2.0;
+            y=target_size_y/2.0;
+            z=target_size_z/2.0;
+            break;
+        } /* Plan: gaussian beam */
+
+
+#ifdef DEBUG_MODE
+        message_debug(__FILE__,__LINE__,"\n");
+#endif
+
+        /*CROC indicates in the defect file the beginning of a new cascade*/
+        if(store_range3d==2){
+            fprintf(store_range3dV_fp,"C %i\n",i);
+            fprintf(store_range3dI_fp,"C %i\n",i);
+        }
+
+        /* Call function to simulate ion */
+        switch(transport_type){
+        case 0: /* accurate */
+            FullProjectileTransport(ionZ,ionM,ionInitialEnergy,x,y,z,ion_vx,ion_vy,ion_vz,1,0,0,0,0,0);
+            break;
+        default: /* fast, like corteo */
+            FastProjectileTransport(ionZ,ionM,ionInitialEnergy,x,y,z,ion_vx,ion_vy,ion_vz,1,0,0,0,0);
+            break;
+        }
+
     }
 
 #ifdef DEBUG_MODE
-    message_debug(__FILE__,__LINE__,"\n");
+    printf("DEBUG %s, l %i\n",__FILE__,__LINE__);fflush(stdout);
 #endif
 
-    if(store_ion_paths==1){ /* Make sure data get into file */
-      fflush(ion_paths_fp);
-    }
-    if(store_recoil_cascades==1){
-      fflush(recoil_cascades_fp);
-    }
-    if(store_range3d==1){fflush(store_range3d_fp);}
-    if(store_range3d==2){fflush(store_range3dV_fp);}
-    if(store_range3d==2){fflush(store_range3dI_fp);}
-    if(store_PKA>=1)    {fflush(store_PKA_fp);}
+    // GA: timing
+    // CALC TIME/ion
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+    ms_per_ion = (end.tv_sec - start.tv_sec) * 1.e3 / max_no_ions;
+    ms_per_ion += 1.e-6*(end.tv_nsec - start.tv_nsec) / max_no_ions;
 
-    if(single_ion_sputter_yields==1){ /* store single ion sputter yields */
-      if(single_ion_sputter_counter<=MAX_SPUTTERED){
-	sputter_yield_histogram[single_ion_sputter_counter]++;
-	single_ion_sputter_counter=0;
-				
-      }
-    }
-		
-    if(((i%storage_interval)==0)&&(i>0)){ /* Intermediate storing */
-
-      /*      message(-1,"Storing results after ion no. %i, %i displacements, %i replacements, %i missed collision...",i,disp_c,repl_c,miss_c);fflush(stdout);*/
-      message(-1,"Storing results after ion no. %i ...\n",i);fflush(stdout);
-      calculate_normalization_factor(i);
-			
-      store_results(OutputFileBaseName,i);
-      message(-1,"done.\n");
-
-    }
-
-    if(store_ion_paths==1){ /* store empty line in ion paths file to separate ions*/
-      fprintf(ion_paths_fp,"\n");
-    }
-
-#ifdef DEBUG_MODE
-    message_debug(__FILE__,__LINE__,"\n");
-#endif
-
-    /**************************************** Define ion entry position and let ion start ******/
-    /* Define ion entry positions: */
-    x=0.0;
-    switch(ion_distribution){
-    case 0: /* Random */
-      y=randomx()*target_size_y;
-      z=randomx()*target_size_z;
-      /*printf("Entry pos: y: %g, z: %g\n",y,z);*/
-      break;
-    case 1:  /* centered */
-      y=target_size_y/2.0;
-      z=target_size_z/2.0;
-      break;
-    case 2:  /* defined position */
-      x=enter_x;
-      y=enter_y;
-      z=enter_z;
-      break;
-    case 3:  /* random square around predefined position */
-      y=enter_y+(0.5-randomx())*beam_spread;
-      z=enter_z+(0.5-randomx())*beam_spread;
-      break;
-    case 4:  /* CROC : BULK centered initial position */
-      x=target_size_x/2.0;
-      y=target_size_y/2.0;
-      z=target_size_z/2.0;
-      break;
-    } /* Plan: gaussian beam */
+    printf("\nMS/ION = %g\n\n",ms_per_ion);
 
 
-#ifdef DEBUG_MODE
-    message_debug(__FILE__,__LINE__,"\n");
-#endif
+    /* Print the counters */
+    /* Note that this sputtering type is extremely simplistic and should not be used for the sputtering yield. */
+    message(3,"Counters:\n\tIons:\t\t%i\n\tDisp:\t\t%i\n\tMissed:\t\t%i\n\tColl:\t\t%i\n\tRepl:\t\t%i\n",i,disp_c,miss_c,coll_c,repl_c);
 
-    /*CROC indicates in the defect file the beginning of a new cascade*/
-    if(store_range3d==2){
-      fprintf(store_range3dV_fp,"C %i\n",i);
-      fprintf(store_range3dI_fp,"C %i\n",i);
-    } 
+    message(3,"\tVacs:\t\t%i\n\tInts:\t\t%i\n\tIons left:\t%i\n\tRecoils left:\t%i\n\tEscaped solid:\t%i\n\tRepl.escaped:\t%i\n",vac_c,int_c,leaving_ions_c,leaving_recoils_c,escape_solid_c,replacer_escaped);
+    /*  message(3,"\tSubCrea:\t%i\n\tSubReach:\t%i\n\tSuperCrea:\t%i\n\tSubSuper:\t%i\n\tSuperLeave:\t%i\n\tSubReplace:\t%i\n",subthres_created_c,subthres_reach_egde_c,superthres_created_counter_c,sub_become_super_c,superthres_leave_c,subreplace_c); */
+    message(3,"\tAtoms lost via vacuum (simplistic sputtering):\t%i\n",sputter_c);
 
-    /* Call function to simulate ion */
-    switch(transport_type){
-    case 0: /* accurate */
-      FullProjectileTransport(ionZ,ionM,ionInitialEnergy,x,y,z,ion_vx,ion_vy,ion_vz,1,0,0,0,0,0);
-      break;
-    default: /* fast, like corteo */
-      FastProjectileTransport(ionZ,ionM,ionInitialEnergy,x,y,z,ion_vx,ion_vy,ion_vz,1,0,0,0,0);
-      break;
-    }
-
-  }
-
-#ifdef DEBUG_MODE
-  printf("DEBUG %s, l %i\n",__FILE__,__LINE__);fflush(stdout);
-#endif
-
-
-  /* Print the counters */
-  /* Note that this sputtering type is extremely simplistic and should not be used for the sputtering yield. */
-  message(3,"Counters:\n\tIons:\t\t%i\n\tDisp:\t\t%i\n\tMissed:\t\t%i\n\tColl:\t\t%i\n\tRepl:\t\t%i\n",i,disp_c,miss_c,coll_c,repl_c);
-
-  message(3,"\tVacs:\t\t%i\n\tInts:\t\t%i\n\tIons left:\t%i\n\tRecoils left:\t%i\n\tEscaped solid:\t%i\n\tRepl.escaped:\t%i\n",vac_c,int_c,leaving_ions_c,leaving_recoils_c,escape_solid_c,replacer_escaped);
-  /*  message(3,"\tSubCrea:\t%i\n\tSubReach:\t%i\n\tSuperCrea:\t%i\n\tSubSuper:\t%i\n\tSuperLeave:\t%i\n\tSubReplace:\t%i\n",subthres_created_c,subthres_reach_egde_c,superthres_created_counter_c,sub_become_super_c,superthres_leave_c,subreplace_c); */
-  message(3,"\tAtoms lost via vacuum (simplistic sputtering):\t%i\n",sputter_c);
-
-  /* Close files that have been opened for continuous output: */
-  if(store_ion_paths==1){fclose(ion_paths_fp);}
-  if(store_recoil_cascades==1){fclose(recoil_cascades_fp);}
-  if(store_range3d>=1){fclose(store_range3d_fp);}
-  if(store_range3d==2){fclose(store_range3dV_fp);}
-  if(store_range3d==2){fclose(store_range3dI_fp);}
-  if(store_PKA>=1)    {fclose(store_PKA_fp);}
-  return 0;
+    /* Close files that have been opened for continuous output: */
+    if(store_ion_paths==1){fclose(ion_paths_fp);}
+    if(store_recoil_cascades==1){fclose(recoil_cascades_fp);}
+    if(store_range3d>=1){fclose(store_range3d_fp);}
+    if(store_range3d==2){fclose(store_range3dV_fp);}
+    if(store_range3d==2){fclose(store_range3dI_fp);}
+    if(store_PKA>=1)    {fclose(store_PKA_fp);}
+    return 0;
 }
 
 int FastProjectileTransport(int ProjZ, float ProjM, double ProjE, float Proj_x, float Proj_y, float Proj_z, float Proj_vx, float Proj_vy, float Proj_vz, int is_ion, int OrgMaterial, int OrgElement, int OrgCell, int RD){

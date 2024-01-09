@@ -104,7 +104,9 @@ int test_run()
     // S.fill(box,Si);
 
     S.init();
-    S.run(100,"testrun.h5");
+    S.run(200,"testrun.h5");
+
+    cout << "ms/ion =" << S.ms_per_ion() << endl;
 
     return 0;
 }
