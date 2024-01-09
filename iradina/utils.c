@@ -1046,51 +1046,51 @@ int InitConfiguration(char* ConfigFileName){
 }
 
 int PrepareStoppingTables(){
-  /* Read stopping data from file and fill arrays etc. */
-  /* material version */
-  int i,j,k,l;
-  int result;
-  char StoppingFileName[1000];
+    /* Read stopping data from file and fill arrays etc. */
+    /* material version */
+    int i,j,k,l;
+    int result;
+    char StoppingFileName[1000];
 
-  float fltTemp[DIMD+1];
+    float fltTemp[DIMD+1];
 
-  /* Go through materials and create stopping tables for all existing elements */
-  for(i=0;i<NumberOfMaterials;i++){
-    ListOfMaterials[i].StoppingZE=(float**)malloc(sizeof(float*)*MAX_ELEMENT_NO); /* pointers to stopping arrays */
-    if(ListOfMaterials[i].StoppingZE==NULL){return -1;}
-    /* Go through possible elements which might be slowed down in this materials */
-    for(j=0;j<MAX_ELEMENT_NO;j++){ /* Goes through all possible projectiles */
-      if(existing_elements[j]==1){ /* ok, element might occur, calculate */
-	/* Allocate memory for stopping table */
-	ListOfMaterials[i].StoppingZE[j]=(float*)calloc(MAX_STOPPING_ENTRIES,sizeof(float));
-	if(ListOfMaterials[i].StoppingZE[j]==NULL){return -1;}
+    /* Go through materials and create stopping tables for all existing elements */
+    for(i=0;i<NumberOfMaterials;i++){
+        ListOfMaterials[i].StoppingZE=(float**)malloc(sizeof(float*)*MAX_ELEMENT_NO); /* pointers to stopping arrays */
+        if(ListOfMaterials[i].StoppingZE==NULL){return -1;}
+        /* Go through possible elements which might be slowed down in this materials */
+        for(j=0;j<MAX_ELEMENT_NO;j++){ /* Goes through all possible projectiles */
+            if(existing_elements[j]==1){ /* ok, element might occur, calculate */
+                /* Allocate memory for stopping table */
+                ListOfMaterials[i].StoppingZE[j]=(float*)calloc(MAX_STOPPING_ENTRIES,sizeof(float));
+                if(ListOfMaterials[i].StoppingZE[j]==NULL){return -1;}
 
-	/* Ok, now we can load the stopping table from the file */
-	/* The following code to do this is adapted from the corteo code */
-	sprintf(StoppingFileName, "%s/%u.asp", DirectoryData, j); /* Filename where stopping data are tabulated */
-	message(2,"Open %s\n", StoppingFileName);
+                /* Ok, now we can load the stopping table from the file */
+                /* The following code to do this is adapted from the corteo code */
+                sprintf(StoppingFileName, "%s/%u.asp", DirectoryData, j); /* Filename where stopping data are tabulated */
+                message(2,"Open %s\n", StoppingFileName);
 
-	/* For all elements occuring in the current material, we need to load the stopping data and then apply a rule for stopping in compounds */
-	for(k=0;k<ListOfMaterials[i].ElementCount;k++){ /* Go through elements of target material */
+                /* For all elements occuring in the current material, we need to load the stopping data and then apply a rule for stopping in compounds */
+                for(k=0;k<ListOfMaterials[i].ElementCount;k++){ /* Go through elements of target material */
 
-	  result=FloatBlockReader(StoppingFileName,(DIMD+1)*(ListOfMaterials[i].ElementsZ[k]-1),DIMD+1,fltTemp);
-	  if(result!=0){ /* Could not read float data block from file */
-	    return -2;
-	  }
+                    result=FloatBlockReader(StoppingFileName,(DIMD+1)*(ListOfMaterials[i].ElementsZ[k]-1),DIMD+1,fltTemp);
+                    if(result!=0){ /* Could not read float data block from file */
+                        return -2;
+                    }
 
-	  if(fltTemp[DIMD]!=ListOfMaterials[i].ElementsZ[k]) { /* each record must end with the element number as control data */
-	    return -3; 
-	  }
-	  for(l=0; l<DIMD; l++) { /* Add stopping for current target element to stopping of current target material */
-	    /* electronic stopping of index k; factor 10 is conversion from eV/(1E15 at/cm2) to eV/(at/A2), density is in at/A3 */
-	    (ListOfMaterials[i].StoppingZE[j])[l]+=fltTemp[l] 
-	      * ListOfMaterials[i].ElementsConc[k] 
-	      * 10.0f
-	      * ListOfMaterials[i].Density*1e-24  /* Must be in at/A^3 CHECK */
-	      /* * compoundCorr; */ /* Bragg's rule */
-	      ;
-	    /* The compound correction needs to be added here !!! */
-	    /* following copied from corteo:
+                    if(fltTemp[DIMD]!=ListOfMaterials[i].ElementsZ[k]) { /* each record must end with the element number as control data */
+                        return -3;
+                    }
+                    for(l=0; l<DIMD; l++) { /* Add stopping for current target element to stopping of current target material */
+                        /* electronic stopping of index k; factor 10 is conversion from eV/(1E15 at/cm2) to eV/(at/A2), density is in at/A3 */
+                        (ListOfMaterials[i].StoppingZE[j])[l]+=fltTemp[l]
+                                                                 * ListOfMaterials[i].ElementsConc[k]
+                                                                 * 10.0f
+                                                                 * ListOfMaterials[i].Density*1e-24  /* Must be in at/A^3 CHECK */
+                            /* * compoundCorr; */ /* Bragg's rule */
+                            ;
+                        /* The compound correction needs to be added here !!! */
+                        /* following copied from corteo:
 	       compound correction according to Zeigler & Manoyan NIMB35(1998)215, Eq.(16) (error in Eq. 14)
 	       if(compoundCorr!=1.0f)
 	       for(k=0; k<DIMD; k++) {
@@ -1099,136 +1099,137 @@ int PrepareStoppingTables(){
 	       }
 	    */
 
-	    /* Unit here is eV/nm */
-	  } /* End of loop through index stopping values */
-	} /* End of loop through elements of target material */
-      } else { /* if element does not occur, create NULL pointer */
-	ListOfMaterials[i].StoppingZE[j]=NULL;
-      }
-    } /* End of loop through possible projectile elements */
-  } /* End of loop through target materials */
-  return 0;
+                        /* Unit here is eV/nm */
+                    } /* End of loop through index stopping values */
+                } /* End of loop through elements of target material */
+            } else { /* if element does not occur, create NULL pointer */
+                ListOfMaterials[i].StoppingZE[j]=NULL;
+            }
+        } /* End of loop through possible projectile elements */
+    } /* End of loop through target materials */
+    return 0;
 }
+
 int PrepareStragglingTables(int model){
-  /* Create straggling tables etc. */
-  /* material version! */
-  /*  model:
+    /* Create straggling tables etc. */
+    /* material version! */
+    /*  model:
       0: no straggling
       1: Bohr straggling
       2: Chu correction        PRA  13 (1976) 2057
       3: Chu + Yang correction NIMB 61 (1991) 149 */
-  /* The function load_Chu_straggling_values() must have been called before */
+    /* The function load_Chu_straggling_values() must have been called before */
 
-  int i,Z,k,l;        /* projectile's Z */
-  unsigned long ii;
+    int i,Z,k,l;        /* projectile's Z */
+    unsigned long ii;
 
-  double straggling;
-  double stragg_element;
-  double stopping;
-  double energy;
-  double MEV_energy_amu;
-  double chargestate2; /* the effective charge state of current projectile */
-  double mass;         /* mass of most abundant isotope of projectile Z */
-  int    target_Z;
-  double OmegaBohr2;
-  double Chu_factor;  /* Chu's correction factor for the Bohr straggling */
-  double Yang,epsilon,Gamma;
-  double C1,C2,C3,C4,B1,B2,B3,B4;
+    double straggling;
+    double stragg_element;
+    double stopping;
+    double energy;
+    double MEV_energy_amu;
+    double chargestate2; /* the effective charge state of current projectile */
+    double mass;         /* mass of most abundant isotope of projectile Z */
+    int    target_Z;
+    double OmegaBohr2;
+    double Chu_factor;  /* Chu's correction factor for the Bohr straggling */
+    double Yang,epsilon,Gamma;
+    double C1,C2,C3,C4,B1,B2,B3,B4;
 
-  message(2,"Straggling model %i\n",model);
+    message(2,"Straggling model %i\n",model);
 
-  /* Go through materials and create straggling tables for all existing elements */
-  for(i=0;i<NumberOfMaterials;i++){
+    /* Go through materials and create straggling tables for all existing elements */
+    for(i=0;i<NumberOfMaterials;i++){
 
-    ListOfMaterials[i].StragglingZE=(float**)malloc(sizeof(float*)*MAX_ELEMENT_NO); /* pointers to straggling arrays */
-    if(ListOfMaterials[i].StragglingZE==NULL){return -4016;} /* Cannot allocate memory */
+        ListOfMaterials[i].StragglingZE=(float**)malloc(sizeof(float*)*MAX_ELEMENT_NO); /* pointers to straggling arrays */
+        if(ListOfMaterials[i].StragglingZE==NULL){return -4016;} /* Cannot allocate memory */
 
-    for(Z=0;Z<MAX_ELEMENT_NO;Z++){ /* Loop through all possible projectiles */
-      if(existing_elements[Z]==1){ /* ok, element might occur as projectile, calculate */
+        for(Z=0;Z<MAX_ELEMENT_NO;Z++){ /* Loop through all possible projectiles */
+            if(existing_elements[Z]==1){ /* ok, element might occur as projectile, calculate */
 
-	/* Allocate memory for straggling table of projectile j in material i */
-	ListOfMaterials[i].StragglingZE[Z]=(float*)calloc(MAX_STOPPING_ENTRIES,sizeof(float));
-	if(ListOfMaterials[i].StragglingZE[Z]==NULL){return -4017;}
+                /* Allocate memory for straggling table of projectile j in material i */
+                ListOfMaterials[i].StragglingZE[Z]=(float*)calloc(MAX_STOPPING_ENTRIES,sizeof(float));
+                if(ListOfMaterials[i].StragglingZE[Z]==NULL){return -4017;}
 
-	mass=MostAbundantIsotope[Z];
+                mass=MostAbundantIsotope[Z];
 
-	/* Calculation of straggling (similar to corteo code): */
-	for(k=0;k<DIMD;k++){ /* go through table that has to be filled */
-	  straggling=0;
+                /* Calculation of straggling (similar to corteo code): */
+                for(k=0;k<DIMD;k++){ /* go through table that has to be filled */
+                    straggling=0;
 
-	  for(l=0;l<ListOfMaterials[i].ElementCount;l++){ /* All elements of current target material */
+                    for(l=0;l<ListOfMaterials[i].ElementCount;l++){ /* All elements of current target material */
 
-	    target_Z=ListOfMaterials[i].ElementsZ[l];
-	    stopping=(ListOfMaterials[i].StoppingZE[Z])[k];
-	    energy=Dval(k); /* energy corresponding to index k */
+                        target_Z=ListOfMaterials[i].ElementsZ[l];
+                        stopping=(ListOfMaterials[i].StoppingZE[Z])[k];
+                        energy=Dval(k); /* energy corresponding to index k */
 
-	    /* the effective charge state is obtained from comparing stopping of the ion and the hydrogen:
-	       chargestateqaured = stopping(H)/stopping(ion) Z_ion^2 for stopping at same speed */
-	    ii = Dindex(d2f(energy/mass)); /* index of the velocity which is proton energy of same velocity */
-	    chargestate2 = stopping/( ((ListOfMaterials[i].StoppingZE[1])[ii]) * Z * Z);
+                        /* the effective charge state is obtained from comparing stopping of the ion and the hydrogen:
+           chargestateqaured = stopping(H)/stopping(ion) Z_ion^2 for stopping at same speed */
+                        ii = Dindex(d2f(energy/mass)); /* index of the velocity which is proton energy of same velocity */
+                        chargestate2 = stopping/( ((ListOfMaterials[i].StoppingZE[1])[ii]) * Z * Z);
 
-	    /* Start by calculating squared Bohr straggling (all other models need this anyway) */
-	    OmegaBohr2=4.0 * PI * Z * Z * target_Z *  E2 * E2 * ListOfMaterials[i].Density*1e-24  /* Must be in at/A^3 CHECK */;
+                        /* Start by calculating squared Bohr straggling (all other models need this anyway) */
+                        OmegaBohr2=4.0 * PI * Z * Z * target_Z *  E2 * E2 * ListOfMaterials[i].Density*1e-24  /* Must be in at/A^3 CHECK */;
 
-	    /* Calculate the Chu correction factor. The formula needs energy[MeV]/mass: */
-	    MEV_energy_amu = energy*1e-6/mass;
-	    if(target_Z>1){
-	      Chu_factor=1.0 / ( 1.0
-				 + chu_values[target_Z][0] * pow(MEV_energy_amu, chu_values[target_Z][1])
-				 + chu_values[target_Z][2] * pow(MEV_energy_amu, chu_values[target_Z][3])   );
-	    } else {
-	      /* Chu values undefined for target_Z==1,  because the chu table has no data on hydrogen --> use Bohr.*/
-	      Chu_factor=1.0;
-	    }
+                        /* Calculate the Chu correction factor. The formula needs energy[MeV]/mass: */
+                        MEV_energy_amu = energy*1e-6/mass;
+                        if(target_Z>1){
+                            Chu_factor=1.0 / ( 1.0
+                                                + chu_values[target_Z][0] * pow(MEV_energy_amu, chu_values[target_Z][1])
+                                                + chu_values[target_Z][2] * pow(MEV_energy_amu, chu_values[target_Z][3])   );
+                        } else {
+                            /* Chu values undefined for target_Z==1,  because the chu table has no data on hydrogen --> use Bohr.*/
+                            Chu_factor=1.0;
+                        }
 
 
-	    /* To calculate Yang's extra straggling contribution caused by charge state fluctuations,
-	       we need his Gamma and his epsilon (eq.6-8 from the paper): */
-	    /* For hydrogen we need the B and for other projectile the C constants: */
-	    if(Z==1){
-	      B1 = 0.1955;     B2 = 0.6941;     B3 = 2.522;  B4 = 1.040;
-	      Gamma = B3 * (1.0- exp(-B4 * MEV_energy_amu));
-	      Yang  = B1 * Gamma / ( pow((MEV_energy_amu-B2),2.0) + Gamma*Gamma  );
-	    } else {
-	      C1 = 1.273e-2;   C2 = 3.458e-2;   C3 = 0.3931;   C4 = 3.812;    /* solid targets */
-	      epsilon = MEV_energy_amu *  pow(Z,-1.5)  * pow(target_Z,-0.5);  /* solid targets */
-	      Gamma = C3 * (1.0- exp(-C4 * epsilon));
-	      Yang  = (  pow(Z,1.333333333333)/pow(target_Z,0.33333333333) ) *  C1 * Gamma / ( pow((epsilon-C2),2.0) + Gamma*Gamma  );
-	    }
+                        /* To calculate Yang's extra straggling contribution caused by charge state fluctuations,
+           we need his Gamma and his epsilon (eq.6-8 from the paper): */
+                        /* For hydrogen we need the B and for other projectile the C constants: */
+                        if(Z==1){
+                            B1 = 0.1955;     B2 = 0.6941;     B3 = 2.522;  B4 = 1.040;
+                            Gamma = B3 * (1.0- exp(-B4 * MEV_energy_amu));
+                            Yang  = B1 * Gamma / ( pow((MEV_energy_amu-B2),2.0) + Gamma*Gamma  );
+                        } else {
+                            C1 = 1.273e-2;   C2 = 3.458e-2;   C3 = 0.3931;   C4 = 3.812;    /* solid targets */
+                            epsilon = MEV_energy_amu *  pow(Z,-1.5)  * pow(target_Z,-0.5);  /* solid targets */
+                            Gamma = C3 * (1.0- exp(-C4 * epsilon));
+                            Yang  = (  pow(Z,1.333333333333)/pow(target_Z,0.33333333333) ) *  C1 * Gamma / ( pow((epsilon-C2),2.0) + Gamma*Gamma  );
+                        }
 
-	    /* Now we have all ingredients for any of the straggling models. We could have saved some
-	       calculations by checking the model first, but well... we'll probably use Yang's model in most cases */
-	    switch(model) {
-	    case 0: /* no straggling */
-	      stragg_element = 0.;
-	      break;
-	    case 1: /* Bohr */
-	      stragg_element = OmegaBohr2;
-	      break;
-	    case 2: /* Chu */
-	      stragg_element = OmegaBohr2*Chu_factor;
-	      break;
-	    case 3: /* Chu + Yang correction */
-	      stragg_element = OmegaBohr2*(chargestate2*Chu_factor+Yang);
-	      break;
-	    default:
-	      stragg_element=0;
-	    }
+                        /* Now we have all ingredients for any of the straggling models. We could have saved some
+           calculations by checking the model first, but well... we'll probably use Yang's model in most cases */
+                        switch(model) {
+                        case 0: /* no straggling */
+                            stragg_element = 0.;
+                            break;
+                        case 1: /* Bohr */
+                            stragg_element = OmegaBohr2;
+                            break;
+                        case 2: /* Chu */
+                            stragg_element = OmegaBohr2*Chu_factor;
+                            break;
+                        case 3: /* Chu + Yang correction */
+                            stragg_element = OmegaBohr2*(chargestate2*Chu_factor+Yang);
+                            break;
+                        default:
+                            stragg_element=0;
+                        }
 
-	    /* Now we know the straggling for each target element in the material we can add them up using Bragg's rule of additivity */
-	    straggling += stragg_element * ListOfMaterials[i].ElementsConc[l];
+                        /* Now we know the straggling for each target element in the material we can add them up using Bragg's rule of additivity */
+                        straggling += stragg_element * ListOfMaterials[i].ElementsConc[l];
 
-	  } /* end of loop through elements in current target material, l */
+                    } /* end of loop through elements in current target material, l */
 
-	  /* Store the straggling in its table: */
-	  (ListOfMaterials[i].StragglingZE[Z])[k] = sqrtdf(straggling)*sqrtdf(2.0);
+                    /* Store the straggling in its table: */
+                    (ListOfMaterials[i].StragglingZE[Z])[k] = sqrtdf(straggling)*sqrtdf(2.0);
 
-	} /* end of loop through entries in straggling table, k */
-      } /* end the check if element might occur as projectile */
-    } /* end of possible projectiles loop */
-  } /* end of target material loop */
+                } /* end of loop through entries in straggling table, k */
+            } /* end the check if element might occur as projectile */
+        } /* end of possible projectiles loop */
+    } /* end of target material loop */
 
-  return 0;
+    return 0;
 }
 
 int load_Chu_straggling_values(){
