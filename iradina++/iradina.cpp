@@ -21,13 +21,15 @@ void write_corteo_comp(int n);
 void write_corteo_tst4();
 int test_run();
 
+int gencorteo4bit();
+
 using std::cout;
 using std::endl;
 
 int main(int argc, char* argv[])
 {
 
-    return test_run();
+    return gencorteo4bit();
 }
 
 int testini(int argc, char* argv[])

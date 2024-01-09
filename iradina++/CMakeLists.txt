@@ -24,7 +24,8 @@ add_executable(iradina++
     straggling.cpp
     arrays.h
     event_recorder.h event_recorder.cpp
-    out_file.h out_file.cpp)
+    out_file.h out_file.cpp
+    gencorteo.cpp)
 
 
 
