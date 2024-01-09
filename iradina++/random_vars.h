@@ -1,40 +1,54 @@
 #ifndef _RANDOM_VARS_H_
 #define _RANDOM_VARS_H_
 
-#include <random>
+#include "urbg.h"
 #include <vector>
-
-typedef std::mt19937 URBG;
 
 struct random_vars
 {
     URBG& urbg;
+    std::normal_distribution<float> N;
 
     random_vars(URBG& g) : urbg(g)
     {}
 
     virtual void uniform01(float& u, float& sqrtu)
     {
-        u = 1.f*urbg()/urbg.max();
+        u = urbg.u01no0();
         sqrtu = std::sqrt(u);
     }
     virtual void sqrtLog(float& u, float& invu)
     {
-        do u = 1.f*urbg()/urbg.max(); while(u==0.f);
+        u = urbg.u01no0no1();
         u = std::sqrt(-std::log(u));
         invu = 1.f/u;
+    }
+    virtual void poisson(float& u, float& sqrtu)
+    {
+        u = urbg.u01no0no1();
+        u = -std::log(u);
+        sqrtu = std::sqrt(u);
+    }
+    virtual void poisson(float& u)
+    {
+        u = urbg.u01no0no1();
+        u = -std::log(u);
+    }
+    virtual float normal()
+    {
+        return N(urbg);
     }
     virtual void azimuth(float& nx, float&ny)
     {
         float s1,s2,r2;
         do
         {
-            nx = 2.f*urbg()/urbg.max() - 1.f;
-            ny = 1.f*urbg()/urbg.max();
+            nx = 2.f*urbg.u01() - 1.f;
+            ny = 1.f*urbg.u01();
             s1 = nx*nx;
             s2 = ny*ny;
             r2 = s1 + s2;
-        } while (r2>1);
+        } while (r2>1.f || r2==0.f);
         ny = 2*nx*ny/r2;
         nx = (s1-s2)/r2;
     }
@@ -49,23 +63,32 @@ struct random_vars_tbl : public random_vars
     virtual void uniform01(float& u, float& sqrtu) override
     {
         u = randomlist[iUniform];
-        sqrtu = sqrtrandomlist[iUniform];
-        iUniform++;
-        if (iUniform == randomlist.size()) iUniform = 0;
+        sqrtu = sqrtrandomlist[iUniform++];
+        iUniform %= randomlist.size();
     }
     virtual void sqrtLog(float& u, float& invu) override
     {
         u = sqrtloglist[iSqrtLog];
-        invu = sqrtloglist1[iSqrtLog];
-        iSqrtLog++;
-        if (iSqrtLog == sqrtloglist.size()) iSqrtLog = 0;
+        invu = sqrtloglist1[iSqrtLog++];
+        iSqrtLog %= sqrtloglist.size();
+    }
+    virtual void poisson(float& u) override
+    {
+        u = sqrtloglist[iSqrtLog++];
+        u *= u;
+        iSqrtLog %= sqrtloglist.size();
+    }
+    virtual void poisson(float& u, float& sqrtu) override
+    {
+        sqrtu = sqrtloglist[iSqrtLog++];
+        u = sqrtu*sqrtu;
+        iSqrtLog %= sqrtloglist.size();
     }
     virtual void azimuth(float& nx, float&ny) override
     {
         ny = sinAzimAngle[iAzimuth];
-        nx = cosAzimAngle[iAzimuth];
-        iAzimuth++;
-        if (iAzimuth == sinAzimAngle.size()) iAzimuth = 0;
+        nx = cosAzimAngle[iAzimuth++];
+        iAzimuth %= sinAzimAngle.size();
     }
 
 private:

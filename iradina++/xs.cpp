@@ -1,9 +1,72 @@
 #include "xs.h"
-#include "corteo.h"
+
+#include <stdexcept>
+#include <iostream>
+
+reducedXS::reducedXS(ScreeningPotentialType S, IntegrationMethod I, unsigned int n)
+{
+    reducedXS_impl* p;
+
+    switch (I) {
+
+    case ZBL_Magick:
+        p = new reducedXS_zbl_magic();
+        break;
+
+    case GaussMehlerQuad:
+        switch (S) {
+        case Unscreened:
+            p = new reducedXS_quad< screening<reducedXS::Unscreened> >(n);
+            break;
+        case Moliere:
+            p = new reducedXS_quad< screening<reducedXS::Moliere> >(n);
+            break;
+        case KrC:
+            p = new reducedXS_quad< screening<reducedXS::KrC> >(n);
+            break;
+        case LenzJensen:
+            p = new reducedXS_quad< screening<reducedXS::LenzJensen> >(n);
+            break;
+        case ZBL:
+            p = new reducedXS_quad< screening<reducedXS::ZBL> >(n);
+            break;
+        }
+        break;
+
+    case Corteo4bitTable:
+        switch (S) {
+        case Unscreened:
+            p = new reducedXS_corteo4bit< reducedXS_quad< screening<reducedXS::Unscreened> > >(n);
+            break;
+        case Moliere:
+            p = new reducedXS_corteo4bit< reducedXS_quad< screening<reducedXS::Moliere> > >(n);
+            break;
+        case KrC:
+            p = new reducedXS_corteo4bit< reducedXS_quad< screening<reducedXS::KrC> > >(n);
+            break;
+        case LenzJensen:
+            p = new reducedXS_corteo4bit< reducedXS_quad< screening<reducedXS::LenzJensen> > >(n);
+            break;
+        case ZBL:
+            p = new reducedXS_corteo4bit< reducedXS_quad< screening<reducedXS::ZBL> > >(n);
+            break;
+        }
+        break;
+    }
+
+    xs_ = std::shared_ptr<reducedXS_impl>(p);
+
+}
+
+reducedXS::reducedXS()
+{
+    reducedXS_impl* p = new reducedXS_zbl_magic();
+    xs_ = std::shared_ptr<reducedXS_impl>(p);
+}
 
 // Following functions used to compute scattering angle following Gauss-Mehler quadrature
 template<class PHI>
-double xs_quad<PHI>::H(double u, double x0, double epsilon, double s) {
+double reducedXS_quad<PHI>::H(double u, double x0, double epsilon, double s) {
 	double x0u = x0/u;
 	double eps1 = 1./epsilon;
     double ss = s*s;
@@ -13,7 +76,7 @@ double xs_quad<PHI>::H(double u, double x0, double epsilon, double s) {
 // the root of this function (vs x0) is the minimal 
 // approach distance at energy epsilon and impact parameter s
 template<class PHI>
-double xs_quad<PHI>::funcX0(double x0, double epsilon, double s) {
+double reducedXS_quad<PHI>::funcX0(double x0, double epsilon, double s) {
 	double sx0 = s/x0;
     return 1.-PHI::screeningFunction(x0)/(x0*epsilon)-sx0*sx0;
 }
@@ -21,7 +84,7 @@ double xs_quad<PHI>::funcX0(double x0, double epsilon, double s) {
 // use bisection (Newton) method to find the minimal approach distance x0
 // (return THETAERR on error)
 template<class PHI>
-double xs_quad<PHI>::findX0(double epsilon, double s) {
+double reducedXS_quad<PHI>::findX0(double epsilon, double s) {
 	double funcX0val1, funcX0val2, funcX0valm;
 
 	double temp = 1.0/(2.0*epsilon);
@@ -63,7 +126,7 @@ double xs_quad<PHI>::findX0(double epsilon, double s) {
 // impact parameter s given epsilon and thetaCM 
 // (return THETAERR on error)
 template<class PHI>
-double xs_quad<PHI>::finds(double epsilon, double thetaCM) const {
+double reducedXS_quad<PHI>::finds(double epsilon, double thetaCM) const {
 	double funcX0val1, funcX0val2, funcX0valm;
 
 	// inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
@@ -96,7 +159,7 @@ double xs_quad<PHI>::finds(double epsilon, double thetaCM) const {
 // scattering angle calculated using Gauss-Mehler quadrature
 // (return THETAERR on error)
 template<class PHI>
-double xs_quad<PHI>::theta(double epsilon, double s) const
+double reducedXS_quad<PHI>::theta(double epsilon, double s) const
 {
     double x0 = findX0(epsilon, s);
     if(std::isnan(x0)) {
@@ -112,7 +175,7 @@ double xs_quad<PHI>::theta(double epsilon, double s) const
 
 /* returns the cross section in the center of mass frame considering a screened potential */
 template<class PHI>
-double xs_quad<PHI>::crossSection(double E, unsigned int Z1, unsigned int Z2, double massRatio, double thetaCM) const
+double reducedXS_quad<PHI>::crossSection(double E, unsigned int Z1, unsigned int Z2, double massRatio, double thetaCM) const
 {
     double ds, dsdTheta, s, epsilon;
     double screenLength = PHI::screeningLength(Z1,Z2);
@@ -137,11 +200,13 @@ double xs_quad<PHI>::crossSection(double E, unsigned int Z1, unsigned int Z2, do
 }
 
 // explicit instantiation of all variants
-template class xs_quad<screening_none>;
-template class xs_quad<screening_lj>;
-template class xs_quad<screening_univ>;
+template class reducedXS_quad< screening<reducedXS::Unscreened> >;
+template class reducedXS_quad< screening<reducedXS::Moliere> >;
+template class reducedXS_quad< screening<reducedXS::KrC> >;
+template class reducedXS_quad< screening<reducedXS::LenzJensen> >;
+template class reducedXS_quad< screening<reducedXS::ZBL> >;
 
-double xs_zbl::MAGIC(double epsilon, double B){
+double reducedXS_zbl_magic::MAGIC(const double &epsilon, const double &s){
     /* B: reduced impact par
      epsilon: reduced center of mass energy
      returns cos(theta/2) of the scattering event */
@@ -166,21 +231,21 @@ double xs_zbl::MAGIC(double epsilon, double B){
                                9.3066};
 
     /* Initial guess for R: */
-    R=B;
-    RR=-2.7*log(epsilon*B);
-    if(RR>=B){
+    R=s;
+    RR=-2.7*log(epsilon*s);
+    if(RR>=s){
         /*   if(RR<B) calc potential; */
         RR=-2.7*log(epsilon*RR);
-        if(RR>=B){
+        if(RR>=s){
             R=RR;
         }
     }
     /* TRIM85: 330 */
     do{
         /* Calculate potential and its derivative */
-        V=xs_zbl::ZBL_and_deri(R,&V1);
-        FR  = B * B / R + V*R/epsilon - R;
-        FR1 = - B * B / (R * R) + (V+V1*R)/epsilon - 1.0;
+        V=reducedXS_zbl_magic::ZBL_and_deri(R,&V1);
+        FR  = s * s / R + V*R/epsilon - R;
+        FR1 = - s * s / (R * R) + (V+V1*R)/epsilon - 1.0;
         Q   = FR/FR1;
         R   = R-Q;
     } while(fabs(Q/R)>0.001);
@@ -191,15 +256,15 @@ double xs_zbl::MAGIC(double epsilon, double B){
     alpha = 1+ C[1]/SQE;
     beta  = (C[2]+SQE) / (C[3]+SQE);           /* TRIM85: CC */
     gamma = (C[4]+epsilon)/(C[5]+epsilon);
-    A     = 2*alpha*epsilon*pow(B,beta);
+    A     = 2*alpha*epsilon*pow(s,beta);
     G     = gamma / ( sqrt((1.0+A*A))-A  );    /* TRIM85: 1/FF */
-    Delta = A * (R-B)/(1+G);
+    Delta = A * (R-s)/(1+G);
 
-    cost2=(B+RoC+Delta)/(R+RoC);
+    cost2=(s+RoC+Delta)/(R+RoC);
     return cost2;
 }
 
-double xs_zbl::ZBL_and_deri(double R, double* Vprime){
+double reducedXS_zbl_magic::ZBL_and_deri(double R, double* Vprime){
     /* return ZBL potential, and via the pointer Vprime its derivative */
     /* Values are taken from ZBL85 */
 
@@ -213,8 +278,8 @@ double xs_zbl::ZBL_and_deri(double R, double* Vprime){
      *Vprime = -(V+3.0*EX1+0.9423*EX2 + 0.4028*EX3 + 0.2016*EX4)/R;
      return V;*/
 
-    auto &C =  screening_univ::C;
-    auto &A =  screening_univ::A;
+    auto &C =  screening_function::C;
+    auto &A =  screening_function::A;
 
     /* TRIM85: */
     // EX1=0.18175  * exp( -3.1998  * R);
@@ -223,20 +288,24 @@ double xs_zbl::ZBL_and_deri(double R, double* Vprime){
     // EX3=0.28022  * exp( -0.4029  * R);
     // EX4=0.028171 * exp( -0.20162 * R);
 
-    EX1 = C[0]*exp(A[0]*R);
-    EX2 = C[1]*exp(A[1]*R);
-    EX3 = C[2]*exp(A[2]*R);
-    EX4 = C[3]*exp(A[3]*R);
+    EX1 = C[0]*exp(-A[0]*R);
+    EX2 = C[1]*exp(-A[1]*R);
+    EX3 = C[2]*exp(-A[2]*R);
+    EX4 = C[3]*exp(-A[3]*R);
 
     V=(EX1+EX2+EX3+EX4)/R;
 
     if (Vprime)
-        *Vprime = -(V - A[0]*EX1 - A[1]*EX2 - A[2]*EX3 - A[3]*EX4)/R;
+        *Vprime = -(V + A[0]*EX1 + A[1]*EX2 + A[2]*EX3 + A[3]*EX4)/R;
 
     return V;
 }
 
-void scattering::init(float Z1, float M1, float Z2, float M2)
+scatteringXS::scatteringXS(const reducedXS &axs) :
+    xs(axs)
+{}
+
+void scatteringXS::init(float Z1, float M1, float Z2, float M2)
 {
     /* Creates the matrix with scattering results and stores it to the structure pointed to by ScatMatrix */
 
@@ -259,72 +328,126 @@ void scattering::init(float Z1, float M1, float Z2, float M2)
     /* ion->smax[ilayer][ielem] = 1.0f/(ion->a[ilayer][ielem]*sqrtdf(PI*layerDensity[ilayer])*sqrtMeanFreePath[ilayer]);  */
     /* float max_red_im_par;       Maximum reduced impact parameter */
 
+    if (xs.integrationMethod() == reducedXS::Corteo4bitTable)
+        fillCosSinTable();
+
 }
 
-void scattering::scatter(float erg, float P,
-                         float& recoil_erg, float& sintheta, float& costheta)
+void scatteringXS::scatter(float erg, float P,
+                         float& recoil_erg, float& sintheta, float& costheta) const
 {
-    float sin2thetaby2 = xs.sin2Thetaby2(erg*red_E_conv, P*inv_screening_length);
-    costheta = 1.f - 2*sin2thetaby2;
-    sintheta = std::sqrt(1.f-costheta*costheta);
-    /* now conversion to lab frame of reference: */
-    float theta=atan( sintheta/(costheta+mass_ratio) );
-    /*if(isnan(theta)){theta=0;}*/
-    sintheta=sin(theta);
-    costheta=cos(theta);
-    recoil_erg = erg*kfactor_m*sin2thetaby2;
+    if (xs.integrationMethod() == reducedXS::Corteo4bitTable) {
+        corteo4bit::e_index ie(erg*red_E_conv);
+        corteo4bit::s_index is(P*inv_screening_length);
+        float sin2thetaby2 = xs.sin2Thetaby2(ie, is);
+        recoil_erg = erg*kfactor_m*sin2thetaby2;
+        sintheta=sinTable[ie][is];
+        costheta=cosTable[ie][is];
+    } else {
+        float sin2thetaby2 = xs.sin2Thetaby2(erg*red_E_conv, P*inv_screening_length);
+        costheta = 1.f - 2*sin2thetaby2;
+        sintheta = std::sqrt(1.f-costheta*costheta);
+        /* now conversion to lab frame of reference: */
+        float theta=atan( sintheta/(costheta+mass_ratio) );
+        /*if(isnan(theta)){theta=0;}*/
+        sintheta=sin(theta);
+        costheta=cos(theta);
+        recoil_erg = erg*kfactor_m*sin2thetaby2;
+    }
 }
-
-scattering_corteo::scattering_corteo(const xs_base& axs, const corteo& c) :
-    scattering(axs), corteo_(c),
-    cosTable(c.size()),sinTable(c.size())
-{}
 
 /*************** Functions adapted from corteo.c ***********************/
 
 /* fill the table of cos and sin of the scattering angle in the lab frame given a mass ratio */
-void scattering_corteo::fillCosSinTable()
+void scatteringXS::fillCosSinTable()
 {
     double sin2thetaby2, costheta, costhetaLab, sinthetaLab;
     double mr = mass_ratio;
 
+    cosTable = Array2Df(corteo4bit::rows, corteo4bit::cols);
+    sinTable = Array2Df(corteo4bit::rows, corteo4bit::cols);
+
     /* compute scattering angle components */
-    const float* corteo_tbl = corteo_.data();
-    for(int i=0; i<corteo_.size(); i++) {
-        sin2thetaby2 = corteo_tbl[i];
-        costheta = 1.-2.*sin2thetaby2;
+    for (corteo4bit::e_index ie; ie!=ie.end(); ie++)
+        for (corteo4bit::s_index is; is!=is.end(); is++)
+        {
+            sin2thetaby2 = xs.sin2Thetaby2(ie,is);
+            costheta = 1.-2.*sin2thetaby2;
 
-        if(costheta==-1.0 && mr==1.0) {
-            costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
-            sinthetaLab = 1.0;
-        } else {
-            costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
-            sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+            if(costheta==-1.0 && mr==1.0) {
+                costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
+                sinthetaLab = 1.0;
+            } else {
+                costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
+                sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+            }
+            cosTable[ie][is] = costhetaLab;
+            sinTable[ie][is] = sinthetaLab;
+
+            /* MODIFICATION FROM CORTEO FOR IRADINA, C. Borschel 2011: */
+            /* In some rare cases, when cos=1, then sin becomes "Not a Number". To prevent this, I will set the sine to 0 in those cases. */
+            if( std::isnan(sinTable[ie][is]) ) {
+                cosTable[ie][is]=0.f;
+                sinTable[ie][is]=1.f;
+            }
         }
-        cosTable[i] = costhetaLab;
-        sinTable[i] = sinthetaLab;
+}
 
-        /* MODIFICATION FROM CORTEO FOR IRADINA, C. Borschel 2011: */
-        /* In some rare cases, when cos=1, then sin becomes "Not a Number". To prevent this, I will set the sine to 0 in those cases. */
-        if( std::isnan(sinTable[i]) ) {
-            sinTable[i]=0.f;
-            cosTable[i]=1.f;
+/*************** Functions adapted from corteo.c ***********************/
+
+template<class _XS_impl>
+int reducedXS_corteo4bit<_XS_impl>::init(std::ostream *os)
+{
+    unsigned long nThetaErr = 0;
+
+    if (os) *os << "Computing scattering matrix ";
+    // compute matrix for each reduced energy, reduced impact parameter pair
+
+    for(corteo4bit::e_index ie; ie!=ie.end(); ie++) {
+
+        if(os && (ie % (rows/10)==0) ) {
+            *os << ".";
+            os->flush();
+        }
+
+        for(corteo4bit::s_index is; is!=is.end(); is++) {
+            // calculations (summation) made using double to decrease numerical noise
+            double sin2ThetaBy2 = xs_impl_->sin2Thetaby2(*ie, *is);
+            if(std::isnan(sin2ThetaBy2)) nThetaErr++;
+
+            // store in matrix sin^2(theta_CM/2) as float
+            // matrix[is+ie*s_index::dim] = (float)(sin2ThetaBy2);
+            matrix_[ie][is] = (float)(sin2ThetaBy2);
         }
     }
+
+    if(os) {
+        *os << " done.\n";
+        os->flush();
+    }
+
+    if(nThetaErr && os)
+        *os << "ERROR: " << nThetaErr << " error(s) in theta evaluation.\n";
+
+    return !nThetaErr;
 }
 
-void scattering_corteo::init(float Z1, float M1, float Z2, float M2)
-{
-    scattering::init(Z1,M1,Z2,M2);
-    fillCosSinTable();
-}
+typedef reducedXS_quad< screening<reducedXS::Unscreened> > xsqunscr;
+typedef reducedXS_quad< screening<reducedXS::Moliere> > xsqmoliere;
+typedef reducedXS_quad< screening<reducedXS::KrC> > xsqkrc;
+typedef reducedXS_quad< screening<reducedXS::LenzJensen> > xsqlj;
+typedef reducedXS_quad< screening<reducedXS::ZBL> > xsqzbl;
 
-void scattering_corteo::scatter(float erg, float P,
-                         float& recoil_erg, float& sintheta, float& costheta)
-{
-    int i = corteo_.table_index(erg*red_E_conv, P*inv_screening_length);
-    float sin2thetaby2 = corteo_.data()[i];
-    recoil_erg = erg*kfactor_m*sin2thetaby2;
-    sintheta=sinTable[i];
-    costheta=cosTable[i];
-}
+// explicit instantiation of all variants
+template int reducedXS_corteo4bit<xsqunscr>::init(std::ostream *os);
+template int reducedXS_corteo4bit<xsqmoliere>::init(std::ostream *os);
+template int reducedXS_corteo4bit<xsqkrc>::init(std::ostream *os);
+template int reducedXS_corteo4bit<xsqlj>::init(std::ostream *os);
+template int reducedXS_corteo4bit<xsqzbl>::init(std::ostream *os);
+
+
+
+
+
+
+

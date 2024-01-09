@@ -1,5 +1,7 @@
 #include "elements.h"
 
+#include <cstring>
+
 /*************** Adapted from constants.c ***********************/
 
 /* Extracted from NIST data in May 2007 (physics.nist.gov/PhysRefData/Compositions/index.html)
@@ -65,16 +67,22 @@ float elements::mass(int atomic_num)
     return (atomic_num<=max_atomic_num && atomic_num>0) ? AtomicMass[atomic_num] : 0.f;
 }
 
+static const char* AtomicNames[] =
+    {"X",
+     "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar",
+     "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
+     "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe",
+     "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf",
+     "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+     "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf"};
+
 const char* elements::name(int atomic_num)
 {
-    const char* AtomicNames[] =
-        {"X",
-         "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar",
-         "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
-         "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe",
-         "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf",
-         "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
-         "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf"};
-
     return (atomic_num<=max_atomic_num && atomic_num>0) ? AtomicNames[atomic_num] : AtomicNames[0];
+}
+
+int elements::atomicNum(const char* name) {
+    int Z = 1;
+    while (Z <= max_atomic_num && strcmp(name,AtomicNames[Z])) Z++;
+    return (Z <= max_atomic_num) ? Z : -1;
 }

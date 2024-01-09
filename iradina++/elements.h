@@ -12,6 +12,7 @@ struct elements {
     static float mostAbundantIsotope(int atomic_num);
     static const char* name(int atomic_num);
     static float mass(int atomic_num);
+    static int atomicNum(const char* name);
 };
 
 #endif // ELEMENTS_H

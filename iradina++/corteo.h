@@ -1,10 +1,8 @@
 #ifndef _CORTEO_H_
 #define _CORTEO_H_
 
-#include <vector>
-#include <iostream>
 #include <cassert>
-#include <cmath>
+#include <stdexcept>
 
 /*********************************************************************/
 /* This file contains definitions adapted from Corteo (version
@@ -78,7 +76,7 @@
  * @tparam _minExp Exponent of the min value = 2^minExp
  * @tparam _maxExp Exponent of the max value = 2^maxExp
  */
-template<int _Nb, int _minExp, int _maxExp, class iT> 
+template<int _Nb, int _minExp, int _maxExp, class iT = int>
 struct corteo_index 
 {
     // these constants are computed at compile time
@@ -98,7 +96,7 @@ struct corteo_index
     static const int Nbits = _Nb;
 
 private:
-    /* get index from float value */
+
     /**
      * @brief Convert float value to index
      * 
@@ -108,14 +106,15 @@ private:
      * @return unsigned int the corresponding index
      */
     static iT val2idx(float val) {
-        assert(val >= minVal);
+        // assert(val >= minVal);
+        if (val <= minVal) return 0;
         iT ll = *reinterpret_cast<iT*>(&val);
         ll = (ll >> shift)-bias;
-        assert(ll < dim);
+        if (ll >= dim) return dim-1;
+        // assert(ll < dim);
         return ll;
     }
 
-    /* get value from index */
     /**
      * @brief Convert an index to a floating point value
      * 
@@ -138,7 +137,8 @@ private:
 public:
 
     corteo_index(iT i = 0) : i_(i) {}
-    explicit corteo_index(float v) : i_(val2idx(v)) {}
+    explicit corteo_index(const float& v) : i_(val2idx(v)) {}
+    explicit corteo_index(const double& v) : i_(val2idx((float)v)) {}
     static corteo_index fromValue(float v) { return corteo_index(val2idx(v)); }
     corteo_index& operator++() { i_++; return *this; }
     corteo_index operator++(int) { corteo_index retval = *this; ++(*this); return retval; }
@@ -154,8 +154,49 @@ public:
 
     float value() const { return idx2val(i_); }
     iT index() const {return i_; }
+
+    /*
+     * *** Adapted from corteo20130715 ***
+     * Length of float and int must be 4 byte, otherwise indexing doesn't
+     * work correctly.
+     */
+    static int check_type_representation()
+    {
+        // compile-time checks
+        static_assert(sizeof(unsigned int)==4, "size of int not 4");
+        static_assert(sizeof(float)==4, "size of float not 4");
+
+        // run-time check of correct float/int conversion / IEEE-754 conformance
+        float f = 3328.625f;
+        if(*(unsigned int *)&f != 0x45500a00)  {
+            std::runtime_error(
+                "This machine does not follow IEEE-754 standard for binary representation of float.");
+            return -1;
+        }
+        return 0;
+    }
 private:
     iT i_;
+};
+
+struct corteo6bit {
+    // Corteo 6-bit indexes
+    // reduced energy index 6bit
+    typedef corteo_index<6, -19, 21, int> e_index;
+    // reduced impact parameter index 6bit
+    typedef corteo_index<6, -26, 6, int> s_index;
+    const static int rows = e_index::dim;
+    const static int cols = s_index::dim;
+};
+
+struct corteo4bit {
+    // Corteo 4-bit indexes
+    // reduced energy index
+    typedef corteo_index<4, -19, 21> e_index;
+    // reduced impact parameter index
+    typedef corteo_index<4, -26,  6> s_index;
+    const static int rows = e_index::dim;
+    const static int cols = s_index::dim;
 };
 
 
@@ -179,79 +220,5 @@ static_assert(energy_index::dim == DIMD, "values are not equal!");
 static_assert(energy_index::bias == BIASD, "values are not equal!");
 static_assert(energy_index::shift == SHIFTD, "values are not equal!");
 */
-
-struct xs_base;
-
-class corteo {
-
-public:
-#ifdef CORTEO_6_BIT
-    // reduced energy index
-    typedef corteo_index<6, -19, 21, int> epsilon_index;
-    // reduced impact parameter index
-    typedef corteo_index<6, -26, 6, int> s_index;
-#else
-    // reduced energy index
-    typedef corteo_index<4, -19, 21, int> epsilon_index;
-    // reduced impact parameter index
-    typedef corteo_index<4, -26, 6, int> s_index;
-#endif
-
-protected:
-
-    /* scattering matrix: sin^2(theta_CM/2) */
-    std::vector<float> matrix;
-
-public:
-    corteo();
-
-    static int check_type_representation();
-
-    float operator()(const epsilon_index& ie, const s_index& is) const
-    {
-        return matrix[int(is)+int(ie)*s_index::dim];
-    }
-//    float operator()(int ie, int is) const
-//    {
-//        return matrix[is+ie*s_index::dim];
-//    }
-    float operator()(float epsilon, float s) const
-    {
-        return (*this)(epsilon_index(epsilon),s_index(s));
-    }
-
-    static unsigned int table_index(float epsilon, float s)
-    {
-        //return (int)(s_index(s)) +  ((int)epsilon_index(epsilon))*s_index::dim;
-        return s_index(s) +  epsilon_index(epsilon)*s_index::dim;
-    }
-
-    const float* data() const { return matrix.data(); }
-
-    int size_epsilon() const { return epsilon_index::dim; }
-    int size_s() const { return s_index::dim; }
-    int size() const { return s_index::dim * epsilon_index::dim; }
-
-    /* compute all the elements of the matrix
-    user sets showProgress!=0 to display the progress of this (long) calculation to the console
-    return 1 if successful, 0 if not able to write file */
-    /*
-     * compute all the elements of the xs matrix
-     *
-     * if a ostream pointer is passed, msgs are written showing the progress
-     *
-     * return 1 if successful, 0 if not able to write file
-     *
-     */
-
-    int calcMatrix(const xs_base& xs, std::ostream* os = NULL);
-
-};
-
-
-
-
-
-
 
 #endif

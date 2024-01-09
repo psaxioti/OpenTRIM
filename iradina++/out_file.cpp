@@ -1,0 +1,191 @@
+#include "out_file.h"
+#include "simulation.h"
+
+#include <H5Cpp.h>
+
+using namespace H5;
+
+template <typename T> struct h5traits;
+
+template<>
+struct h5traits<double> {
+    static const PredType& predType() { return PredType::NATIVE_DOUBLE; }
+};
+template<>
+struct h5traits<float> {
+    static const PredType& predType() { return PredType::NATIVE_FLOAT; }
+};
+template<>
+struct h5traits<unsigned int> {
+    static const PredType& predType() { return PredType::NATIVE_UINT; }
+};
+
+template<typename T>
+int save_array(H5File* f, const char* name,
+               const T* data,
+               const std::vector<hsize_t>& dims)
+{
+
+    /*
+     * Try block to detect exceptions raised by any of the calls inside it
+     */
+    try
+    {
+
+    /*
+     * Turn off the auto-printing when failure occurs so that we can
+     * handle the errors appropriately
+     */
+    Exception::dontPrint();
+
+    /*
+     * Create dataspace for the dataset in the file.
+     */
+    DataSpace fspace( dims.size(), dims.data() );
+
+    /*
+       * Create a new dataset within the file using defined dataspace and
+       * datatype and default dataset creation properties.
+       */
+    DataSet dataset = f->createDataSet( name, h5traits<T>::predType(), fspace );
+
+    /*
+       * Write the data to the dataset using default memory space, file
+       * space, and transfer properties.
+       */
+    dataset.write( data, h5traits<T>::predType() );
+
+    }  // end of try block
+
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    return 0;
+}
+
+template <typename T, class _A> struct array_traits;
+
+template <typename T>
+struct array_traits<T, Array1D<T> > {
+    static std::vector<hsize_t> dims(const Array1D<T>& A) {
+        std::vector<hsize_t> d(1);
+        d[0] = A.rows();
+        return d;
+    }
+    typedef h5traits<T> scalar_traits;
+};
+template <typename T>
+struct array_traits<T, Array2D<T> > {
+    static std::vector<hsize_t> dims(const Array2D<T>& A) {
+        std::vector<hsize_t> d(2);
+        d[0] = A.rows();
+        d[1] = A.cols();
+        return d;
+    }
+    typedef h5traits<T> scalar_traits;
+};
+template <typename T>
+struct array_traits<T, Array3D<T> > {
+    static std::vector<hsize_t> dims(const Array3D<T>& A) {
+        std::vector<hsize_t> d(3);
+        d[0] = A.rows();
+        d[1] = A.cols();
+        d[2] = A.layers();
+        return d;
+    }
+    typedef h5traits<T> scalar_traits;
+};
+
+template<typename T, class _ArrT>
+int save_array(H5File* f, const char* name, const _ArrT& A) {
+    std::vector<hsize_t> dims = array_traits<T, _ArrT>::dims(A);
+    return save_array(f, name, A.data(), dims);
+}
+
+out_file::out_file(const simulation *s) :
+    sim_(s), h5f(nullptr)
+{
+
+}
+
+out_file::~out_file()
+{
+    close();
+    if (h5f) delete h5f;
+}
+
+int out_file::open(const char* fname)
+{
+
+
+    // Try block to detect exceptions raised by any of the calls inside it
+    try
+    {
+        /*
+       * Turn off the auto-printing when failure occurs so that we can
+       * handle the errors appropriately
+       */
+        Exception::dontPrint();
+        /*
+       * Create a new file using H5F_ACC_TRUNC access,
+       * default file creation properties, and default file
+       * access properties.
+       */
+       h5f = new H5File(fname, H5F_ACC_TRUNC);
+    }  // end of try block
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        return -1;
+    }
+
+    return 0;  // successfully terminated
+
+}
+
+int out_file::save()
+{
+    // save tallys
+    if (sim_->simulation_type == simulation::FullCascade) {
+
+        bool ret =
+            save_array<unsigned int, Array2Dui>(h5f, "Interstitials", sim_->InterstitialTally)==0 &&
+            save_array<unsigned int, Array2Dui>(h5f, "Replacements", sim_->ReplacementTally)==0 &&
+            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", sim_->VacancyTally)==0 &&
+            save_array<double, Array2Dd>(h5f, "IonizationEnergy", sim_->IonizationEnergyTally)==0 &&
+            save_array<double, Array2Dd>(h5f, "PhononEnergy", sim_->PhononEnergyTally)==0;
+
+        if (!ret) return -1;
+
+    } else {
+
+        bool ret =
+            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", sim_->VacancyTally)==0 &&
+            save_array<double, Array2Dd>(h5f, "IonizationEnergy", sim_->IonizationEnergyTally)==0 &&
+            save_array<double, Array2Dd>(h5f, "PhononEnergy", sim_->PhononEnergyTally)==0 &&
+            save_array<double, Array2Dd>(h5f, "KPTally", sim_->KPTally)==0;
+
+        if (!ret) return -1;
+    }
+    return 0;
+}
+
+void out_file::close()
+{
+    if (h5f) h5f->close();
+}
