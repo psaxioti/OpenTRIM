@@ -41,6 +41,10 @@ struct grid1D : public std::vector<float> {
         return (x>=front()) && (x<back());
     }
 
+    bool periodic_contains(const float& x) const {
+        return periodic ? 1 : (x>=front()) && (x<back());
+    }
+
     bool cell_contains(int i, const float& x) const {
         return (x>=at(i)) && (x<at(i+1));
     }
@@ -124,8 +128,17 @@ public:
     const box3D& box() const { return box_; }
 
     bool contains(const vector3& v) const {
-        return box_.contains(v);
+        return x_.contains(v.x()) &&
+               y_.contains(v.y()) &&
+               z_.contains(v.z());
     }
+
+    bool periodic_contains(const vector3& v) const {
+        return x_.periodic_contains(v.x()) &&
+               y_.periodic_contains(v.y()) &&
+               z_.periodic_contains(v.z());
+    }
+
     bool contains(const ivector3& i, const vector3& v) const {
         return x_.cell_contains(i.x(),v.x()) &&
             y_.cell_contains(i.y(),v.y()) &&
