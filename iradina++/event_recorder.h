@@ -7,7 +7,7 @@
 
 class event_recorder
 {
-    const simulation* sim_;
+    const simulation_base* sim_;
 
     std::vector<float> buffer_;
 
@@ -15,9 +15,9 @@ class event_recorder
 
 public:
 
-    event_recorder(const simulation* s);
+    event_recorder(const simulation_base* s);
 
-    void record(simulation::simulation_event_t ev, const ion* i);
+    void record(simulation_base::simulation_event_t ev, const ion* i);
 
     void prepare(int nEvents);
 

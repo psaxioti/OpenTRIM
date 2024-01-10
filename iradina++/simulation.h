@@ -10,10 +10,9 @@
 #include <queue>
 
 struct random_vars;
-struct reducedXS_base;
 class out_file;
 
-class simulation
+class simulation_base
 {
 public:
 
@@ -29,6 +28,13 @@ public:
         Constant,       /**< Constant, equal to user supplied value */
         SRIMlike        /**< Algorithm similar to SRIM */
     } flight_path_type_t;
+
+    typedef enum {
+        NoStraggling = 0,
+        BohrStraggling,
+        ChuStraggling,
+        YangStraggling
+    } straggling_model_t;
 
     /**
      * @brief Type of simulation
@@ -51,23 +57,23 @@ public:
         IonStop
     } simulation_event_t;
 
-private:
+protected:
 
     typedef std::queue<ion*> ion_queue_t;
     ion_queue_t ion_buffer_;
     ion_queue_t ion_queue_;
 
     std::string name_;
+
     URBG urbg;
     target target_;
     inventory inventory_;
     ion_beam source_;
-    reducedXS xs_;
     random_vars* rnd;
 
     flight_path_type_t flight_path_type;
     simulation_type_t simulation_type;
-    StragglingModel straggling_model;
+    straggling_model_t straggling_model;
 
     float flight_path_const;
     std::vector<float> sqrtfp_const;
@@ -77,6 +83,10 @@ private:
     double ms_per_ion_;
 
     unsigned int ion_histories_;
+
+    Array3Df dedx_; // stopping data (atoms x materials x energy)
+    Array2Df dedx1; // proton stopping (materials x energy)
+    Array3Df de_strag_; // straggling data (atoms x materials x energy)
 
     /*
      * Tallys
@@ -92,15 +102,13 @@ private:
     friend class out_file;
 
 public:
-    simulation(const char* name, const reducedXS& x = reducedXS());
-    ~simulation();
+    simulation_base(const char* name);
+    ~simulation_base();
 
     const std::string& name() { return name_; }
     void setName(const char* n) { name_ = n; }
-    const reducedXS& xs() { return xs_; }
-    void setXS(const reducedXS& x) { xs_ = x; }
 
-    void setStragglingModel(StragglingModel m) { straggling_model = m; }
+    void setStragglingModel(straggling_model_t m) { straggling_model = m; }
 
     unsigned int ion_histories() const { return ion_histories_; }
     double ms_per_ion() const { return ms_per_ion_; }
@@ -109,6 +117,9 @@ public:
         return inventory_.addMaterial(name, density);
     }
     void setProjectile(int Z, float M, float E0);
+
+    int getDEtables(const atom* z1, const material* m,
+                    const float *&dedx, const float *&de_stragg) const;
 
     grid3D& grid() { return target_.grid(); }
     const grid3D& grid() const { return target_.grid(); }
@@ -120,13 +131,11 @@ public:
     const inventory& getInventory() const { return inventory_; }
     const ion_beam& getSource() const { return source_; }
 
-    int init();
+    virtual int init();
 
     void tallyIonizationEnergy(const ion* i, const float& v);
     void tallyPhononEnergy(const ion* i, const float& v);
     void tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed);
-
-    int run(int count, const char* outfname);
 
     ion* new_ion(const ion* parent = nullptr);
     ion* new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
@@ -135,12 +144,41 @@ public:
     ion* pop_ion();
     void push_ion(ion* i);
 
-    int transport(ion* i);
     float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax);
     float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax);
 
     float LSS_Tdam(int Z, float M, float T);
     float NRT(float Ed, float Tdam);
 };
+
+template<class _XScm>
+class simulation : public simulation_base
+{
+public:
+
+    typedef _XScm reducedXScm;
+    typedef XSlab<_XScm> scatteringXSlab;
+
+private:
+
+    Array2D<scatteringXSlab*> scattering_matrix_;
+
+public:
+    simulation(const char* name);
+    ~simulation();
+
+    virtual int init() override;
+
+    int run(int count, const char* outfname);
+
+
+
+    int transport(ion* i);
+
+};
+
+typedef simulation<XS_zbl_magic>  SimZBLMagic;
+typedef simulation<XS_corteo4bit> SimCorteo4bit;
+typedef simulation<XS_corteo6bit> SimCorteo6bit;
 
 #endif // SIMULATION_H

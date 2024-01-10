@@ -1,13 +1,11 @@
 #include "target.h"
 #include "xs.h"
 #include "dedx.h"
-#include "elements.h"
 
 #include <sstream>
 #include <stdexcept>
 
-void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1, int Z2,
-                    const float& Density2, StragglingModel model, float* strag);
+
 
 atom::atom(class inventory* i, class material* m, int id) :
     id_(id), mat_(m), inv_(i)
@@ -33,7 +31,7 @@ atom* material::addAtom(int Z, float M, float X,
     return a;
 }
 
-void material::init(const reducedXS& xs)
+void material::init()
 {
     cumX_.resize(atoms_.size());
     // prepare concentrations
@@ -61,7 +59,7 @@ void material::init(const reducedXS& xs)
      */
     int ionZ = inv_->projectile()->Z();
     float ionM = inv_->projectile()->M();
-    meanA_ = xs.screeningLength(ionZ, meanZ_); // nm
+    meanA_ = screeningZBL::screeningLength(ionZ, meanZ_); // nm
     meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
     meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
 
@@ -85,13 +83,7 @@ inventory::inventory()
 
 inventory::~inventory()
 {
-    int natoms = atoms_.size();
-    for(int z1 = 0; z1<natoms; z1++)
-        for(int z2 = 1; z2<natoms; z2++)
-        {
-            scatteringXS* s = scattering_matrix_[z1][z2];
-            if (s) delete s;
-        }
+
     for(material* m : materials_) delete m;
     for(atom* a : atoms_) delete a;
 }
@@ -103,182 +95,14 @@ void inventory::setProjectile(int Z, float M)
     i->M_ = M;
 }
 
+void inventory::init() {
+    for(material* m : materials_) m->init();
+}
+
 material* inventory::addMaterial(const char* name, const float& density)
 {
     materials_.push_back(new material(this, name, density, materials_.size()));
     return materials_.back();
-}
-
-void inventory::init(const reducedXS &xs, StragglingModel smodel)
-{
-    for(material* m : materials_) m->init(xs);
-
-    /*
-     * create a scattering matrix for all ion compinations
-     * # of combinations =
-     * (all target atoms + projectile ) x (all target atoms)
-     */
-    int natoms = atoms_.size();
-    //scattering_matrix_.resize(natoms * (natoms-1));
-    scattering_matrix_ = Array2D<scatteringXS*>(natoms, natoms);
-    for(int z1 = 0; z1<natoms; z1++)
-        for(int z2 = 1; z2<natoms; z2++)
-        {
-            scatteringXS* sc = new scatteringXS(xs);
-            sc->init(atoms_[z1]->Z(), atoms_[z1]->M(),
-                     atoms_[z2]->Z(), atoms_[z2]->M());
-            scattering_matrix_[z1][z2] = sc;
-        }
-
-    /*
-     * create dedx tables for all ion - material
-     * combinations, # =
-     * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get a corteo dedx table
-     */
-    int nmat = materials_.size();
-    int nerg = dedx_index::dim;
-    dedx_ = Array3Df(natoms,nmat,nerg);
-    for(atom* at1 : atoms_) {
-        float amuRatio = elements::mostAbundantIsotope(at1->Z())/at1->M();
-        int iat1 = at1->id();
-        for(const material* mat : materials_)
-        {
-            int im = mat->id();
-            float* p = dedx_[iat1][im];
-            for(atom* at2 : mat->atoms_)
-            {
-                /*
-                 * SRIM dedx tables are stored in eV / 10^15 (at/cm^2)
-                 * They are multiplied by the atomicDensity [at/nm^3]
-                 * factor 0.1 needed so that resulting dedx
-                 * unit is eV/nm
-                 */
-                const float* q = dedx(at1->Z(), at2->Z());
-                float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-                for(dedx_index i; i!=i.end(); i++) {
-                    float erg = *i;
-                    dedx_index j = dedx_index::fromValue(erg * amuRatio);
-                    p[j] += q[j]*w;
-                }
-
-
-                /* The compound correction needs to be added here !!! */
-                /* following copied from corteo:
-                   compound correction according to Zeigler & Manoyan NIMB35(1998)215, Eq.(16) (error in Eq. 14)
-                   if(compoundCorr!=1.0f)
-                   for(k=0; k<DIMD; k++) {
-                   f = d2f( 1.0/(1.0+exp( 1.48*( sqrt(2.*Dval(k)/projectileMass/25e3) -7.0) )) );
-                   spp[k]*=f*(compoundCorr-1.0f)+1.0f;
-                   }
-                */
-            }
-        }
-    }
-
-    dedx1 = Array2Df(nmat,nerg);
-    for(const material* mat : materials_)
-    {
-        int im = mat->id();
-        float* p1 = dedx1[im];
-        for(atom* at2 : mat->atoms_)
-        {
-            /*
-                 * SRIM dedx tables are stored in eV / 10^15 (at/cm^2)
-                 * They are multiplied by the atomicDensity [at/nm^3]
-                 * factor 0.1 needed so that resulting dedx
-                 * unit is eV/nm
-                 */
-            const float* q1 = dedx(1, at2->Z());
-            float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-            for(dedx_index i; i!=i.end(); i++) {
-                p1[i] += q1[i]*w;
-            }
-
-
-            /* The compound correction needs to be added here !!! */
-            /* following copied from corteo:
-                   compound correction according to Zeigler & Manoyan NIMB35(1998)215, Eq.(16) (error in Eq. 14)
-                   if(compoundCorr!=1.0f)
-                   for(k=0; k<DIMD; k++) {
-                   f = d2f( 1.0/(1.0+exp( 1.48*( sqrt(2.*Dval(k)/projectileMass/25e3) -7.0) )) );
-                   spp[k]*=f*(compoundCorr-1.0f)+1.0f;
-                   }
-                */
-        }
-    }
-
-    /*
-     * create straggling tables for all ion - material
-     * combinations, # =
-     * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get a corteo table
-     *
-     *
-     */
-    de_strag_ = Array3Df(natoms,nmat,nerg);
-    for(int z1 = 0; z1<natoms; z1++) {
-        int Z1 = atoms_[z1]->Z();
-        float M1 = atoms_[z1]->M();
-        for(const material* mat : materials_)
-        {
-            int im = mat->id();
-            const float* dedx = dedx_[z1][im];
-            const float* dedxH = dedx1[im];
-            float* p = de_strag_[z1][im];
-            float Nl0 = mat->atomicDensity()*mat->atomicDistance(); // at/nm^2
-            for(const atom* z2 : mat->atoms())
-                calcStraggling(dedx,dedxH,Z1,M1,z2->Z(),
-                               Nl0*z2->X(),
-                               smodel,p);
-            for(dedx_index ie; ie!=ie.end(); ie++)
-                p[ie] = std::sqrt(p[ie]);
-        }
-    }
-}
-
-const scatteringXS* inventory::getScatteringXS(const atom* z1, const atom* z2) const
-{
-    assert(z2->id()>0);
-    return scattering_matrix_[z1->id()][z2->id()];
-}
-
-/**
- * @brief Get stopping & straggling energy change
- *
- * Returns the energy change from electronic stopping & straggling
- * of an ion Z1 traveling in material m with energy erg.
- *
- * The values are returned [eV/nm] (stopping) and [eV/nm^(1/2)] from precalculated tables
- *
- * @param z1 Pointer to atom struct describing Z1
- * @param m Pointer to material struct
- * @param erg The kinetic energy of Z1
- * @param dedx (out) Stoping dE/dx [eV/nm]
- * @param de_stragg (out) Straggling dE [eV/nm^(1/2)]
- * @return 0 on succes
- */
-int inventory::getDE(const atom* z1, const material* m, const float& erg,
-                       float &dedx, float &de_stragg) const
-{
-    int ia = z1->id();
-    int im = m->id();
-    int ie = dedx_index::fromValue(erg);
-
-    dedx = dedx_[ia][im][ie];
-    de_stragg = de_strag_[ia][im][ie];
-    return 0;
-}
-
-int inventory::getDEtables(const atom* z1, const material* m,
-                     const float* &dedx, const float* &de_stragg) const
-{
-    // float amuRatio = elements::mostAbundantIsotope(z1->Z())/z1->M();
-    int ia = z1->id();
-    int im = m->id();
-    dedx = dedx_[ia][im];
-    de_stragg = de_strag_[ia][im];
-    return 0;
 }
 
 target::target()

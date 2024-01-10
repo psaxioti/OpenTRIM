@@ -21,15 +21,12 @@ void write_corteo_comp(int n);
 void write_corteo_tst4();
 int test_run();
 
-int gencorteo4bit();
-
 using std::cout;
 using std::endl;
 
 int main(int argc, char* argv[])
 {
-
-    return gencorteo4bit();
+    return test_run();
 }
 
 int testini(int argc, char* argv[])
@@ -68,11 +65,8 @@ int testini(int argc, char* argv[])
 
 int test_run()
 {
-    reducedXS XS(reducedXS::ZBL, reducedXS::Corteo4bitTable);
-    //reducedXS XS(reducedXS::ZBL, reducedXS::ZBL_Magick);
-    XS.init(&std::cout);
-
-    simulation S("Test", XS);
+    //SimZBLMagic S("Test");
+    SimCorteo6bit S("Test");
 
     material* Fe = S.addMaterial("Fe", 7.8658);
     int Zfe = elements::atomicNum("Fe");
@@ -93,7 +87,7 @@ int test_run()
 //                1.f, 1.f, 25.f);
 
     S.setProjectile(Zfe, Mfe, 2E6);
-    S.setStragglingModel(NoStraggling);
+    S.setStragglingModel(simulation_base::NoStraggling);
 
     grid3D& g = S.grid();
     float L = 1200;
@@ -108,7 +102,7 @@ int test_run()
     // S.fill(box,Si);
 
     S.init();
-    S.run(10,"testrun.h5");
+    S.run(100,"testrun.h5");
 
     cout << "ms/ion =" << S.ms_per_ion() << endl;
 
@@ -119,7 +113,7 @@ void test_dedx()
 {
     const float *dedx, *de_stragg;
 
-    simulation S("Test");
+    SimCorteo4bit S("Test");
 
     S.setProjectile(1, elements::mostAbundantIsotope(1), 5E6);
 
@@ -130,12 +124,12 @@ void test_dedx()
 
 
     cout << "H in Fe" << endl;
-    S.getInventory().getDEtables(S.getSource().projectile(), Fe, dedx, de_stragg);
+    S.getDEtables(S.getSource().projectile(), Fe, dedx, de_stragg);
     for(dedx_index ie; ie!=ie.end(); ie++)
         cout << *ie << '\t' << dedx[ie] << '\t' << de_stragg[ie] << endl;
 
     cout << endl << "Fe in Fe" << endl;
-    S.getInventory().getDEtables(Fe->atoms().front(), Fe, dedx, de_stragg);
+    S.getDEtables(Fe->atoms().front(), Fe, dedx, de_stragg);
     for(dedx_index ie; ie!=ie.end(); ie++)
         cout << *ie << '\t' << dedx[ie] << '\t' << de_stragg[ie] << endl;
 
@@ -143,10 +137,9 @@ void test_dedx()
 
 void write_corteo_tst4()
 {
-    reducedXS xs(reducedXS::ZBL, reducedXS::GaussMehlerQuad);
-    reducedXS cxs(reducedXS::ZBL, reducedXS::Corteo4bitTable);
-    reducedXS mg(reducedXS::ZBL, reducedXS::ZBL_Magick);
-    cxs.init(&std::cout);
+    XS_zbl_magic mg;
+    XS_corteo4bit cxs;
+    XSquad< screeningZBL > xs;
 
     {
         std::ofstream ostrm1("corteo_tst4_tbl.dat");

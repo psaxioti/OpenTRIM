@@ -1,108 +1,54 @@
 #include "simulation.h"
 #include "random_vars.h"
 #include "dedx.h"
-#include "xs.h"
 #include "out_file.h"
 
 #include <iostream>
 
-simulation::simulation(const char *name, const reducedXS &x) :
-    name_(name), xs_(x),
-    rnd(new random_vars_tbl(urbg)), // rnd(new random_vars(urbg)), rnd(new random_vars_tbl(urbg)),
-    flight_path_type(Poisson),
-    simulation_type(FullCascade),
-    straggling_model(YangStraggling),
-    energy_cutoff_(1.f)
-{
+template<class _XScm>
+simulation<_XScm>::simulation(const char *name) :
+    simulation_base(name)
+{}
 
+template<class _XScm>
+simulation<_XScm>::~simulation()
+{
+    int natoms = inventory_.atoms().size();
+    for(int z1 = 0; z1<natoms; z1++)
+        for(int z2 = 1; z2<natoms; z2++)
+        {
+            scatteringXSlab* s = scattering_matrix_[z1][z2];
+            if (s) delete s;
+        }
 }
 
-simulation::~simulation()
-{
-    if (rnd) delete rnd;
-    while (!ion_buffer_.empty()) {
-        ion* i = ion_buffer_.front();
-        ion_buffer_.pop();
-        delete i;
-    }
-}
+template<class _XScm>
+int simulation<_XScm>::init() {
 
-void simulation::setProjectile(int Z, float M, float E0)
-{
-    inventory_.setProjectile(Z,M);
-    source_.setProjectile(inventory_.projectile(),E0);
-}
-
-int simulation::init() {
-
-    inventory_.init(xs_, straggling_model);
-
-    // calculate sqrt{l/l0} in each material for constant flight path
-    auto materials = inventory_.materials();
-    sqrtfp_const.resize(materials.size());
-    for(int i=0; i<materials.size(); i++)
-        sqrtfp_const[i] = std::sqrt(flight_path_const / materials[i]->atomicDistance());
+    simulation_base::init();
 
     /*
-     * Allocate Tally Memory
-     *
-     * In FullCascade we keep all info (I,V,R,Ei, Ep)
-     * for every separate atom type (including the ion)
-     *
-     * In KP mode :
-     *
-     *   Ei, Ep store only 1 col for total ion + recoils
-     *
-     *   V tally stores ion V (= PKAs)
-     *
-     *   Special KP Tally with 3 cols:
-     *     Av. Tdam, for Ed < Tdam < 2.5 Ed
-     *     Av. Tdam for Tdam > 2.5 Ed
-     *
-     *   I, R are not available
+     * create a scattering matrix for all ion compinations
+     * # of combinations =
+     * (all target atoms + projectile ) x (all target atoms)
      */
-    int nCells = target_.grid().ncells();
-    int nAtoms = inventory_.atoms().size();
-    if (simulation_type == FullCascade) {
-        InterstitialTally = Array2Dui(nAtoms,nCells);
-        ReplacementTally = Array2Dui(nAtoms,nCells);
-        VacancyTally = Array2Dui(nAtoms,nCells);
-        IonizationEnergyTally = Array2Dd(nAtoms,nCells);
-        PhononEnergyTally = Array2Dd(nAtoms,nCells);
-    } else {
-        KPTally = Array2Dd(3,nCells);
-        VacancyTally = Array2Dui(1,nCells);
-        IonizationEnergyTally = Array2Dd(1,nCells);
-        PhononEnergyTally = Array2Dd(1,nCells);
-    }
-
-    // reset counters
-    ion_histories_ = 0;
+    auto atoms = inventory_.atoms();
+    int natoms = atoms.size();
+    scattering_matrix_ = Array2D<scatteringXSlab*>(natoms, natoms);
+    for(int z1 = 0; z1<natoms; z1++)
+        for(int z2 = 1; z2<natoms; z2++)
+        {
+            scatteringXSlab* sc = new scatteringXSlab;
+            sc->init(atoms[z1]->Z(), atoms[z1]->M(),
+                     atoms[z2]->Z(), atoms[z2]->M());
+            scattering_matrix_[z1][z2] = sc;
+        }
 
     return 0;
 }
 
-void simulation::tallyIonizationEnergy(const ion* i, const float& v) {
-    int ic = i->cellid();
-    int ia = i->atom_->id();
-    IonizationEnergyTally(ia, ic) += v;
-}
-void simulation::tallyPhononEnergy(const ion* i, const float& v) {
-    int ic = i->cellid();
-    int ia = i->atom_->id();
-    double& d = PhononEnergyTally(ia, ic);
-    d += v;
-}
-void simulation::tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed)
-{
-    int ic = i->cellid();
-    int ie = (Tdam < 2.5f*Ed) ? 0 : 1;
-    KPTally(ie,ic) += Tdam;
-    KPTally( 2,ic) += nv;
-}
-
-
-int simulation::run(int count, const char *outfname)
+template<class _XScm>
+int simulation<_XScm>::run(int count, const char *outfname)
 {
     out_file_ = new out_file(this);
     if (out_file_->open(outfname)!=0) return -1;
@@ -127,9 +73,9 @@ int simulation::run(int count, const char *outfname)
         // count history
         ion_histories_++;
 
-        if (ion_histories_ % 100 ==0) {
+        //if (ion_histories_ % 100 ==0) {
             std::cout << "Ion: " << ion_histories_ << std::endl;
-        }
+        //}
     }
 
     // CALC TIME/ion
@@ -144,12 +90,15 @@ int simulation::run(int count, const char *outfname)
 
     return 0;
 }
-int simulation::transport(ion* i)
+
+template<class _XScm>
+int simulation<_XScm>::transport(ion* i)
 {
     const material* mat = target_.cell(i->icell());
     const float* de_stopping_tbl = nullptr;
     const float* de_straggling_tbl = nullptr;
-    if (mat) inventory_.getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
+    if (mat)
+        getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
 
     int loop_count = 0;
 
@@ -216,7 +165,7 @@ int simulation::transport(ion* i)
         if (i->icell() != icell0) { // did the ion change cell ?
 
             mat = target_.cell(i->icell());
-            if (mat) inventory_.getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
+            if (mat) getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
 
             /*
              * TODO: if material changed we should correct stopping.
@@ -248,7 +197,7 @@ int simulation::transport(ion* i)
                 continue;
             }
 
-            const scatteringXS* xs = inventory_.getScatteringXS(i->atom_,z2);
+            const scatteringXSlab* xs = scattering_matrix_[i->atom_->id()][z2->id()];
             float T; // recoil energy
             float sintheta, costheta; // scattering angle in Lab sys
             assert(i->erg > 0);
@@ -349,115 +298,10 @@ int simulation::transport(ion* i)
     return 0;
 }
 
-float simulation::flightPath(const ion* i, const material* m, float &sqrtfp, float& pmax)
-{
-    if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
-
-    float fp;
-    switch (flight_path_type) {
-    case Poisson:
-        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u. temp = u^(1/2)
-        fp = fp * m->atomicDistance();
-        break;
-    case AtomicSpacing:
-        fp = m->atomicDistance();
-        sqrtfp = 1;
-        break;
-    case Constant:
-        fp = flight_path_const;
-        sqrtfp = sqrtfp_const[m->id()];
-        break;
-    case SRIMlike:
-        {
-            float epsilon = i->erg * m->meanF();
-            float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
-            float bmax = 1.f/(xsi + std::sqrt(xsi) + std::pow(xsi,.1f));
-            pmax = bmax * m->meanA();
-            fp = 1./(M_PI * m->atomicDensity() * pmax * pmax);
-        }
-        break;
-    }
-    return fp;
-}
-
-float simulation::impactPar(const ion* i, const material* m, const float& sqrtfp, const float& pmax)
-{
-    float p, d;
-    switch (flight_path_type) {
-    case Poisson:
-    case AtomicSpacing:
-    case Constant:
-        rnd->uniform01(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
-        p *= m->meanImpactPar()/sqrtfp;
-        break;
-    case SRIMlike:
-        rnd->uniform01(d,p);
-        p *= pmax;
-    break;
-    }
-    return p;
-}
-
-ion* simulation::new_ion(const ion *parent)
-{
-    ion* i;
-    if (ion_buffer_.empty()) i = new ion(target_.grid());
-    else { i = ion_buffer_.front(); ion_buffer_.pop(); }
-    if (parent) *i = *parent;
-    return i;
-}
-
-ion* simulation::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &mass_ratio)
-{
-    ion* j = new_ion(proj);
-    assert(grid().contains(j->pos()));
-    float f1, f2;
-    f1 = proj->erg / recoil_erg;
-    f2 = std::sqrt(f1);
-    f1 = std::sqrt(f1+1);
-    j->dir = (f1*dir0 - f2*(proj->dir))*mass_ratio;
-    j->ion_id = proj->ion_id;
-    j->recoil_id = proj->recoil_id + 1;
-    j->atom_ = target;
-    j->erg = recoil_erg;
-    push_ion(j);
-    return j;
-}
-
-void simulation::free_ion(ion* i)
-{
-    ion_buffer_.push(i);
-}
-ion* simulation::pop_ion()
-{
-    ion* i = nullptr;
-    if (!ion_queue_.empty()) {
-        i = ion_queue_.front();
-        ion_queue_.pop();
-    }
-    return i;
-}
-void simulation::push_ion(ion* i)
-{
-    ion_queue_.push(i);
-}
-
-float simulation::LSS_Tdam(int Z, float M, float T)
-{
-    float k_dr = 0.1334f * std::pow (1.f*Z, 2.0f / 3.0f ) / std::sqrt( M );
-    float e_d = 0.01014f * std::pow (1.f*Z, -7.0f / 3.0f) * T;
-    float g_ed = 3.4008f * std::pow (e_d, 1.0f / 6.0f) + 0.40244 * std::pow (e_d, 0.75f) + e_d;
-    return T / (1.0 + k_dr * g_ed);
-
-}
-
-float simulation::NRT(float Ed, float T)
-{
-    if (T<Ed) return 0.f;
-    float v = 2*T/5/Ed;
-    return (v < 1.f) ? 1.f : v;
-}
+// explicit instantiation of all variants
+template class simulation< XS_zbl_magic >;
+template class simulation< XS_corteo4bit >;
+template class simulation< XS_corteo6bit >;
 
 
 

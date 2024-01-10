@@ -145,8 +145,8 @@ public:
     bool operator==(corteo_index other) const { return i_ == other.i_; }
     bool operator!=(corteo_index other) const { return !(*this == other); }
 
-    corteo_index begin() const { return corteo_index(iT(0)); }
-    corteo_index end() const { return corteo_index(iT(dim)); }
+    corteo_index begin() const { return corteo_index(iT(0));   }
+    corteo_index end()   const { return corteo_index(iT(dim)); }
 
     float operator*() { return idx2val(i_); }
 
@@ -187,6 +187,9 @@ struct corteo6bit {
     typedef corteo_index<6, -26, 6, int> s_index;
     const static int rows = e_index::dim;
     const static int cols = s_index::dim;
+    static int table_index(const float& e, const float& s) {
+        return e_index(e)*cols + s_index(s);
+    }
 };
 
 struct corteo4bit {
@@ -197,6 +200,9 @@ struct corteo4bit {
     typedef corteo_index<4, -26,  6> s_index;
     const static int rows = e_index::dim;
     const static int cols = s_index::dim;
+    static int table_index(const float& e, const float& s) {
+        return e_index(e)*cols + s_index(s);
+    }
 };
 
 

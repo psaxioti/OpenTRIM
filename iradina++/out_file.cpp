@@ -186,7 +186,7 @@ int save_array(H5File* f, const char* name, const _ArrT& A) {
     return save_array(f, name, A.data(), dims);
 }
 
-out_file::out_file(const simulation *s) :
+out_file::out_file(const simulation_base *s) :
     sim_(s), h5f(nullptr)
 {
 
@@ -238,7 +238,7 @@ int out_file::save()
 
 
     // save tallys
-    if (sim_->simulation_type == simulation::FullCascade) {
+    if (sim_->simulation_type == simulation_base::FullCascade) {
 
         bool ret =
             save_array<unsigned int, Array2Dui>(h5f, "Interstitials", sim_->InterstitialTally)==0 &&

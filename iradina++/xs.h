@@ -3,9 +3,11 @@
 
 #include <cmath>
 #include <vector>
+#include <array>
 
-#include "arrays.h"
 #include "corteo.h"
+#include "corteo4bit.h"
+#include "corteo6bit.h"
 
 #define BOHR_RADIUS 0.05291772108 /* Bohr radius [nm] */
 #define SCREENCONST 0.88534 /* Lindhard screening length constant */
@@ -13,89 +15,19 @@
 #define AMUbyE 1.036426883E-8 /* amu/e = 1.660538782E-27/1.602176487E-19 */
 #define ELEMENTARY_CHARGE 1.602176487E-19
 
-class reducedXS
-{
-public:
+//const char* names[] = {
+//    "Unscreened Coulomb",
+//    "Moliere",
+//    "Kr-C",
+//    "Lenz-Jensen",
+//    "Ziegler-Biersack-Littmark (ZBL)"};
 
-    typedef enum {
-        GaussMehlerQuad,
-        ZBL_Magick,
-        Corteo4bitTable
-    } IntegrationMethod;
-
-    typedef enum {
-        Unscreened = 0,
-        Moliere,
-        KrC,
-        LenzJensen,
-        ZBL
-    } ScreeningPotentialType;
-
-    struct reducedXS_impl {
-        virtual double screeningLength(int Z1, int Z2) const = 0;
-        virtual double screeningFunction(const double& x) const = 0;
-        virtual double sin2Thetaby2(const double& epsilon, const double& s) const = 0;
-        virtual double sin2Thetaby2(int ie, int is) const { return 0.; }
-        virtual int init(std::ostream* os) { return -1; }
-    };
-
-private:
-
-    std::shared_ptr<reducedXS_impl> xs_;
-
-    ScreeningPotentialType screening_t_;
-    IntegrationMethod integ_t_;
-
-
-public:
-    reducedXS();
-    reducedXS(ScreeningPotentialType S, IntegrationMethod I, unsigned int n = 100);
-    reducedXS(const reducedXS& other) : xs_(other.xs_)
-    {}
-
-    IntegrationMethod integrationMethod() const
-    { return integ_t_; }
-    const char* integrationMethodName() const;
-    ScreeningPotentialType potentialType() const
-    { return screening_t_; }
-    double screeningLength(int Z1, int Z2) const
-    { return xs_->screeningLength(Z1,Z2); }
-    double screeningFunction(const double& x) const
-    { return xs_->screeningFunction(x); }
-    double sin2Thetaby2(const double& epsilon, const double& s) const
-    { return xs_->sin2Thetaby2(epsilon, s); }
-    double sin2Thetaby2(int ie, int is) const
-    { return xs_->sin2Thetaby2(ie, is); }
-    int init(std::ostream* os = NULL) { return xs_->init(os); }
-};
-
-template<reducedXS::ScreeningPotentialType _T>
-struct screening_base {
-    static reducedXS::ScreeningPotentialType type() { return _T; }
-    static const char* name() {
-        const char* names[] = {
-            "Unscreened Coulomb",
-            "Moliere",
-            "Kr-C",
-            "Lenz-Jensen",
-            "Ziegler-Biersack-Littmark (ZBL)"
-        };
-        return names[(int)_T];
-    }
-};
-
-template<reducedXS::ScreeningPotentialType _T>
-struct screening : public screening_base<_T> {
-};
-
-template<>
-struct screening<reducedXS::Unscreened> : public screening_base<reducedXS::Unscreened>  {
+struct screeningNone {
     static double screeningLength(int Z1, int Z2) { return BOHR_RADIUS; } // Bohr radius in nm
     static double screeningFunction(const double& x) { return 1.; }
 };
-template<>
-struct screening<reducedXS::LenzJensen> :
-     public screening_base<reducedXS::LenzJensen>
+
+struct screeningLenzJensen
 {
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/std::sqrt(std::pow(Z1,2./3)+std::pow(Z2, 2./3));
@@ -105,8 +37,7 @@ struct screening<reducedXS::LenzJensen> :
         return exp(-y)*(1.+y*(1.+y*(0.3344+y*(0.0485+2.647e-3*y))));
     }
 };
-template<>
-struct screening<reducedXS::KrC> : public screening_base<reducedXS::KrC>
+struct screeningKrC
 {
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -122,8 +53,7 @@ struct screening<reducedXS::KrC> : public screening_base<reducedXS::KrC>
         return C[0]*exp(-A[0]*x)+C[1]*exp(-A[1]*x)+C[2]*exp(-A[2]*x);
     }
 };
-template<>
-struct screening<reducedXS::Moliere> : public screening_base<reducedXS::Moliere>
+struct screeningMoliere
 {
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -139,8 +69,7 @@ struct screening<reducedXS::Moliere> : public screening_base<reducedXS::Moliere>
         return C[0]*exp(-A[0]*x)+C[1]*exp(-A[1]*x)+C[2]*exp(-A[2]*x);
     }
 };
-template<>
-struct screening<reducedXS::ZBL> : public screening_base<reducedXS::ZBL>
+struct screeningZBL
 {
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -153,7 +82,10 @@ struct screening<reducedXS::ZBL> : public screening_base<reducedXS::ZBL>
         {3.19980, 0.94229, 0.40290, 0.201620};
 
     static double screeningFunction(const double& x) {
-        return C[0]*exp(-A[0]*x)+C[1]*exp(-A[1]*x)+C[2]*exp(-A[2]*x)+C[3]*exp(-A[3]*x);
+        return C[0]*exp(-A[0]*x)+
+               C[1]*exp(-A[1]*x)+
+               C[2]*exp(-A[2]*x)+
+               C[3]*exp(-A[3]*x);
     }
 };
 
@@ -161,31 +93,31 @@ struct screening<reducedXS::ZBL> : public screening_base<reducedXS::ZBL>
  * ion scattering cross section using Gauss-Mehler quadrature
  * see Yuan et al. NIMB1993
  */
-template<class PHI = screening<reducedXS::ZBL> >
-struct reducedXS_quad : public reducedXS::reducedXS_impl
+template<class PHI = screeningZBL >
+struct XSquad
 {
-    reducedXS_quad(unsigned int nsum = 100) : NSUM(nsum)
+    XSquad(unsigned int nsum = 100) : NSUM(nsum)
     {}
 
     typedef PHI screening_function;
 
-    virtual double screeningLength(int Z1, int Z2) const override
+    static double screeningLength(int Z1, int Z2)
     {
         return PHI::screeningLength(Z1, Z2);
     }
-    virtual double screeningFunction(const double& x) const override
+    static double screeningFunction(const double& x)
     {
         return PHI::screeningFunction(x);
     }
-    virtual double sin2Thetaby2(const double& epsilon, const double& s) const override
+    double sin2Thetaby2(const double& e, const double& s)
     {
-        double v = std::sin(0.5*theta(epsilon,s));
+        double v = std::sin(0.5*theta(e,s));
         return v*v;
     }
 
     // scattering angle calculated using Gauss-Mehler quadrature
     // (return NaN on error)
-    double theta(double epsilon, double s) const;
+    double theta(double e, double s) const;
 
     /* returns the cross section in the center of mass frame considering a screened potential */
     double crossSection(double E, unsigned int Z1, unsigned int Z2, double massRatio, double thetaCM) const;
@@ -207,23 +139,23 @@ protected:
     double finds(double epsilon, double thetaCM) const;
 };
 
-struct reducedXS_zbl_magic : public reducedXS::reducedXS_impl
+struct XS_zbl_magic
 {
-    typedef screening<reducedXS::ZBL> screening_function;
+    typedef screeningZBL screening_function;
 
     static double theta(double epsilon, double s)
     {
         return 2*std::acos(MAGIC(epsilon,s));
     }
-    virtual double screeningLength(int Z1, int Z2) const override
+    static double screeningLength(int Z1, int Z2)
     {
         return screening_function::screeningLength(Z1, Z2);
     }
-    virtual double screeningFunction(const double& x) const override
+    static double screeningFunction(const double& x)
     {
         return screening_function::screeningFunction(x);
     }
-    virtual double sin2Thetaby2(const double& epsilon, const double& s) const override
+    static double sin2Thetaby2(const double& epsilon, const double& s)
     {
         double m = MAGIC(epsilon,s);
         return 1. - m*m;
@@ -251,74 +183,68 @@ struct reducedXS_zbl_magic : public reducedXS::reducedXS_impl
     static double ZBL_and_deri(double R, double* Vprime);
 };
 
-template<class _XS_impl>
-class reducedXS_corteo4bit : public reducedXS::reducedXS_impl
+struct XS_corteo4bit
 {
-    std::shared_ptr<_XS_impl> xs_impl_;
-
-    /* scattering matrix: sin^2(theta_CM/2) */
-    Array2Df  matrix_;
-
-public:
+    typedef screeningZBL screening_function;
+    typedef corteo4bit corteo_idx_t;
 
     const static int rows = corteo4bit::e_index::dim;
     const static int cols = corteo4bit::s_index::dim;
 
-    reducedXS_corteo4bit(unsigned int nsum = 100) :
-        xs_impl_(new _XS_impl(nsum)),
-        matrix_(rows,cols)
-    {}
-    reducedXS_corteo4bit(const reducedXS_corteo4bit& other) :
-        xs_impl_(other.xs_impl_), matrix_(other.matrix_)
-    {}
-
-    virtual double screeningLength(int Z1, int Z2) const override
+    static double screeningLength(int Z1, int Z2)
     {
-        return xs_impl_->screeningLength(Z1, Z2);
+        return screening_function::screeningLength(Z1, Z2);
     }
-    virtual double screeningFunction(const double& x) const override
+    static double screeningFunction(const double& x)
     {
-        return xs_impl_->screeningFunction(x);
+        return screening_function::screeningFunction(x);
     }
-    virtual double sin2Thetaby2(const double& epsilon, const double& s) const override
+    static double sin2Thetaby2(const double& e, const double& s)
     {
-        corteo4bit::e_index ie(epsilon);
-        corteo4bit::s_index is(s);
-        return matrix_[ie][is];
+        const float* p = corteo4bitdata();
+        int i = corteo4bit::table_index(e,s);
+        return p[i];
     }
-    virtual double sin2Thetaby2(int ie, int is) const override
+    static float sin2Thetaby2(int ie, int is)
     {
-        return matrix_[ie][is];
+        const float* p = corteo4bitdata();
+        return p[ie*cols + is];
     }
-
-    const float* data() const { return matrix_.data(); }
-    const float* operator[](int i) const { return matrix_[i]; }
-
-    int size_epsilon() const { return corteo4bit::rows; }
-    int size_s() const { return corteo4bit::cols; }
-    int size() const
-    { return corteo4bit::rows * corteo4bit::cols; }
-
-
-    /* compute all the elements of the matrix
-    user sets showProgress!=0 to display the progress of this (long) calculation to the console
-    return 1 if successful, 0 if not able to write file */
-    /*
-     * compute all the elements of the xs matrix
-     *
-     * if a ostream pointer is passed, msgs are written showing the progress
-     *
-     * return 1 if successful, 0 if not able to write file
-     *
-     */
-    virtual int init(std::ostream* os = NULL) override;
-
+    static const float* data() { return corteo4bitdata(); }
 };
 
-class scatteringXS
+struct XS_corteo6bit
 {
-protected:
+    typedef screeningZBL screening_function;
+    typedef corteo6bit corteo_idx_t;
 
+    const static int rows = corteo6bit::e_index::dim;
+    const static int cols = corteo6bit::s_index::dim;
+
+    static double screeningLength(int Z1, int Z2)
+    {
+        return screening_function::screeningLength(Z1, Z2);
+    }
+    static double screeningFunction(const double& x)
+    {
+        return screening_function::screeningFunction(x);
+    }
+    static double sin2Thetaby2(const double& e, const double& s)
+    {
+        const float* p = corteo6bitdata();
+        int i = corteo6bit::table_index(e,s);
+        return p[i];
+    }
+    static float sin2Thetaby2(int ie, int is)
+    {
+        const float* p = corteo6bitdata();
+        return p[ie*cols + is];
+    }
+    static const float* data() { return corteo6bitdata(); }
+};
+
+
+struct cm_pars {
     float screening_length;    /* screening length from ZBL85,p45, eq.2-60, but in [nm] */
     float inv_screening_length;/* 1/screening length in 1/nm */
     float mass_ratio;          /* ... */
@@ -326,22 +252,203 @@ protected:
     float kfactor_m;           /* mass part of the kinematic factor. This is called EC in the TRIM code */
     float red_E_conv;          /* reduced energy conversion factor. This is called FI in TRIM */
 
-    reducedXS xs;
-
-    Array2Df cosTable, sinTable;
-
-    void fillCosSinTable();
-
-public:
-    explicit scatteringXS(const reducedXS& axs = reducedXS());
-
-    float sqrtMassRatio() const { return sqrt_mass_ratio; }
-
-    virtual void init(float Z1, float M1, float Z2, float M2);
-
-    virtual void scatter(float erg, float P,
-                         float &recoil_erg, float &sintheta, float &costheta) const;
-
+    template<class _XScm>
+    void init(float Z1, float M1, float Z2, float M2)
+    {
+        /* Adapted from the corteo code */
+        screening_length     = _XScm::screeningLength(Z1,Z2); /* This is in nm! */
+        inv_screening_length = 1.0f/screening_length;
+        mass_ratio           = M1/M2;
+        sqrt_mass_ratio      = std::sqrt(mass_ratio);
+        kfactor_m            = 4*mass_ratio / ((mass_ratio+1) * (mass_ratio+1)); /* k factor without the angle part */
+        red_E_conv           = screening_length / ((mass_ratio+1) * Z1 * Z2 * E2);
+    }
 };
+
+template<class _XScm> class XSlab;
+
+template<>
+class XSlab<XS_zbl_magic>
+{
+    cm_pars P_;
+public:
+    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
+    void init(float Z1, float M1, float Z2, float M2) {
+        P_.init<XS_zbl_magic>(Z1,M1,Z2,M2);
+    }
+    void scatter(float e, float s,
+                 float &recoil_erg, float &sintheta, float &costheta) const
+    {
+        float sin2thetaby2 = XS_zbl_magic::sin2Thetaby2(e*P_.red_E_conv, s*P_.inv_screening_length);
+        costheta = 1.f - 2*sin2thetaby2;
+        sintheta = std::sqrt(1.f-costheta*costheta);
+        /* now conversion to lab frame of reference: */
+        float theta=atan( sintheta/(costheta+P_.mass_ratio) );
+        /*if(isnan(theta)){theta=0;}*/
+        sintheta=sin(theta);
+        costheta=cos(theta);
+        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+    }
+};
+
+template<class _XS>
+class xs_corteo_impl_ {
+    typedef typename _XS::corteo_idx_t _My_t;
+    cm_pars P_;
+    std::array<float, _My_t::rows * _My_t::cols > sinTable, cosTable;
+public:
+    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
+    void init(float Z1, float M1, float Z2, float M2) {
+        P_.init<_XS>(Z1,M1,Z2,M2);
+        /* compute scattering angle components */
+        double sin2thetaby2, costheta, costhetaLab, sinthetaLab;
+        double mr = P_.mass_ratio;
+        for (typename _My_t::e_index ie; ie!=ie.end(); ie++)
+            for (typename _My_t::s_index is; is!=is.end(); is++)
+            {
+                sin2thetaby2 = _XS::sin2Thetaby2(ie,is);
+                costheta = 1.-2.*sin2thetaby2;
+
+                if(costheta==-1.0 && mr==1.0) {
+                    costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
+                    sinthetaLab = 1.0;
+                } else {
+                    costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
+                    sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+                }
+
+                int k = ie*_My_t::cols + is;
+                cosTable[k] = costhetaLab;
+                sinTable[k] = sinthetaLab;
+
+                /* MODIFICATION FROM CORTEO FOR IRADINA, C. Borschel 2011: */
+                /* In some rare cases, when cos=1, then sin becomes "Not a Number". To prevent this, I will set the sine to 0 in those cases. */
+                if( std::isnan(sinTable[k]) ) {
+                    cosTable[k]=0.f;
+                    sinTable[k]=1.f;
+                }
+            }
+    }
+    void scatter(float e, float s,
+                 float &recoil_erg, float &sintheta, float &costheta) const
+    {
+        int k = _My_t::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
+        const float* p = _XS::data();
+        float sin2thetaby2 = p[k];
+        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+        sintheta=sinTable[k];
+        costheta=cosTable[k];
+    }
+};
+
+template<>
+class XSlab<XS_corteo4bit> : public xs_corteo_impl_< XS_corteo4bit >
+{};
+
+template<>
+class XSlab<XS_corteo6bit> : public xs_corteo_impl_< XS_corteo6bit >
+{};
+
+//template<>
+//class XSlab<XS_corteo4bit>
+//{
+//    cm_pars P_;
+//    std::array<float, corteo4bit::rows*corteo4bit::cols > sinTable, cosTable;
+//public:
+//    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
+//    void init(float Z1, float M1, float Z2, float M2) {
+//        P_.init<XS_corteo4bit>(Z1,M1,Z2,M2);
+//        /* compute scattering angle components */
+//        double sin2thetaby2, costheta, costhetaLab, sinthetaLab;
+//        double mr = P_.mass_ratio;
+//        for (corteo4bit::e_index ie; ie!=ie.end(); ie++)
+//            for (corteo4bit::s_index is; is!=is.end(); is++)
+//            {
+//                sin2thetaby2 = XS_corteo4bit::sin2Thetaby2(ie,is);
+//                costheta = 1.-2.*sin2thetaby2;
+
+//                if(costheta==-1.0 && mr==1.0) {
+//                    costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
+//                    sinthetaLab = 1.0;
+//                } else {
+//                    costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
+//                    sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+//                }
+
+//                int k = ie*corteo4bit::cols + is;
+//                cosTable[k] = costhetaLab;
+//                sinTable[k] = sinthetaLab;
+
+//                /* MODIFICATION FROM CORTEO FOR IRADINA, C. Borschel 2011: */
+//                /* In some rare cases, when cos=1, then sin becomes "Not a Number". To prevent this, I will set the sine to 0 in those cases. */
+//                if( std::isnan(sinTable[k]) ) {
+//                    cosTable[k]=0.f;
+//                    sinTable[k]=1.f;
+//                }
+//            }
+//    }
+//    void scatter(float e, float s,
+//                 float &recoil_erg, float &sintheta, float &costheta) const
+//    {
+//        int k = corteo4bit::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
+//        const float* p = corteo6bitdata();
+//        float sin2thetaby2 = p[k];
+//        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+//        sintheta=sinTable[k];
+//        costheta=cosTable[k];
+//    }
+
+//};
+
+//template<>
+//class XSlab<XS_corteo6bit>
+//{
+//    cm_pars P_;
+//    std::array<float, corteo6bit::rows*corteo6bit::cols > sinTable, cosTable;
+//public:
+//    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
+//    void init(float Z1, float M1, float Z2, float M2) {
+//        P_.init<XS_corteo6bit>(Z1,M1,Z2,M2);
+//        /* compute scattering angle components */
+//        double sin2thetaby2, costheta, costhetaLab, sinthetaLab;
+//        double mr = P_.mass_ratio;
+//        for (corteo6bit::e_index ie; ie!=ie.end(); ie++)
+//            for (corteo6bit::s_index is; is!=is.end(); is++)
+//            {
+//                sin2thetaby2 = XS_corteo6bit::sin2Thetaby2(ie,is);
+//                costheta = 1.-2.*sin2thetaby2;
+
+//                if(costheta==-1.0 && mr==1.0) {
+//                    costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
+//                    sinthetaLab = 1.0;
+//                } else {
+//                    costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
+//                    sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+//                }
+
+//                int k = ie*corteo6bit::cols + is;
+//                cosTable[k] = costhetaLab;
+//                sinTable[k] = sinthetaLab;
+
+//                /* MODIFICATION FROM CORTEO FOR IRADINA, C. Borschel 2011: */
+//                /* In some rare cases, when cos=1, then sin becomes "Not a Number". To prevent this, I will set the sine to 0 in those cases. */
+//                if( std::isnan(sinTable[k]) ) {
+//                    cosTable[k]=0.f;
+//                    sinTable[k]=1.f;
+//                }
+//            }
+//    }
+//    void scatter(float e, float s,
+//                 float &recoil_erg, float &sintheta, float &costheta) const
+//    {
+//        int k = corteo6bit::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
+//        const float* p = corteo6bitdata();
+//        float sin2thetaby2 = p[k];
+//        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+//        sintheta=sinTable[k];
+//        costheta=cosTable[k];
+//    }
+
+//};
 
 #endif

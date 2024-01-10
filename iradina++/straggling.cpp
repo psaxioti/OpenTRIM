@@ -1,7 +1,6 @@
 #include "dedx.h"
-#include "elements.h"
+#include "simulation.h"
 #include "xs.h"
-#include "target.h"
 
 #include <cmath>
 
@@ -131,7 +130,8 @@ static const float chu_coef[][4] = {{+0.0000f, +0.0000f, +0.0000f, +0.0000f},
  * @param strag pointer to table to receive straggling values [eV]
  */
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
-                    int Z2, const float& Ns, StragglingModel model, float* strag)
+                    int Z2, const float& Ns,
+                    simulation_base::straggling_model_t model, float* strag)
 {
     /*
      * Start by calculating squared Bohr straggling
@@ -202,15 +202,15 @@ void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& 
                      * but well... we'll probably use Yang's model in most cases
                      */
         switch(model) {
-        case NoStraggling: /* no straggling */
+        case simulation_base::NoStraggling: /* no straggling */
             break;
-        case BohrStraggling: /* Bohr */
+        case simulation_base::BohrStraggling: /* Bohr */
             strag[ie] += OmegaBohr2;
             break;
-        case ChuStraggling: /* Chu */
+        case simulation_base::ChuStraggling: /* Chu */
             strag[ie] += OmegaBohr2*Chu_factor;
             break;
-        case YangStraggling: /* Chu + Yang correction */
+        case simulation_base::YangStraggling: /* Chu + Yang correction */
             strag[ie] += OmegaBohr2*(chargestate2*Chu_factor+Yang);
             break;
         }

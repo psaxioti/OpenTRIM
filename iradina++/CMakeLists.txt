@@ -9,9 +9,30 @@ include_directories(${HDF5_INCLUDE_DIRS})
 
 include_directories( ../extern/inifile-cpp/include )
 
+add_executable(gendedx
+    gendedx.cpp
+    elements.h elements.cpp)
+
+file(GLOB gendedx_files CONFIGURE_DEPENDS
+    ${PROJECT_SOURCE_DIR}/dedx/*.cpp)
+
+add_library(iondedx SHARED
+    dedx.h dedx.cpp ${gendedx_files})
+
+add_executable(gencorteo
+    gencorteo.cpp
+    corteo.h
+    xs.h xs.cpp)
+
+add_library(corteo4bit SHARED
+    corteo4bit.h corteo4bitdata.cpp)
+
+add_library(corteo6bit SHARED
+    corteo6bit.h corteo6bitdata.cpp)
+
 add_executable(iradina++  
     iradina.cpp 
-    corteo.h
+    corteo.h corteo4bit.h corteo6bit.h
     xs.h xs.cpp
     elements.h elements.cpp
     ion.h ion.cpp
@@ -25,19 +46,12 @@ add_executable(iradina++
     arrays.h
     event_recorder.h event_recorder.cpp
     out_file.h out_file.cpp
-    gencorteo.cpp)
-
-
-
-add_executable(gendedx
-    gendedx.cpp elements.cpp)
-
-file(GLOB gendedx_files CONFIGURE_DEPENDS
-    ${PROJECT_SOURCE_DIR}/dedx/*.cpp)
-
-add_library(iondedx SHARED
-    dedx.h dedx.cpp ${gendedx_files})
+    simulation_base.cpp)
 
 target_link_libraries(iradina++ "-lm"
-    Eigen3::Eigen iondedx ${HDF5_LIBRARIES})
+    Eigen3::Eigen
+    iondedx
+    corteo4bit
+    corteo6bit
+    ${HDF5_LIBRARIES})
 

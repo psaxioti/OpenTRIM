@@ -13,13 +13,6 @@ class material;
 class scatteringXS;
 class reducedXS;
 
-typedef enum {
-    NoStraggling = 0,
-    BohrStraggling,
-    ChuStraggling,
-    YangStraggling
-} StragglingModel;
-
 class atom {
     int id_;
     material* mat_;
@@ -101,7 +94,7 @@ public:
                   float Ed, float El, float Es, float Er);
 
 
-    void init(const reducedXS &xs);
+    void init();
 
     int id() const { return id_; }
     const std::vector<float>& X();
@@ -129,11 +122,6 @@ class inventory {
 
     std::vector<atom*> atoms_;
     std::vector<material*> materials_;
-    //std::vector<scatteringXS*> scattering_matrix_;
-    Array2D<scatteringXS*> scattering_matrix_;
-    Array3Df dedx_; // stopping data (atoms x materials x energy)
-    Array2Df dedx1; // proton stopping (materials x energy)
-    Array3Df de_strag_; // straggling data (atoms x materials x energy)
 
 public:
 
@@ -147,13 +135,8 @@ public:
     const std::vector<atom*>& atoms() { return atoms_; }
     const std::vector<material*>& materials() { return materials_; }
 
-    void init(const reducedXS& xs, StragglingModel smodel = YangStraggling);
 
-    const scatteringXS* getScatteringXS(const atom* z1, const atom* z2) const;
-    int getDE(const atom* z1, const material* m, const float& erg,
-                float &dedx, float &de_stragg) const;
-    int getDEtables(const atom* z1, const material* m,
-              const float *&dedx, const float *&de_stragg) const;
+    void init();
 
     friend class material;
 
