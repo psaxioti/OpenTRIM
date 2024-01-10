@@ -24,8 +24,8 @@ void ion_beam::source_ion(URBG& g, const target& t, ion& i)
     switch (source_type) {
     case SurfaceRandom:
         p.x() = x.front();
-        p.y() = y.front() + y.w*g.u01no0no1();
-        p.z() = z.front() + z.w*g.u01no0no1();
+        p.y() = y.front() + y.w*g.u01open();
+        p.z() = z.front() + z.w*g.u01open();
         break;
     case SurfaceCentered:
         p.x() = x.front();
@@ -33,9 +33,9 @@ void ion_beam::source_ion(URBG& g, const target& t, ion& i)
         p.z() = z.front() + z.w/2;
         break;
     case VolumeRandom:
-        p.x() = x.front() + x.w*g.u01no0no1();
-        p.y() = y.front() + y.w*g.u01no0no1();
-        p.z() = z.front() + z.w*g.u01no0no1();
+        p.x() = x.front() + x.w*g.u01open();
+        p.y() = y.front() + y.w*g.u01open();
+        p.z() = z.front() + z.w*g.u01open();
         break;
     case VolumeCentered:
         p.x() = x.front() + x.w/2;

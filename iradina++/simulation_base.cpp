@@ -274,11 +274,11 @@ float simulation_base::impactPar(const ion* i, const material* m, const float& s
     case Poisson:
     case AtomicSpacing:
     case Constant:
-        rnd->uniform01(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
+        rnd->u_sqrtu(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
         p *= m->meanImpactPar()/sqrtfp;
         break;
     case SRIMlike:
-        rnd->uniform01(d,p);
+        rnd->u_sqrtu(d,p);
         p *= pmax;
         break;
     }

@@ -4,40 +4,65 @@
 #include "urbg.h"
 #include <vector>
 
+struct random_vars_base
+{
+
+};
+
 struct random_vars
 {
     URBG& urbg;
     std::normal_distribution<float> N;
+    std::uniform_real_distribution<float> X;
 
     random_vars(URBG& g) : urbg(g)
     {}
 
-    virtual void uniform01(float& u, float& sqrtu)
+    /*
+     * Used for impact factor sampling
+     *
+     * $f p \propto \sqrt{u} $f
+     *
+     */
+    virtual void u_sqrtu(float& u, float& sqrtu)
     {
-        u = urbg.u01no0();
+        u = urbg.u01lopen();
         sqrtu = std::sqrt(u);
     }
-    virtual void sqrtLog(float& u, float& invu)
-    {
-        u = urbg.u01no0no1();
-        u = std::sqrt(-std::log(u));
-        invu = 1.f/u;
-    }
+
+    /*
+     * Used for flight path sampling
+     *
+     * P(\ell) = e^{-\ell/\ell_0}
+     *
+     * \ell \propto -log(u)
+     *
+     * The \sqrt{\ell} is also needed for the impact factor
+     */
     virtual void poisson(float& u, float& sqrtu)
     {
-        u = urbg.u01no0no1();
+        u = urbg.u01open();
         u = -std::log(u);
         sqrtu = std::sqrt(u);
     }
     virtual void poisson(float& u)
     {
-        u = urbg.u01no0no1();
+        u = urbg.u01open();
         u = -std::log(u);
     }
+    /*
+     * Used for sampling of straggling energy
+     */
     virtual float normal()
     {
         return N(urbg);
     }
+    /*
+     * Samples uniformly a random 2D direction
+     * nx, ny are the direction cosines
+     *
+     * Used for sampling the polar angle after collision
+     */
     virtual void azimuth(float& nx, float&ny)
     {
         float s1,s2,r2;
@@ -62,17 +87,11 @@ struct random_vars_tbl : public random_vars
         initTables();
     }
 
-    virtual void uniform01(float& u, float& sqrtu) override
+    virtual void u_sqrtu(float& u, float& sqrtu) override
     {
         u = randomlist[iUniform];
         sqrtu = sqrtrandomlist[iUniform++];
         iUniform %= randomlist.size();
-    }
-    virtual void sqrtLog(float& u, float& invu) override
-    {
-        u = sqrtloglist[iSqrtLog];
-        invu = sqrtloglist1[iSqrtLog++];
-        iSqrtLog %= sqrtloglist.size();
     }
     virtual void poisson(float& u) override
     {

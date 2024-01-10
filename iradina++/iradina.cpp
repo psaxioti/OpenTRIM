@@ -24,9 +24,34 @@ int test_run();
 using std::cout;
 using std::endl;
 
+typedef float RealType;
+
 int main(int argc, char* argv[])
 {
-    return test_run();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    const std::size_t Bits = 10;
+    int b = std::min(Bits, std::size_t {std::numeric_limits<RealType>::digits});
+    cout << b << endl << endl;
+
+    for (int n = 0; n < 10; ++n)
+        cout << std::generate_canonical<double, Bits>(gen) << endl;
+
+
+//    unsigned long w1(2147483647UL), w2(4294967295UL);
+//    unsigned long i;
+//    cout << "i\t31bitS\t31bitD\t32bitS\t32bitD" << endl;
+//    for(i=0; i<1024; i++) {
+
+//        cout << i << '\t'
+//             << 1.f*(w1-i)/w1 - 1.f << '\t'
+//             << 1.*(w1-i)/w1 -1. << '\t'
+//             << 1.f*(w2-i)/w2 - 1.f << '\t'
+//             << 1.*(w2-i)/w2 -1.<< endl;
+//    }
+    return 0;
 }
 
 int testini(int argc, char* argv[])
