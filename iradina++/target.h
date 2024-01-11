@@ -100,10 +100,11 @@ public:
     const std::vector<float>& X();
     const std::vector<atom*>& atoms() const { return atoms_; }
 
-    const atom* selectAtom(URBG& g) const
+    template<class _U>
+    const atom* selectAtom(_U& g) const
     {
         if (atoms_.size()==1) return atoms_.front();
-        float u = g.u01();
+        float u = g.u01ropen();
         int i=0;
         while((i < atoms_.size()-1) && (u > cumX_[i])) i++;
         return atoms_[i];

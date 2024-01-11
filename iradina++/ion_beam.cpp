@@ -1,5 +1,5 @@
 #include "ion_beam.h"
-#include "urbg.h"
+#include "random_vars.h"
 #include "ion.h"
 #include "target.h"
 
@@ -9,7 +9,8 @@ ion_beam::ion_beam() : source_type(SurfaceRandom),
 
 }
 
-void ion_beam::source_ion(URBG& g, const target& t, ion& i)
+template<class _U>
+void ion_beam::source_ion(_U& g, const target& t, ion& i)
 {
     // beam in +x direction
     i.dir = {1.f, 0.f, 0.f};
@@ -49,3 +50,6 @@ void ion_beam::source_ion(URBG& g, const target& t, ion& i)
     i.ion_id = ++counter;
     i.recoil_id = 0;
 }
+
+template void ion_beam::source_ion< URBGmt >(URBGmt& g, const target& t, ion& i);
+template void ion_beam::source_ion< URBGmsrand >(URBGmsrand& g, const target& t, ion& i);

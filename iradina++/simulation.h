@@ -2,14 +2,13 @@
 #define _SIMULATION_H_
 
 #include "target.h"
-#include "urbg.h"
+#include "random_vars.h"
 #include "ion_beam.h"
 #include "ion.h"
 #include "xs.h"
 
 #include <queue>
 
-struct random_vars;
 class out_file;
 
 class simulation_base
@@ -46,6 +45,11 @@ public:
         KP2 = 5             /**< KP quick calculation of damage, material averaging, more physical as 4 but different compared to SRIM (added by J.-P. Crocombette) */
     } simulation_type_t;
 
+    typedef enum {
+        Sampled = 0,
+        Tabulated
+    } random_var_t;
+
     /**
      * @brief Type of simulation event
      */
@@ -65,15 +69,14 @@ protected:
 
     std::string name_;
 
-    URBG urbg;
     target target_;
     inventory inventory_;
     ion_beam source_;
-    random_vars* rnd;
 
-    flight_path_type_t flight_path_type;
     simulation_type_t simulation_type;
+    flight_path_type_t flight_path_type;
     straggling_model_t straggling_model;
+    random_var_t random_var_type;
 
     float flight_path_const;
     std::vector<float> sqrtfp_const;
@@ -108,7 +111,17 @@ public:
     const std::string& name() { return name_; }
     void setName(const char* n) { name_ = n; }
 
+    simulation_type_t simulationTypel() const { return simulation_type; }
+    void setSimulationType(simulation_type_t m) { simulation_type = m; }
+
+    flight_path_type_t flightPathType() const { return flight_path_type; }
+    void setFlightPathType(flight_path_type_t m) { flight_path_type = m; }
+
+    straggling_model_t stragglingModel() const { return straggling_model; }
     void setStragglingModel(straggling_model_t m) { straggling_model = m; }
+
+    random_var_t randomVarType() const { return random_var_type; }
+    void setRandomVarType(random_var_t m) { random_var_type = m; }
 
     unsigned int ion_histories() const { return ion_histories_; }
     double ms_per_ion() const { return ms_per_ion_; }
@@ -116,6 +129,7 @@ public:
     material* addMaterial(const char* name, const float& density) {
         return inventory_.addMaterial(name, density);
     }
+
     void setProjectile(int Z, float M, float E0);
 
     int getDEtables(const atom* z1, const material* m,
@@ -144,14 +158,11 @@ public:
     ion* pop_ion();
     void push_ion(ion* i);
 
-    float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax);
-    float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax);
-
     float LSS_Tdam(int Z, float M, float T);
     float NRT(float Ed, float Tdam);
 };
 
-template<class _XScm>
+template<class _XScm, class _RNG_E>
 class simulation : public simulation_base
 {
 public:
@@ -159,7 +170,13 @@ public:
     typedef _XScm reducedXScm;
     typedef XSlab<_XScm> scatteringXSlab;
 
+    typedef _RNG_E rng_engine;
+    typedef URBG_< _RNG_E > URBG;
+
 private:
+
+    URBG urbg;
+    random_vars_base* rnd;
 
     Array2D<scatteringXSlab*> scattering_matrix_;
 
@@ -171,14 +188,19 @@ public:
 
     int run(int count, const char* outfname);
 
-
-
     int transport(ion* i);
+
+    float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax);
+    float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax);
 
 };
 
-typedef simulation<XS_zbl_magic>  SimZBLMagic;
-typedef simulation<XS_corteo4bit> SimCorteo4bit;
-typedef simulation<XS_corteo6bit> SimCorteo6bit;
+typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;
+typedef simulation<XS_corteo4bit, std::mt19937> SimCorteo4bit_MT;
+typedef simulation<XS_corteo6bit, std::mt19937> SimCorteo6bit_MT;
+
+typedef simulation<XS_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
+typedef simulation<XS_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
+typedef simulation<XS_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
 
 #endif // SIMULATION_H

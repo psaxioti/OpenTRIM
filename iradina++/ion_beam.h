@@ -1,7 +1,6 @@
 #ifndef ION_BEAM_H
 #define ION_BEAM_H
 
-class URBG;
 class target;
 class ion;
 class atom;
@@ -32,7 +31,8 @@ public:
     void setProjectile(const atom* at, float E0)
     { atom_ = at; E0_ = E0; }
 
-    void source_ion(URBG& g, const target& t, ion& i);
+    template<class _U>
+    void source_ion(_U& g, const target& t, ion& i);
 
 };
 

@@ -5,13 +5,13 @@
 
 #include <iostream>
 
-template<class _XScm>
-simulation<_XScm>::simulation(const char *name) :
+template<class _XScm, class _RNG_E>
+simulation<_XScm,  _RNG_E>::simulation(const char *name) :
     simulation_base(name)
 {}
 
-template<class _XScm>
-simulation<_XScm>::~simulation()
+template<class _XScm, class _RNG_E>
+simulation<_XScm,  _RNG_E>::~simulation()
 {
     int natoms = inventory_.atoms().size();
     for(int z1 = 0; z1<natoms; z1++)
@@ -22,8 +22,8 @@ simulation<_XScm>::~simulation()
         }
 }
 
-template<class _XScm>
-int simulation<_XScm>::init() {
+template<class _XScm, class _RNG_E>
+int simulation<_XScm,  _RNG_E>::init() {
 
     simulation_base::init();
 
@@ -44,11 +44,26 @@ int simulation<_XScm>::init() {
             scattering_matrix_[z1][z2] = sc;
         }
 
+    /*
+     * create random variables object
+     */
+    if (rnd) delete rnd;
+    rnd = nullptr;
+    switch (random_var_type) {
+    case Sampled:
+        rnd = new random_vars< _RNG_E >(urbg);
+        break;
+    case Tabulated:
+        rnd = new random_vars_tbl< _RNG_E >(urbg);
+        break;
+
+    }
+
     return 0;
 }
 
-template<class _XScm>
-int simulation<_XScm>::run(int count, const char *outfname)
+template<class _XScm, class _RNG_E>
+int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
 {
     out_file_ = new out_file(this);
     if (out_file_->open(outfname)!=0) return -1;
@@ -91,8 +106,8 @@ int simulation<_XScm>::run(int count, const char *outfname)
     return 0;
 }
 
-template<class _XScm>
-int simulation<_XScm>::transport(ion* i)
+template<class _XScm, class _RNG_E>
+int simulation<_XScm,  _RNG_E>::transport(ion* i)
 {
     const material* mat = target_.cell(i->icell());
     const float* de_stopping_tbl = nullptr;
@@ -298,10 +313,65 @@ int simulation<_XScm>::transport(ion* i)
     return 0;
 }
 
+template<class _XScm, class _RNG_E>
+float simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, float &sqrtfp, float& pmax)
+{
+    if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
+
+    float fp;
+    switch (flight_path_type) {
+    case Poisson:
+        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u. temp = u^(1/2)
+        fp = fp * m->atomicDistance();
+        break;
+    case AtomicSpacing:
+        fp = m->atomicDistance();
+        sqrtfp = 1;
+        break;
+    case Constant:
+        fp = flight_path_const;
+        sqrtfp = sqrtfp_const[m->id()];
+        break;
+    case SRIMlike:
+    {
+        float epsilon = i->erg * m->meanF();
+        float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
+        float bmax = 1.f/(xsi + std::sqrt(xsi) + std::pow(xsi,.1f));
+        pmax = bmax * m->meanA();
+        fp = 1./(M_PI * m->atomicDensity() * pmax * pmax);
+    }
+    break;
+    }
+    return fp;
+}
+
+template<class _XScm, class _RNG_E>
+float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, const float& sqrtfp, const float& pmax)
+{
+    float p, d;
+    switch (flight_path_type) {
+    case Poisson:
+    case AtomicSpacing:
+    case Constant:
+        rnd->u_sqrtu(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
+        p *= m->meanImpactPar()/sqrtfp;
+        break;
+    case SRIMlike:
+        rnd->u_sqrtu(d,p);
+        p *= pmax;
+        break;
+    }
+    return p;
+}
+
 // explicit instantiation of all variants
-template class simulation< XS_zbl_magic >;
-template class simulation< XS_corteo4bit >;
-template class simulation< XS_corteo6bit >;
+template class simulation< XS_zbl_magic,   std::mt19937 >;
+template class simulation< XS_corteo4bit,  std::mt19937 >;
+template class simulation< XS_corteo6bit,  std::mt19937 >;
+
+template class simulation< XS_zbl_magic,   std::minstd_rand >;
+template class simulation< XS_corteo4bit,  std::minstd_rand >;
+template class simulation< XS_corteo6bit,  std::minstd_rand >;
 
 
 

@@ -1,21 +1,116 @@
 #ifndef _RANDOM_VARS_H_
 #define _RANDOM_VARS_H_
 
-#include "urbg.h"
+#include <random>
 #include <vector>
 
+/*
+ * Generate random distributions needed in Iradina++
+ *
+ * Interface definition with pure virtual funcs
+ *
+ */
 struct random_vars_base
 {
+    virtual ~random_vars_base()
+    {}
+
+    /*
+     * Used for impact factor sampling
+     *
+     * $f p \propto \sqrt{u} $f
+     *
+     */
+    virtual void u_sqrtu(float& u, float& sqrtu) = 0;
+
+    /*
+     * Used for flight path sampling
+     *
+     * P(\ell) = e^{-\ell/\ell_0}
+     *
+     * \ell \propto -log(u)
+     *
+     * The \sqrt{\ell} is also needed for the impact factor
+     */
+    virtual void poisson(float& u, float& sqrtu) = 0;
+    virtual void poisson(float& u) = 0;
+
+    /*
+     * Used for sampling of straggling energy
+     *
+     * Returns a number distributed as N(0,1)
+     */
+    virtual float normal() = 0;
+
+    /*
+     * Samples uniformly a random 2D direction
+     *
+     * nx, ny are the direction cosines
+     *
+     * Used for sampling the azimuthal angle after collision
+     */
+    virtual void azimuth(float& nx, float&ny) = 0;
 
 };
 
-struct random_vars
-{
-    URBG& urbg;
-    std::normal_distribution<float> N;
-    std::uniform_real_distribution<float> X;
 
-    random_vars(URBG& g) : urbg(g)
+/*
+ * Basic 32bit float random number generator (RNG)
+ *
+ * Uses internally an integral RNG engine from std lib
+ *
+ * Tested engines :
+ *
+ * 1. mt19937 : good overall engine but slower
+ *
+ * 2. minstd_rand : "minimal standard", low resolution but fast
+ *
+ */
+template<class _E>
+struct URBG_ : public _E
+{
+    typedef _E rng_engine;
+
+    explicit URBG_(_E& e) : _E(e)
+    {}
+    URBG_() : _E()
+    {}
+
+    // [0, 1)
+    float u01ropen() {
+        return std::generate_canonical<float, 32>(*this);
+    }
+    // (0, 1)
+    float u01open() {
+        float u;
+        do u = u01ropen(); while(u==0.f);
+        return u;
+    }
+    // (0, 1]
+    float u01lopen() {
+        return 1.f - u01ropen();
+    }
+    // [0, 1]
+    // experimental - needs testing
+    float u01() { return 1.f*(*this)()/rng_engine::max(); }
+};
+
+typedef URBG_< std::mt19937 > URBGmt;
+typedef URBG_< std::minstd_rand > URBGmsrand;
+
+/*
+ * This object use pure random generation
+ */
+template<class _E>
+struct random_vars : public random_vars_base
+{
+    typedef URBG_<_E> _my_urbg_t;
+
+    _my_urbg_t& urbg;
+
+    std::normal_distribution<float> N;
+
+    random_vars(_my_urbg_t& e) : urbg(e)
     {}
 
     /*
@@ -79,10 +174,17 @@ struct random_vars
     }
 };
 
-struct random_vars_tbl : public random_vars
+/*
+ * This object use tabulated random numbers
+ */
+template<class _E>
+struct random_vars_tbl : public random_vars_base
 {
+    typedef URBG_<_E> _my_urbg_t;
 
-    random_vars_tbl(URBG& g) : random_vars(g)
+    _my_urbg_t& urbg;
+
+    random_vars_tbl(_my_urbg_t& e) : urbg(e)
     {
         initTables();
     }
@@ -104,6 +206,11 @@ struct random_vars_tbl : public random_vars
         sqrtu = sqrtloglist[iSqrtLog++];
         u = sqrtu*sqrtu;
         iSqrtLog %= sqrtloglist.size();
+    }
+    virtual float normal() override
+    {
+        return inverflist[iInvErf++];
+        iInvErf %= inverflist.size();
     }
     virtual void azimuth(float& nx, float&ny) override
     {
@@ -127,8 +234,10 @@ private:
     std::vector<float> sqrtloglist1;   /* 1/sqrtloglist */
     std::vector<float> sinAzimAngle;   /* list cos and sin components of angles... */
     std::vector<float> cosAzimAngle;   /*   ...this angle are evenly distributed but randomly ordered between 0 and 2*PI */
+    std::vector<float> inverflist;     /* list of evenly distributed but randomly ordered values of inverse erf of -1+1/MAXERFLIST to 1-1/MAXERFLIST */
 
-    int iUniform, iSqrtLog, iAzimuth;
+
+    int iUniform, iSqrtLog, iAzimuth, iInvErf;
 };
 
 #endif // RANDOM_VARS_H

@@ -1,5 +1,4 @@
 #include "simulation.h"
-#include "random_vars.h"
 #include "dedx.h"
 #include "elements.h"
 
@@ -11,16 +10,15 @@ void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& 
 
 simulation_base::simulation_base(const char *name) :
     name_(name),
-    rnd(new random_vars_tbl(urbg)), // rnd(new random_vars(urbg)), rnd(new random_vars_tbl(urbg)),
-    flight_path_type(Poisson),
     simulation_type(FullCascade),
+    flight_path_type(Poisson),
     straggling_model(YangStraggling),
+    random_var_type(Sampled),
     energy_cutoff_(1.f)
 {}
 
 simulation_base::~simulation_base()
 {
-    if (rnd) delete rnd;
     while (!ion_buffer_.empty()) {
         ion* i = ion_buffer_.front();
         ion_buffer_.pop();
@@ -236,54 +234,7 @@ void simulation_base::tallyKP(const ion* i, const float& Tdam, const float& nv, 
     KPTally( 2,ic) += nv;
 }
 
-float simulation_base::flightPath(const ion* i, const material* m, float &sqrtfp, float& pmax)
-{
-    if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
 
-    float fp;
-    switch (flight_path_type) {
-    case Poisson:
-        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u. temp = u^(1/2)
-        fp = fp * m->atomicDistance();
-        break;
-    case AtomicSpacing:
-        fp = m->atomicDistance();
-        sqrtfp = 1;
-        break;
-    case Constant:
-        fp = flight_path_const;
-        sqrtfp = sqrtfp_const[m->id()];
-        break;
-    case SRIMlike:
-    {
-        float epsilon = i->erg * m->meanF();
-        float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
-        float bmax = 1.f/(xsi + std::sqrt(xsi) + std::pow(xsi,.1f));
-        pmax = bmax * m->meanA();
-        fp = 1./(M_PI * m->atomicDensity() * pmax * pmax);
-    }
-    break;
-    }
-    return fp;
-}
-
-float simulation_base::impactPar(const ion* i, const material* m, const float& sqrtfp, const float& pmax)
-{
-    float p, d;
-    switch (flight_path_type) {
-    case Poisson:
-    case AtomicSpacing:
-    case Constant:
-        rnd->u_sqrtu(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
-        p *= m->meanImpactPar()/sqrtfp;
-        break;
-    case SRIMlike:
-        rnd->u_sqrtu(d,p);
-        p *= pmax;
-        break;
-    }
-    return p;
-}
 
 ion* simulation_base::new_ion(const ion *parent)
 {

@@ -29,15 +29,15 @@ typedef float RealType;
 int main(int argc, char* argv[])
 {
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+//    std::random_device rd;
+//    std::mt19937 gen(rd());
 
-    const std::size_t Bits = 10;
-    int b = std::min(Bits, std::size_t {std::numeric_limits<RealType>::digits});
-    cout << b << endl << endl;
+//    const std::size_t Bits = 10;
+//    int b = std::min(Bits, std::size_t {std::numeric_limits<RealType>::digits});
+//    cout << b << endl << endl;
 
-    for (int n = 0; n < 10; ++n)
-        cout << std::generate_canonical<double, Bits>(gen) << endl;
+//    for (int n = 0; n < 10; ++n)
+//        cout << std::generate_canonical<double, Bits>(gen) << endl;
 
 
 //    unsigned long w1(2147483647UL), w2(4294967295UL);
@@ -51,7 +51,10 @@ int main(int argc, char* argv[])
 //             << 1.f*(w2-i)/w2 - 1.f << '\t'
 //             << 1.*(w2-i)/w2 -1.<< endl;
 //    }
-    return 0;
+
+
+    return test_run();
+
 }
 
 int testini(int argc, char* argv[])
@@ -91,7 +94,7 @@ int testini(int argc, char* argv[])
 int test_run()
 {
     //SimZBLMagic S("Test");
-    SimCorteo6bit S("Test");
+    SimCorteo6bit_MT S("Test");
 
     material* Fe = S.addMaterial("Fe", 7.8658);
     int Zfe = elements::atomicNum("Fe");
@@ -111,11 +114,12 @@ int test_run()
 //    Si->addAtom(Zsi, elements::mass(Zsi), 1.f, 25.f,
 //                1.f, 1.f, 25.f);
 
-    S.setProjectile(Zfe, Mfe, 2E6);
-    S.setStragglingModel(simulation_base::NoStraggling);
+    S.setProjectile(1, 1, 2E6);
+    //S.setProjectile(Zfe, Mfe, 2E6);
+    //S.setStragglingModel(simulation_base::NoStraggling);
 
     grid3D& g = S.grid();
-    float L = 1200;
+    float L = 20000;
     g.setX(0,L,100);
     g.setY(0,L,1,true);
     g.setZ(0,L,1,true);
@@ -126,8 +130,10 @@ int test_run()
     // X0.x() = 500;
     // S.fill(box,Si);
 
+    // S.setRandomVarType(simulation_base::Tabulated);
+
     S.init();
-    S.run(100,"testrun.h5");
+    S.run(1000,"testrun.h5");
 
     cout << "ms/ion =" << S.ms_per_ion() << endl;
 
@@ -138,7 +144,7 @@ void test_dedx()
 {
     const float *dedx, *de_stragg;
 
-    SimCorteo4bit S("Test");
+    SimCorteo4bit_MT S("Test");
 
     S.setProjectile(1, elements::mostAbundantIsotope(1), 5E6);
 
