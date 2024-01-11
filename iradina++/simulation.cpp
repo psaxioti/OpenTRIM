@@ -80,16 +80,22 @@ int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
 
         // transport the ion
         transport(i);
+        Nions_++;
+        // transport all PKAs
+        while (!pka_queue_.empty()) {
+            // transport PKA
+            transport(pop_pka());
+            Npkas_++;
+            Nrecoils_++; // a PKA is also a recoil
+            // transport all secondary recoils
+            while (!recoil_queue_.empty()) {
+                transport(pop_recoil());
+                Nrecoils_++;
+            }
+        }
 
-        // transport all ion recoils
-        while (!ion_queue_.empty())
-            transport(pop_ion());
-
-        // count history
-        ion_histories_++;
-
-        if (ion_histories_ % 100 ==0) {
-            std::cout << "Ion: " << ion_histories_ << std::endl;
+        if (Nions_ % 100 ==0) {
+            std::cout << "Ion: " << Nions_ << std::endl;
         }
     }
 
@@ -109,6 +115,8 @@ int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
 template<class _XScm, class _RNG_E>
 int simulation<_XScm,  _RNG_E>::transport(ion* i)
 {
+    // std::cout << "ion " << i->ion_id << ", recoil " << i->recoil_id << std::endl;
+
     const material* mat = target_.cell(i->icell());
     const float* de_stopping_tbl = nullptr;
     const float* de_straggling_tbl = nullptr;

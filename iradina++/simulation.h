@@ -62,10 +62,24 @@ public:
     } simulation_event_t;
 
 protected:
-
+    // FIFO ion buffers
     typedef std::queue<ion*> ion_queue_t;
-    ion_queue_t ion_buffer_;
-    ion_queue_t ion_queue_;
+    ion_queue_t ion_buffer_; // buffer of allocated ion objects
+    ion_queue_t recoil_queue_; // queue of generated recoils
+    ion_queue_t pka_queue_; // queue of generated PKAs
+
+    // return finished ion to buffer
+    void free_ion(ion* i) { ion_buffer_.push(i); }
+    // pop an ion from the respective queue
+    static ion* pop_one_(ion_queue_t& Q)
+    { ion* i = Q.front(); Q.pop(); return i; }
+    // ...
+    ion* pop_pka() { return pop_one_(pka_queue_); }
+    // ...
+    ion* pop_recoil() { return pop_one_(recoil_queue_); }
+    // push an ion. if recoil_id>0 goes to recoil queue
+    void push(ion* i)
+    { i->recoil_id > 1 ? recoil_queue_.push(i) : pka_queue_.push(i); }
 
     std::string name_;
 
@@ -83,9 +97,11 @@ protected:
 
     float energy_cutoff_;
 
+    // statistics
     double ms_per_ion_;
-
-    unsigned int ion_histories_;
+    unsigned int Nions_;
+    unsigned int Npkas_;
+    unsigned int Nrecoils_;
 
     Array3Df dedx_; // stopping data (atoms x materials x energy)
     Array2Df dedx1; // proton stopping (materials x energy)
@@ -103,6 +119,23 @@ protected:
 
     out_file* out_file_;
     friend class out_file;
+
+    ion* new_ion(const ion* parent = nullptr);
+    ion* new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
+                    const vector3& dir0, const float& mass_ratio);
+
+    void tallyIonizationEnergy(const ion* i, const float& v);
+    void tallyPhononEnergy(const ion* i, const float& v);
+    void tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed);
+
+    float LSS_Tdam(int Z, float M, float T);
+    float NRT(float Ed, float Tdam);
+
+    int getDEtables(const atom* z1, const material* m,
+                    const float *&dedx, const float *&de_stragg) const;
+
+
+
 
 public:
     simulation_base(const char* name);
@@ -123,18 +156,15 @@ public:
     random_var_t randomVarType() const { return random_var_type; }
     void setRandomVarType(random_var_t m) { random_var_type = m; }
 
-    unsigned int ion_histories() const { return ion_histories_; }
+    unsigned int ion_histories() const { return Nions_; }
     double ms_per_ion() const { return ms_per_ion_; }
+    unsigned int pkas() const { return Npkas_; }
+    unsigned int recoils() const { return Nrecoils_; }
 
     material* addMaterial(const char* name, const float& density) {
         return inventory_.addMaterial(name, density);
     }
-
     void setProjectile(int Z, float M, float E0);
-
-    int getDEtables(const atom* z1, const material* m,
-                    const float *&dedx, const float *&de_stragg) const;
-
     grid3D& grid() { return target_.grid(); }
     const grid3D& grid() const { return target_.grid(); }
     void fill(const box3D& box, const material* m) {
@@ -147,19 +177,6 @@ public:
 
     virtual int init();
 
-    void tallyIonizationEnergy(const ion* i, const float& v);
-    void tallyPhononEnergy(const ion* i, const float& v);
-    void tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed);
-
-    ion* new_ion(const ion* parent = nullptr);
-    ion* new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
-                    const vector3& dir0, const float& mass_ratio);
-    void free_ion(ion* i);
-    ion* pop_ion();
-    void push_ion(ion* i);
-
-    float LSS_Tdam(int Z, float M, float T);
-    float NRT(float Ed, float Tdam);
 };
 
 template<class _XScm, class _RNG_E>

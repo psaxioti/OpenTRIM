@@ -38,7 +38,7 @@ int test_run()
     //SimZBLMagic S("Test");
     SimCorteo4bit_MSRAND S("Test");
     //S.setStragglingModel(simulation_base::NoStraggling);
-    S.setRandomVarType(simulation_base::Tabulated);
+    //S.setRandomVarType(simulation_base::Tabulated);
 
 
     material* Fe = S.addMaterial("Fe", 7.8658);
@@ -61,7 +61,10 @@ int test_run()
     S.init();
     S.run(1000,"testrun.h5");
 
-    cout << "ms/ion =" << S.ms_per_ion() << endl;
+    cout << "ms/ion = " << S.ms_per_ion() << endl;
+    cout << "Ions = " << S.ion_histories() << endl;
+    cout << "PKA/Ion = " << 1.f*S.pkas()/S.ion_histories() << endl;
+    cout << "Recoils/PKA = " << 1.f*S.recoils()/S.pkas() << endl;
 
     return 0;
 }
@@ -100,31 +103,7 @@ int testini(int argc, char* argv[])
     return 0;
 }
 
-void test_dedx()
-{
-    const float *dedx, *de_stragg;
 
-    SimCorteo4bit_MT S("Test");
-
-    S.setProjectile(1, elements::mostAbundantIsotope(1), 5E6);
-
-    material* Fe = S.addMaterial("FeCr", 7.8658);
-    int Zfe = elements::atomicNum("Fe");
-    Fe->addAtom(Zfe, elements::mass(Zfe), 1.f, 40.f,
-                1.f, 1.f, 40.f);
-
-
-    cout << "H in Fe" << endl;
-    S.getDEtables(S.getSource().projectile(), Fe, dedx, de_stragg);
-    for(dedx_index ie; ie!=ie.end(); ie++)
-        cout << *ie << '\t' << dedx[ie] << '\t' << de_stragg[ie] << endl;
-
-    cout << endl << "Fe in Fe" << endl;
-    S.getDEtables(Fe->atoms().front(), Fe, dedx, de_stragg);
-    for(dedx_index ie; ie!=ie.end(); ie++)
-        cout << *ie << '\t' << dedx[ie] << '\t' << de_stragg[ie] << endl;
-
-}
 
 void write_corteo_tst4()
 {

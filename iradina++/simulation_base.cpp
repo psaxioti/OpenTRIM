@@ -184,7 +184,7 @@ int simulation_base::init() {
     }
 
     // reset counters
-    ion_histories_ = 0;
+    Nions_ = Npkas_ = Nrecoils_ = 0;
 
     return 0;
 }
@@ -259,26 +259,8 @@ ion* simulation_base::new_recoil(const ion* proj, const atom *target, const floa
     j->recoil_id = proj->recoil_id + 1;
     j->atom_ = target;
     j->erg = recoil_erg;
-    push_ion(j);
+    push(j);
     return j;
-}
-
-void simulation_base::free_ion(ion* i)
-{
-    ion_buffer_.push(i);
-}
-ion* simulation_base::pop_ion()
-{
-    ion* i = nullptr;
-    if (!ion_queue_.empty()) {
-        i = ion_queue_.front();
-        ion_queue_.pop();
-    }
-    return i;
-}
-void simulation_base::push_ion(ion* i)
-{
-    ion_queue_.push(i);
 }
 
 float simulation_base::LSS_Tdam(int Z, float M, float T)
