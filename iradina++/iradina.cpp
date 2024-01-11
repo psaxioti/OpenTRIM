@@ -1,7 +1,6 @@
 #include "simulation.h"
 #include "elements.h"
 #include "xs.h"
-#include "dedx.h"
 
 #include <cmath>
 
