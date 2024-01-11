@@ -24,11 +24,19 @@ add_executable(gencorteo
     corteo.h
     xs.h xs.cpp)
 
+add_custom_command(
+    OUTPUT  corteo4bitdata.cpp corteo6bitdata.cpp
+    COMMAND gencorteo
+    DEPENDS gencorteo
+)
+
 add_library(corteo4bit SHARED
-    corteo4bit.h corteo4bitdata.cpp)
+    corteo4bit.h
+    ${CMAKE_CURRENT_BINARY_DIR}/corteo4bitdata.cpp)
 
 add_library(corteo6bit SHARED
-    corteo6bit.h corteo6bitdata.cpp)
+    corteo6bit.h
+    ${CMAKE_CURRENT_BINARY_DIR}/corteo6bitdata.cpp)
 
 add_executable(iradina++  
     iradina.cpp 
@@ -39,7 +47,6 @@ add_executable(iradina++
     random_vars.h random_vars.cpp
     target.h target.cpp
     simulation.h simulation.cpp
-
     geometry.h
     ion_beam.h ion_beam.cpp
     straggling.cpp
