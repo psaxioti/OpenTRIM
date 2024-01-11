@@ -7,7 +7,7 @@
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const char *name) :
-    simulation_base(name)
+    simulation_base(name), rnd(nullptr)
 {}
 
 template<class _XScm, class _RNG_E>
