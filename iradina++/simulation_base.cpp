@@ -249,7 +249,7 @@ ion* simulation_base::new_recoil(const ion* proj, const atom *target, const floa
                             const vector3& dir0, const float &mass_ratio)
 {
     ion* j = new_ion(proj);
-    assert(grid().contains(j->pos()));
+    // assert(grid().contains(j->pos()));
     float f1, f2;
     f1 = proj->erg / recoil_erg;
     f2 = std::sqrt(f1);

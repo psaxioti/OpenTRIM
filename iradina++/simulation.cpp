@@ -88,9 +88,9 @@ int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
         // count history
         ion_histories_++;
 
-        //if (ion_histories_ % 100 ==0) {
+        if (ion_histories_ % 100 ==0) {
             std::cout << "Ion: " << ion_histories_ << std::endl;
-        //}
+        }
     }
 
     // CALC TIME/ion

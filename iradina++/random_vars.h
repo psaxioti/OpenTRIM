@@ -1,6 +1,7 @@
 #ifndef _RANDOM_VARS_H_
 #define _RANDOM_VARS_H_
 
+#include <cassert>
 #include <random>
 #include <vector>
 
@@ -209,8 +210,9 @@ struct random_vars_tbl : public random_vars_base
     }
     virtual float normal() override
     {
-        return inverflist[iInvErf++];
+        float v = inverflist[iInvErf++];
         iInvErf %= inverflist.size();
+        return v;
     }
     virtual void azimuth(float& nx, float&ny) override
     {
