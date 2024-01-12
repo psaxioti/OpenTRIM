@@ -176,18 +176,19 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 
         }
 
-        ivector3 icell0 = i->icell();
+        int cellid0 = i->cellid();
         i->propagate(fp); // apply any periodic boundary
-        if (grid3D::isNull(i->icell())) {
+        int cellid1 = i->cellid();
+        if (cellid1 < 0) {
 
             // TODO: exit event
 
             break; // ion left the target, history ends!
         }
 
-        if (i->icell() != icell0) { // did the ion change cell ?
+        if (cellid1 != cellid0) { // did the ion change cell ?
 
-            mat = target_.cell(i->icell());
+            mat = target_.cell(cellid1);
             if (mat) getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
 
             /*

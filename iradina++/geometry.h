@@ -45,6 +45,20 @@ struct grid1D : public std::vector<float> {
         return periodic ? 1 : (x>=front()) && (x<back());
     }
 
+    bool check_pos(float& x) const {
+        if (x<front()) {
+            if (periodic) {
+                do x += w; while (x<front());
+                return true;
+            } else return false;
+        } else if (x>=back()) {
+            if (periodic) {
+                do x -= w; while (x>=back());
+                return true;
+            } else return false;
+        } else return true;
+    }
+
     bool cell_contains(int i, const float& x) const {
         return (x>=at(i)) && (x<at(i+1));
     }
@@ -137,6 +151,12 @@ public:
         return x_.periodic_contains(v.x()) &&
                y_.periodic_contains(v.y()) &&
                z_.periodic_contains(v.z());
+    }
+
+    bool check_pos(vector3& v) const {
+        return x_.check_pos(v.x()) &&
+               y_.check_pos(v.y()) &&
+               z_.check_pos(v.z());
     }
 
     bool contains(const ivector3& i, const vector3& v) const {

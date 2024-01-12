@@ -15,8 +15,9 @@ void ion::propagate(const float& s)
 {
     pos_ += s*dir;
     assert(pos_.allFinite());
-    grid.applyBC(pos_);
-    if (grid.periodic_contains(pos_)) {
+    //grid.applyBC(pos_);
+    //if (grid.periodic_contains(pos_)) {
+    if (grid.check_pos(pos_)) {
         assert(grid.contains(pos_));
         if (!grid.contains(icell_,pos_)) {
             icell_ = grid.pos2cell(pos_); // TODO: improve algorithm (e.g. search nn cells)
@@ -24,7 +25,7 @@ void ion::propagate(const float& s)
             cellid_ = grid.cellid(icell_);
         }
     } else {
-        icell_ = grid3D::nullcell();
+        //icell_ = grid3D::nullcell();
         cellid_ = -1;
     }
 }

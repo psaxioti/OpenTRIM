@@ -15,10 +15,7 @@
 
 #include <inicpp.h>
 
-void write_corteo();
-void write_corteo_comp(int n);
-void write_corteo_tst4();
-int test_run();
+int Fe_2MeV_on_Fe();
 
 using std::cout;
 using std::endl;
@@ -27,25 +24,24 @@ typedef float RealType;
 
 int main(int argc, char* argv[])
 {
-    return test_run();
+    return Fe_2MeV_on_Fe();
 }
 
 
 
-int test_run()
+int Fe_2MeV_on_Fe()
 {
-    //SimZBLMagic S("Test");
+    //SimZBLMagic_MSRAND S("Test");
     SimCorteo4bit_MSRAND S("Test");
     //S.setStragglingModel(simulation_base::NoStraggling);
-    //S.setRandomVarType(simulation_base::Tabulated);
+    S.setRandomVarType(simulation_base::Tabulated);
 
-
-    material* Fe = S.addMaterial("Fe", 7.8658);
     int Zfe = elements::atomicNum("Fe");
     float Mfe = elements::mass(Zfe);
+
+    material* Fe = S.addMaterial("Fe", 7.8658);
     Fe->addAtom(Zfe, Mfe, 1.f, 40.f,
                   1.f, 1.f, 40.f);
-
     S.setProjectile(Zfe, Mfe, 2E6);
 
     grid3D& g = S.grid();
@@ -58,7 +54,7 @@ int test_run()
     S.fill(box,Fe);
 
     S.init();
-    S.run(1000,"testrun.h5");
+    S.run(10000,"testrun.h5");
 
     cout << "ms/ion = " << S.ms_per_ion() << endl;
     cout << "Ions = " << S.ion_histories() << endl;

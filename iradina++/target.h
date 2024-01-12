@@ -163,6 +163,9 @@ public:
     const material* cell(const ivector3& i) const
     { return cells_[i.x()][i.y()][i.z()]; }
 
+    const material* cell(int i) const
+    { return cells_.data()[i]; }
+
 };
 
 #endif // TARGET_H
