@@ -80,6 +80,7 @@ public:
 
     const std::string& name() const { return name_; }
     float atomicDensity() const { return atomicDensityNM_; }
+    float massDensity() const { return massDensity_; }
     float atomicDistance() const { return atomicDistance_; }
     float layerDistance() const { return layerDistance_; }
 
@@ -132,8 +133,8 @@ public:
     const atom* projectile() const { return atoms_.front(); }
     material* addMaterial(const char* name, const float &density);
 
-    const std::vector<atom*>& atoms() { return atoms_; }
-    const std::vector<material*>& materials() { return materials_; }
+    const std::vector<atom*>& atoms() const { return atoms_; }
+    const std::vector<material*>& materials() const { return materials_; }
 
 
     void init();

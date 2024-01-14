@@ -1,6 +1,8 @@
 #ifndef ION_BEAM_H
 #define ION_BEAM_H
 
+#include "geometry.h"
+
 class target;
 class ion;
 class atom;
@@ -12,24 +14,52 @@ public:
     typedef enum {
         SurfaceRandom = 0,
         SurfaceCentered,
-        VolumeRandom,
-        VolumeCentered
-    } source_type_t;
+        FixedPos,
+        VolumeCentered,
+        VolumeRandom
+    } ion_distribution_t;
+
+    struct parameters {
+        ion_distribution_t ion_distribution;
+        int ionZ_; // atomic number
+        float ionM_; // ion mass
+        float ionE0_; // initial energy eV
+        vector3 dir_; // initial direction
+        vector3 pos_; // initial position
+        parameters();
+    };
 
 protected:
 
-    source_type_t source_type;
+    parameters par_;
     const atom* atom_; // atomic species
-    float E0_; // initial energy eV
     unsigned int counter;
+
+    // protected constructor
+    // ion_beam is created by the simulation object
+    ion_beam();
+
+    void setParameters(const parameters& p) { par_ = p; }
+
+    friend class simulation_base;
 
 public:
 
-    ion_beam();
+    int ionZ() const { return par_.ionZ_; }
+    float ionM() const { return par_.ionM_; }
+    float ionE0() const { return par_.ionE0_; }
+    ion_distribution_t distributionType() const { return par_.ion_distribution; }
+    vector3 ionDir() const { return par_.dir_; }
+    vector3 ionPos() const { return par_.pos_; }
+    const parameters& getParameters() const { return par_; }
+
+
+
+    unsigned int ionCount() const { return counter; }
 
     const atom* projectile() const { return atom_; }
-    void setProjectile(const atom* at, float E0)
-    { atom_ = at; E0_ = E0; }
+    void setProjectile(const atom* at)
+    { atom_ = at; }
 
     template<class _U>
     void source_ion(_U& g, const target& t, ion& i);

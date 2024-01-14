@@ -8,13 +8,23 @@ void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& 
                     int Z2, const float& Ns,
                     simulation_base::straggling_model_t model, float* strag);
 
-simulation_base::simulation_base(const char *name) :
-    name_(name),
-    simulation_type(FullCascade),
-    flight_path_type(Poisson),
-    straggling_model(YangStraggling),
-    random_var_type(Sampled),
-    energy_cutoff_(1.f)
+simulation_base::parameters::parameters()
+{
+    // set default options
+    title = "Iradina++ Simulation";
+    max_no_ions = 1000;
+    simulation_type = FullCascade;
+    scattering_calculation = Corteo4bit;
+    flight_path_type = Poisson;
+    straggling_model = YangStraggling;
+    flight_path_const = 0.1f;
+    min_energy = 1.f;
+    random_var_type = Sampled;
+    random_generator_type = MinStd;
+};
+
+simulation_base::simulation_base(const struct parameters &p) :
+    par_(p)
 {}
 
 simulation_base::~simulation_base()
@@ -26,21 +36,19 @@ simulation_base::~simulation_base()
     }
 }
 
-void simulation_base::setProjectile(int Z, float M, float E0)
-{
-    inventory_.setProjectile(Z,M);
-    source_.setProjectile(inventory_.projectile(),E0);
-}
-
 int simulation_base::init() {
 
     inventory_.init();
+
+    // adjust projectile codes in inventory & source
+    inventory_.setProjectile(source_.ionZ(), source_.ionM());
+    source_.setProjectile(inventory_.projectile());
 
     // calculate sqrt{l/l0} in each material for constant flight path
     auto materials = inventory_.materials();
     sqrtfp_const.resize(materials.size());
     for(int i=0; i<materials.size(); i++)
-        sqrtfp_const[i] = std::sqrt(flight_path_const / materials[i]->atomicDistance());
+        sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicDistance());
 
     /*
      * create dedx tables for all ion - material
@@ -144,7 +152,7 @@ int simulation_base::init() {
             for(const atom* z2 : mat->atoms())
                 calcStraggling(dedx,dedxH,Z1,M1,z2->Z(),
                                Nl0*z2->X(),
-                               straggling_model,p);
+                               par_.straggling_model,p);
             for(dedx_index ie; ie!=ie.end(); ie++)
                 p[ie] = std::sqrt(p[ie]);
         }
@@ -170,7 +178,7 @@ int simulation_base::init() {
      */
     int nCells = target_.grid().ncells();
     int nAtoms = inventory_.atoms().size();
-    if (simulation_type == FullCascade) {
+    if (par_.simulation_type == FullCascade) {
         InterstitialTally = Array2Dui(nAtoms,nCells);
         ReplacementTally = Array2Dui(nAtoms,nCells);
         VacancyTally = Array2Dui(nAtoms,nCells);
@@ -184,7 +192,7 @@ int simulation_base::init() {
     }
 
     // reset counters
-    Nions_ = Npkas_ = Nrecoils_ = 0;
+    Nions_ = Npkas_ = Nrecoils_ = Nv_ = Ni_ = Nr_ = 0;
 
     return 0;
 }
@@ -199,9 +207,8 @@ int simulation_base::init() {
  *
  * @param z1 Pointer to atom struct describing Z1
  * @param m Pointer to material struct
- * @param erg The kinetic energy of Z1
- * @param dedx (out) Stoping dE/dx [eV/nm]
- * @param de_stragg (out) Straggling dE [eV/nm^(1/2)]
+ * @param dedx (out) pointer to stopping power dE/dx table [eV/nm]
+ * @param de_stragg (out) pointer to Straggling dE table [eV/nm^(1/2)]
  * @return 0 on succes
  */
 int simulation_base::getDEtables(const atom* z1, const material* m,

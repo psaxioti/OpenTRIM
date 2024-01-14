@@ -6,8 +6,8 @@
 #include <iostream>
 
 template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const char *name) :
-    simulation_base(name), rnd(nullptr)
+simulation<_XScm,  _RNG_E>::simulation(const struct parameters &p) :
+    simulation_base(p), rnd(nullptr)
 {}
 
 template<class _XScm, class _RNG_E>
@@ -49,7 +49,7 @@ int simulation<_XScm,  _RNG_E>::init() {
      */
     if (rnd) delete rnd;
     rnd = nullptr;
-    switch (random_var_type) {
+    switch (par_.random_var_type) {
     case Sampled:
         rnd = new random_vars< _RNG_E >(urbg);
         break;
@@ -63,16 +63,16 @@ int simulation<_XScm,  _RNG_E>::init() {
 }
 
 template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
+int simulation<_XScm,  _RNG_E>::run()
 {
     out_file_ = new out_file(this);
-    if (out_file_->open(outfname)!=0) return -1;
+    if (out_file_->open("iradina++.h5")!=0) return -1;
 
     // TIMING
     struct timespec start, end;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
-    for(int k=0; k<count; k++) {
+    for(int k=0; k<par_.max_no_ions; k++) {
 
         // generate ion
         ion* i = new_ion();
@@ -101,8 +101,8 @@ int simulation<_XScm,  _RNG_E>::run(int count, const char *outfname)
 
     // CALC TIME/ion
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
-    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / count;
-    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / count;
+    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / Nions_;
+    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / Nions_;
 
     out_file_->save();
     out_file_->close();
@@ -136,7 +136,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 
             int ie = dedx_index::fromValue(i->erg);
             float de_stopping = fp * de_stopping_tbl[ie];
-            if (straggling_model != NoStraggling) {
+            if (par_.straggling_model != NoStraggling) {
 
                 float de_straggling = de_straggling_tbl[ie] * rnd->normal() * sqrtfp;
 
@@ -200,7 +200,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
              */
         }
 
-        if (mat && (i->erg >= energy_cutoff_)) { // collision
+        if (mat && (i->erg >= par_.min_energy)) { // collision
 
             const atom* z2 = mat->selectAtom(urbg);
             float p = impactPar(i,mat,sqrtfp,pmax);
@@ -215,7 +215,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
              *
              * This is not done for SRIM KP mode
              */
-            if (flight_path_type != SRIMlike &&
+            if (par_.flight_path_type != SRIMlike &&
                 p > 2.f*mat->layerDistance()) {
                 // TODO: register missed collision
                 continue;
@@ -235,7 +235,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                 );
             i->erg -= T;
 
-            if (simulation_type == FullCascade) { // We need to consider the recoil
+            if (par_.simulation_type == FullCascade) { // We need to consider the recoil
 
                 // TODO: special treatment of surface effects (sputtering etc.)
 
@@ -275,7 +275,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     tallyPhononEnergy(i, T);
                 }
 
-            } else if (simulation_type == KP1) {
+            } else if (par_.simulation_type == KP1) {
 
                 if (T >= z2->Ed()) { // displacement
                     /*
@@ -307,7 +307,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
         }
 
         /* Check what happens to the projectile after possible collision: */
-        if(i->erg < energy_cutoff_){ /* projectile has to stop. Store as implanted ion or recoil */
+        if(i->erg < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
             InterstitialTally(i->atom_->id(), i->cellid())++;
             // energy goes to phonons
             tallyPhononEnergy(i, i->erg);
@@ -328,7 +328,7 @@ float simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, fl
     if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
 
     float fp;
-    switch (flight_path_type) {
+    switch (par_.flight_path_type) {
     case Poisson:
         rnd->poisson(fp,sqrtfp); // get a poisson distributed value u. temp = u^(1/2)
         fp = fp * m->atomicDistance();
@@ -338,7 +338,7 @@ float simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, fl
         sqrtfp = 1;
         break;
     case Constant:
-        fp = flight_path_const;
+        fp = par_.flight_path_const;
         sqrtfp = sqrtfp_const[m->id()];
         break;
     case SRIMlike:
@@ -358,7 +358,7 @@ template<class _XScm, class _RNG_E>
 float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, const float& sqrtfp, const float& pmax)
 {
     float p, d;
-    switch (flight_path_type) {
+    switch (par_.flight_path_type) {
     case Poisson:
     case AtomicSpacing:
     case Constant:
@@ -376,12 +376,60 @@ float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, cons
 // explicit instantiation of all variants
 template class simulation< XS_zbl_magic,   std::mt19937 >;
 template class simulation< XS_corteo4bit,  std::mt19937 >;
-template class simulation< XS_corteo6bit,  std::mt19937 >;
+// template class simulation< XS_corteo6bit,  std::mt19937 >;
 
 template class simulation< XS_zbl_magic,   std::minstd_rand >;
 template class simulation< XS_corteo4bit,  std::minstd_rand >;
-template class simulation< XS_corteo6bit,  std::minstd_rand >;
+// template class simulation< XS_corteo6bit,  std::minstd_rand >;
+
+simulation_base* simulation_base::fromParameters(const parameters& par)
+{
+    simulation_base* S = nullptr;
+    switch (par.scattering_calculation) {
+    case Corteo4bit:
+        switch (par.random_generator_type) {
+        case MinStd:
+            S = new SimCorteo4bit_MSRAND(par);
+            break;
+        case MersenneTwister:
+            S = new SimCorteo4bit_MT(par);
+            break;
+        }
+        break;
+    case Corteo6bit:
+//        switch (par.random_generator_type) {
+//        case MinStd:
+//            S = new SimCorteo4bit_MSRAND(par);
+//            break;
+//        case MersenneTwister:
+//            S = new SimCorteo4bit_MT(par);
+//            break;
+//        }
+//        break;
+    case ZBL_MAGICK:
+        switch (par.random_generator_type) {
+        case MinStd:
+            S = new SimZBLMagic_MSRAND(par);
+            break;
+        case MersenneTwister:
+            S = new SimZBLMagic_MT(par);
+            break;
+        }
+        break;
+    }
+    return S;
+}
+
+simulation_base* simulation_base::clone()
+{
+    simulation_base* S = fromParameters(getParameters());
+    S->setIonBeam(source_.getParameters());
+
+    S->sqrtfp_const = sqrtfp_const;
 
 
+
+    return S;
+}
 
 

@@ -163,12 +163,12 @@ struct XS_zbl_magic
 
     /**
      * @brief Implementation of MAGIC formula
-     * 
-     * @param B reduced impact par
-     * @param epsilon reduced center of mass energy
+     *
+     * @param e is the reduced energy in center of mass system
+     * @param s is the reduced impact parameter
      * @return double cos(theta/2) of the scattering event
      */
-    static double MAGIC(const double& epsilon, const double& s);
+    static double MAGIC(const double& e, const double& s);
 
     /**
      * @brief ZBL potential

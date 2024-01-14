@@ -123,7 +123,8 @@ static const float chu_coef[][4] = {{+0.0000f, +0.0000f, +0.0000f, +0.0000f},
  *
  * @param dedx ion stopping
  * @param dedx1 proton stopping
- * @param Z1 ion atomic number
+ * @param Z1 is the projectile atomic number
+ * @param M1 is the projectile atomic mass
  * @param Z2 target atomic number
  * @param Ns target sheet density [at/nm^2]
  * @param model straggling model

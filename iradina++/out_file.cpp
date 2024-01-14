@@ -238,7 +238,7 @@ int out_file::save()
 
 
     // save tallys
-    if (sim_->simulation_type == simulation_base::FullCascade) {
+    if (sim_->simulationType() == simulation_base::FullCascade) {
 
         bool ret =
             save_array<unsigned int, Array2Dui>(h5f, "Interstitials", sim_->InterstitialTally)==0 &&

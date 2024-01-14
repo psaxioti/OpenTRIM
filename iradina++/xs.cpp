@@ -145,7 +145,7 @@ template class XSquad< screeningKrC >;
 template class XSquad< screeningMoliere >;
 template class XSquad< screeningZBL >;
 
-double XS_zbl_magic::MAGIC(const double &epsilon, const double &s){
+double XS_zbl_magic::MAGIC(const double &e, const double &s){
     /* B: reduced impact par
      epsilon: reduced center of mass energy
      returns cos(theta/2) of the scattering event */
@@ -171,10 +171,10 @@ double XS_zbl_magic::MAGIC(const double &epsilon, const double &s){
 
     /* Initial guess for R: */
     R=s;
-    RR=-2.7*log(epsilon*s);
+    RR=-2.7*log(e*s);
     if(RR>=s){
         /*   if(RR<B) calc potential; */
-        RR=-2.7*log(epsilon*RR);
+        RR=-2.7*log(e*RR);
         if(RR>=s){
             R=RR;
         }
@@ -183,19 +183,19 @@ double XS_zbl_magic::MAGIC(const double &epsilon, const double &s){
     do{
         /* Calculate potential and its derivative */
         V=XS_zbl_magic::ZBL_and_deri(R,&V1);
-        FR  = s * s / R + V*R/epsilon - R;
-        FR1 = - s * s / (R * R) + (V+V1*R)/epsilon - 1.0;
+        FR  = s * s / R + V*R/e - R;
+        FR1 = - s * s / (R * R) + (V+V1*R)/e - 1.0;
         Q   = FR/FR1;
         R   = R-Q;
     } while(fabs(Q/R)>0.001);
 
-    RoC = -2.0 * (epsilon-V)/V1;
-    SQE = sqrt(epsilon);
+    RoC = -2.0 * (e-V)/V1;
+    SQE = sqrt(e);
 
     alpha = 1+ C[1]/SQE;
     beta  = (C[2]+SQE) / (C[3]+SQE);           /* TRIM85: CC */
-    gamma = (C[4]+epsilon)/(C[5]+epsilon);
-    A     = 2*alpha*epsilon*pow(s,beta);
+    gamma = (C[4]+e)/(C[5]+e);
+    A     = 2*alpha*e*pow(s,beta);
     G     = gamma / ( sqrt((1.0+A*A))-A  );    /* TRIM85: 1/FF */
     Delta = A * (R-s)/(1+G);
 
