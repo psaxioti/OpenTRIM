@@ -13,90 +13,100 @@
 
 #include <limits>
 
-#include <inicpp.h>
+
 
 int Fe_2MeV_on_Fe();
+void print_ini_template();
 
 using std::cout;
+using std::cerr;
 using std::endl;
 
 typedef float RealType;
 
+#include <bitset>
+
+typedef corteo_index<4,0,2> tsti;
+
+int parse(std::string& fname, simulation_base* &S);
+
 int main(int argc, char* argv[])
 {
-    return Fe_2MeV_on_Fe();
+    if(argc != 2)
+    {
+        cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
+        return 1;
+    }
+
+    print_ini_template();
+
+    return 0;
+
+    std::string path = argv[1];
+    simulation_base* S;
+
+    int ret = parse(path, S);
+    if (ret!=0) return ret;
+
+    cout << endl << endl << "Starting simulation ..." << endl << endl;
+
+    ret = (S->init()==0) && (S->run()==0);
+
+    cout << endl << endl << "Completed." << endl;
+    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "Ions = " << S->ion_histories() << endl;
+    cout << "PKA/Ion = " << 1.f*S->pkas()/S->ion_histories() << endl;
+    cout << "Recoils/PKA = " << 1.f*S->recoils()/S->pkas() << endl;
+
+    return ret ? 0 : -1;
 }
 
 
 
 int Fe_2MeV_on_Fe()
 {
-    //SimZBLMagic_MSRAND S("Test");
-    SimCorteo4bit_MSRAND S("Test");
-    //S.setStragglingModel(simulation_base::NoStraggling);
-    S.setRandomVarType(simulation_base::Tabulated);
+    simulation_base::parameters p;
+    p.max_no_ions = 100;
+    p.random_generator_type = simulation_base::MinStd;
+    p.random_var_type = simulation_base::Tabulated;
 
     int Zfe = elements::atomicNum("Fe");
     float Mfe = elements::mass(Zfe);
 
-    material* Fe = S.addMaterial("Fe", 7.8658);
+    ion_beam::parameters bp;
+    bp.ionZ_ = Zfe;
+    bp.ionM_ = Mfe;
+    bp.ionE0_ = 2e6f;
+
+    simulation_base* S = simulation_base::fromParameters(p);
+
+    S->setIonBeam(bp);
+
+    material* Fe = S->addMaterial("Fe", 7.8658);
     Fe->addAtom(Zfe, Mfe, 1.f, 40.f,
                   1.f, 1.f, 40.f);
-    S.setProjectile(Zfe, Mfe, 2E6);
 
-    grid3D& g = S.grid();
+    grid3D& g = S->grid();
     float L = 1200;
     g.setX(0,L,100);
     g.setY(0,L,1,true);
     g.setZ(0,L,1,true);
 
     box3D box = g.box();
-    S.fill(box,Fe);
+    S->fill(box,Fe);
 
-    S.init();
-    S.run(10000,"testrun.h5");
+    S->init();
+    S->run();
 
-    cout << "ms/ion = " << S.ms_per_ion() << endl;
-    cout << "Ions = " << S.ion_histories() << endl;
-    cout << "PKA/Ion = " << 1.f*S.pkas()/S.ion_histories() << endl;
-    cout << "Recoils/PKA = " << 1.f*S.recoils()/S.pkas() << endl;
-
-    return 0;
-}
-
-int testini(int argc, char* argv[])
-{
-    if(argc != 2)
-    {
-        std::cerr << "usage: load_ini_file [FILE_PATh]" << std::endl;
-        return 1;
-    }
-
-    std::string path = argv[1];
-
-    // load the file
-    ini::IniFile inif;
-    inif.load(path);
-
-    // show the parsed contents of the ini file
-    std::cout << "Parsed ini contents" << std::endl;
-    std::cout << "Has " << inif.size() << " sections" << std::endl;
-    for(const auto &sectionPair : inif)
-    {
-        const std::string &sectionName = sectionPair.first;
-        const ini::IniSection &section = sectionPair.second;
-        std::cout << "Section '" << sectionName << "' has " << section.size() << " fields" << std::endl;
-
-        for(const auto &fieldPair : sectionPair.second)
-        {
-            const std::string &fieldName = fieldPair.first;
-            const ini::IniField &field = fieldPair.second;
-            std::cout << "  Field '" << fieldName << "' Value '" << field.as<std::string>() << "'" << std::endl;
-        }
-    }
+    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "Ions = " << S->ion_histories() << endl;
+    cout << "PKA/Ion = " << 1.f*S->pkas()/S->ion_histories() << endl;
+    cout << "Recoils/PKA = " << 1.f*S->recoils()/S->pkas() << endl;
 
     return 0;
 }
+
+
 
 
 

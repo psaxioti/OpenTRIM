@@ -25,7 +25,7 @@ add_executable(gencorteo
     xs.h xs.cpp)
 
 add_custom_command(
-    OUTPUT  corteo4bitdata.cpp corteo6bitdata.cpp
+    OUTPUT  corteo4bitdata.cpp # corteo6bitdata.cpp
     COMMAND gencorteo
     DEPENDS gencorteo
 )
@@ -34,13 +34,13 @@ add_library(corteo4bit SHARED
     corteo4bit.h
     ${CMAKE_CURRENT_BINARY_DIR}/corteo4bitdata.cpp)
 
-add_library(corteo6bit SHARED
-    corteo6bit.h
-    ${CMAKE_CURRENT_BINARY_DIR}/corteo6bitdata.cpp)
+#add_library(corteo6bit SHARED
+#    corteo6bit.h
+#    ${CMAKE_CURRENT_BINARY_DIR}/corteo6bitdata.cpp)
 
 add_executable(iradina++  
     iradina.cpp 
-    corteo.h corteo4bit.h corteo6bit.h
+    corteo.h corteo4bit.h # corteo6bit.h
     xs.h xs.cpp
     elements.h elements.cpp
     ion.h ion.cpp
@@ -53,12 +53,15 @@ add_executable(iradina++
     arrays.h
     event_recorder.h event_recorder.cpp
     out_file.h out_file.cpp
-    simulation_base.cpp)
+    simulation_base.cpp
+    parser.cpp)
 
 target_link_libraries(iradina++ "-lm"
     Eigen3::Eigen
     iondedx
     corteo4bit
-    corteo6bit
+    # corteo6bit
     ${HDF5_LIBRARIES})
+
+
 
