@@ -13,7 +13,7 @@ ion_beam::parameters::parameters() {
 }
 
 ion_beam::ion_beam() :
-    atom_(nullptr), counter(0)
+    atom_(nullptr)
 {
 
 }
@@ -58,8 +58,6 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
     i.setPos(p);
     i.erg = par_.ionE0_;
     i.atom_ = atom_;
-    i.ion_id = ++counter;
-    i.recoil_id = 0;
 }
 
 template void ion_beam::source_ion< URBGmt >(URBGmt& g, const target& t, ion& i);

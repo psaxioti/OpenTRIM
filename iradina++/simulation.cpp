@@ -1,7 +1,6 @@
 #include "simulation.h"
 #include "random_vars.h"
 #include "dedx.h"
-#include "out_file.h"
 
 #include <iostream>
 
@@ -13,13 +12,14 @@ simulation<_XScm,  _RNG_E>::simulation(const struct parameters &p) :
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
-    int natoms = inventory_.atoms().size();
-    for(int z1 = 0; z1<natoms; z1++)
-        for(int z2 = 1; z2<natoms; z2++)
-        {
-            scatteringXSlab* s = scattering_matrix_[z1][z2];
-            if (s) delete s;
-        }
+//    int natoms = target_->atoms().size();
+//    for(int z1 = 0; z1<natoms; z1++)
+//        for(int z2 = 1; z2<natoms; z2++)
+//        {
+//            scatteringXSlab* s = scattering_matrix_[z1][z2];
+//            if (s) delete s;
+//        }
+    if (rnd) delete rnd;
 }
 
 template<class _XScm, class _RNG_E>
@@ -32,13 +32,13 @@ int simulation<_XScm,  _RNG_E>::init() {
      * # of combinations =
      * (all target atoms + projectile ) x (all target atoms)
      */
-    auto atoms = inventory_.atoms();
+    auto atoms = target_->atoms();
     int natoms = atoms.size();
-    scattering_matrix_ = Array2D<scatteringXSlab*>(natoms, natoms);
+    scattering_matrix_ = Array2D< std::shared_ptr<scatteringXSlab> >(natoms, natoms);
     for(int z1 = 0; z1<natoms; z1++)
         for(int z2 = 1; z2<natoms; z2++)
         {
-            scatteringXSlab* sc = new scatteringXSlab;
+            std::shared_ptr<scatteringXSlab> sc(new scatteringXSlab);
             sc->init(atoms[z1]->Z(), atoms[z1]->M(),
                      atoms[z2]->Z(), atoms[z2]->M());
             scattering_matrix_[z1][z2] = sc;
@@ -48,66 +48,69 @@ int simulation<_XScm,  _RNG_E>::init() {
      * create random variables object
      */
     if (rnd) delete rnd;
-    rnd = nullptr;
-    switch (par_.random_var_type) {
-    case Sampled:
-        rnd = new random_vars< _RNG_E >(urbg);
-        break;
-    case Tabulated:
-        rnd = new random_vars_tbl< _RNG_E >(urbg);
-        break;
-
-    }
+    rnd = createRandomVars();
 
     return 0;
 }
 
 template<class _XScm, class _RNG_E>
+random_vars_base* simulation<_XScm,  _RNG_E>::createRandomVars()
+{
+    random_vars_base* r;
+    switch (par_.random_var_type) {
+    case Sampled:
+        r = new random_vars< _RNG_E >(urbg);
+        break;
+    case Tabulated:
+        r = new random_vars_tbl< _RNG_E >(urbg);
+        break;
+
+    }
+    return r;
+}
+
+template<class _XScm, class _RNG_E>
 int simulation<_XScm,  _RNG_E>::run()
 {
-    out_file_ = new out_file(this);
-    if (out_file_->open("iradina++.h5")!=0) return -1;
-
     // TIMING
     struct timespec start, end;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     for(int k=0; k<par_.max_no_ions; k++) {
 
         // generate ion
-        ion* i = new_ion();
-        source_.source_ion(urbg, target_, *i);
+        ion* i = q_.new_ion(target_->grid());
+        i->ion_id = ++tally_.Nions();
+        i->recoil_id = 0;
+        source_->source_ion(urbg, *target_, *i);
 
         // transport the ion
         transport(i);
-        Nions_++;
+
         // transport all PKAs
-        while (!pka_queue_.empty()) {
+        ion* j;
+        while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
-            transport(pop_pka());
-            Npkas_++;
-            Nrecoils_++; // a PKA is also a recoil
+            transport(j);
+            tally_.Npkas()++;
+            tally_.Nrecoils()++; // a PKA is also a recoil
             // transport all secondary recoils
-            while (!recoil_queue_.empty()) {
-                transport(pop_recoil());
-                Nrecoils_++;
+            ion* k;
+            while ((k = q_.pop_recoil())!=nullptr) {
+                transport(k);
+                tally_.Nrecoils()++;
             }
         }
 
-        if (Nions_ % 100 ==0) {
-            std::cout << "Ion: " << Nions_ << std::endl;
+        if (tally_.Nions() % 100 ==0) {
+            std::cout << "Ion: " << tally_.Nions() << std::endl;
         }
     }
 
     // CALC TIME/ion
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
-    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / Nions_;
-    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / Nions_;
-
-    out_file_->save();
-    out_file_->close();
-    delete out_file_;
-    out_file_ = nullptr;
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / tally_.Nions();
+    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / tally_.Nions();
 
     return 0;
 }
@@ -117,7 +120,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 {
     // std::cout << "ion " << i->ion_id << ", recoil " << i->recoil_id << std::endl;
 
-    const material* mat = target_.cell(i->icell());
+    const material* mat = target_->cell(i->icell());
     const float* de_stopping_tbl = nullptr;
     const float* de_straggling_tbl = nullptr;
     if (mat)
@@ -171,7 +174,8 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 
             if (de_stopping != 0.f) {
                 i->erg -= de_stopping;
-                tallyIonizationEnergy(i,de_stopping);
+
+                tally_.ionization(i->atom_->id(), i->cellid()) += de_stopping;
             }
 
         }
@@ -188,7 +192,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 
         if (cellid1 != cellid0) { // did the ion change cell ?
 
-            mat = target_.cell(cellid1);
+            mat = target_->cell(cellid1);
             if (mat) getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
 
             /*
@@ -221,7 +225,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                 continue;
             }
 
-            const scatteringXSlab* xs = scattering_matrix_[i->atom_->id()][z2->id()];
+            auto xs = scattering_matrix_[i->atom_->id()][z2->id()];
             float T; // recoil energy
             float sintheta, costheta; // scattering angle in Lab sys
             assert(i->erg > 0);
@@ -248,7 +252,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     // Energy of recoil has to be reduced by lattice binding energy
                     // add El to phonon energy
                     j->erg -= z2->El();
-                    tallyPhononEnergy(j, z2->El());
+                    tally_.phonons(j->atom_->id(), j->cellid()) += z2->El();
 
                     /*
                      * Now check whether the projectile might replace the recoil
@@ -260,22 +264,27 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                      */
                     if ((i->atom_->Z() == z2->Z()) && (i->erg < z2->Er())) {
                         // Count replacement, energy goes to phonons {???}
-                        ReplacementTally(i->atom_->id(), i->cellid())++;
-                        tallyPhononEnergy(i, i->erg);
+                        tally_.replacements(i->atom_->id(), i->cellid())++;
+                        tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
+                        //tallyPhononEnergy(i, i->erg);
                         // TODO: event: ion stops - replacement
                         break; // end of ion history
-                    } else { /* projectile and target not the same */
-                        // vacancy is created
-                        // store the vacancy
-                        VacancyTally(i->atom_->id(), i->cellid())++;
                     }
+                    /* projectile and target not the same */
+                    // vacancy is created
+                    // store the vacancy
+                    tally_.vacancies(z2->id(), i->cellid())++;
+
 
                 } else { // E<Ed, recoil cannot be displaced
                     // energy goes to phonons
-                    tallyPhononEnergy(i, T);
+                    // tallyPhononEnergy(i, T);
+                    tally_.phonons(i->atom_->id(), i->cellid()) += T;
                 }
 
             } else if (par_.simulation_type == KP1) {
+
+                // TODO
 
                 if (T >= z2->Ed()) { // displacement
                     /*
@@ -286,8 +295,8 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     float Tdam = LSS_Tdam(z2->Z(), z2->M(), T);
                     float nv = NRT(z2->Ed(), Tdam);
 
-                    VacancyTally(0,i->cellid())++;
-                    tallyKP(i, Tdam, nv, z2->Ed());
+                    //VacancyTally(0,i->cellid())++;
+                    //tallyKP(i, Tdam, nv, z2->Ed());
 
                     /* CROC
                      * outputs the ballistic energy and the electronic energy of the
@@ -295,12 +304,12 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                      */
                     // store energy: Tdam->phonons, T-Tdam -> ionization
                     // store vacancies
-                    tallyIonizationEnergy(i, i->erg - Tdam);
-                    tallyPhononEnergy(i, Tdam);
+                    //tallyIonizationEnergy(i, i->erg - Tdam);
+                    //tallyPhononEnergy(i, Tdam);
 
                 } else { // E<Ed, recoil cannot be displaced
                     // energy goes to phonons
-                    tallyPhononEnergy(i, i->erg);
+                    //tallyPhononEnergy(i, i->erg);
                 }
             }
 
@@ -308,9 +317,10 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 
         /* Check what happens to the projectile after possible collision: */
         if(i->erg < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
-            InterstitialTally(i->atom_->id(), i->cellid())++;
+            tally_.implantations(i->atom_->id(), i->cellid())++;
             // energy goes to phonons
-            tallyPhononEnergy(i, i->erg);
+            tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
+            // tallyPhononEnergy(i, i->erg);
             // TODO: event: ion stops
             break; // history ends
         } /* else: Enough energy to advance to next collision site */
@@ -318,7 +328,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
     }
 
     // ion finished
-    free_ion(i);
+    q_.free_ion(i);
     return 0;
 }
 
@@ -373,6 +383,25 @@ float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, cons
     return p;
 }
 
+template<class _XScm, class _RNG_E>
+simulation_base* simulation<_XScm, _RNG_E>::clone()
+{
+    // It is assumed we are cloning an already initialized simulation
+
+    // first clone the base object
+    // and up-cast it to this type
+    _Myt* S = reinterpret_cast<_Myt*>(simulation_base::clone());
+
+    // now clone our resources
+    S->scattering_matrix_ = scattering_matrix_;
+
+    // random vars must be separate
+    S->rnd = createRandomVars();
+
+
+    return S;
+}
+
 // explicit instantiation of all variants
 template class simulation< XS_zbl_magic,   std::mt19937 >;
 template class simulation< XS_corteo4bit,  std::mt19937 >;
@@ -422,12 +451,21 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
 
 simulation_base* simulation_base::clone()
 {
+    // It is assumed we are cloning an already initialized simulation
+
     simulation_base* S = fromParameters(getParameters());
-    S->setIonBeam(source_.getParameters());
+
+    // shared resources
+    S->target_ = target_;
+    S->source_ = source_;
+    S->dedx_ = dedx_;
+    S->dedx1 = dedx1;
+    S->de_strag_ = de_strag_;
 
     S->sqrtfp_const = sqrtfp_const;
 
-
+    // tallys must be separate, thus we make copies
+    S->tally_.copy(tally_);
 
     return S;
 }

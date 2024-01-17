@@ -229,7 +229,13 @@ int out_file::open(const char* fname)
 
 int out_file::save()
 {
-    save_scalar(h5f, "N", sim_->ion_histories());
+    const tally& t = sim_->getTally();
+    save_scalar(h5f, "Nions", t.Nions());
+    save_scalar(h5f, "Npkas", t.Npkas());
+    save_scalar(h5f, "Nrecoils", t.Nrecoils());
+    save_scalar(h5f, "Nrepl", t.Nrepl());
+    save_scalar(h5f, "Nimpl", t.Nimpl());
+    save_scalar(h5f, "Nvac", t.Nvac());
 
     // save grid
     save_array<float, grid1D>(h5f, "X", sim_->grid().x());
@@ -241,21 +247,17 @@ int out_file::save()
     if (sim_->simulationType() == simulation_base::FullCascade) {
 
         bool ret =
-            save_array<unsigned int, Array2Dui>(h5f, "Interstitials", sim_->InterstitialTally)==0 &&
-            save_array<unsigned int, Array2Dui>(h5f, "Replacements", sim_->ReplacementTally)==0 &&
-            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", sim_->VacancyTally)==0 &&
-            save_array<double, Array2Dd>(h5f, "IonizationEnergy", sim_->IonizationEnergyTally)==0 &&
-            save_array<double, Array2Dd>(h5f, "PhononEnergy", sim_->PhononEnergyTally)==0;
+            save_array<unsigned int, Array2Dui>(h5f, "Implantations", t.implantations())==0 &&
+            save_array<unsigned int, Array2Dui>(h5f, "Replacements", t.replacements())==0 &&
+            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", t.vacancies())==0 &&
+            save_array<double, Array2Dd>(h5f, "IonizationEnergy", t.ionization())==0 &&
+            save_array<double, Array2Dd>(h5f, "PhononEnergy", t.phonons())==0;
 
         if (!ret) return -1;
 
     } else {
 
-        bool ret =
-            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", sim_->VacancyTally)==0 &&
-            save_array<double, Array2Dd>(h5f, "IonizationEnergy", sim_->IonizationEnergyTally)==0 &&
-            save_array<double, Array2Dd>(h5f, "PhononEnergy", sim_->PhononEnergyTally)==0 &&
-            save_array<double, Array2Dd>(h5f, "KPTally", sim_->KPTally)==0;
+        bool ret = true;
 
         if (!ret) return -1;
     }

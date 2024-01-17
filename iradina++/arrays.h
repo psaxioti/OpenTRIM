@@ -45,9 +45,10 @@ public:
     {}
     Array1D& operator=(const Array1D& other)
     { P_ = other.P_; return *this; }
-    Array1D copy()
+
+    Array1D copy() const
     {
-        return Array1D(*P_);
+        return P_.get() ? Array1D(*P_) : Array1D();
     }
 
     bool isNull() const { return P_ == nullptr; }
@@ -62,6 +63,16 @@ public:
     const Scalar& operator[](int i) const { return P_->p[i]; }
     Scalar* data() { return P_->buffer.data(); }
     const Scalar* data() const { return P_->buffer.data(); }
+
+    Array1D& operator+=(const Array1D& a) {
+        if (size()==a.size()) {
+            Scalar* p = data();
+            Scalar* pend = p + size();
+            const Scalar* q = a.data();
+            while(p<pend) *p++ += *q++;
+        }
+        return *this;
+    }
 
 };
 
@@ -118,9 +129,10 @@ public:
     {}
     Array2D& operator=(const Array2D& other)
     { P_ = other.P_; return *this; }
-    Array2D copy()
+
+    Array2D copy() const
     {
-        return Array2D(*P_);
+        return P_.get() ? Array2D(*P_) : Array2D();
     }
 
     bool isNull() const { return P_ == nullptr; }
@@ -136,6 +148,16 @@ public:
     const Scalar* operator[](int i) const { return P_->p[i]; }
     Scalar* data() { return P_->buffer.data(); }
     const Scalar* data() const { return P_->buffer.data(); }
+
+    Array2D& operator+=(const Array2D& a) {
+        if (size()==a.size()) {
+            Scalar* p = data();
+            Scalar* pend = p + size();
+            const Scalar* q = a.data();
+            while(p<pend) *p++ += *q++;
+        }
+        return *this;
+    }
 
 };
 
@@ -199,9 +221,9 @@ public:
     {}
     Array3D& operator=(const Array3D& other)
     { P_ = other.P_; return *this; }
-    Array3D copy()
+    Array3D copy() const
     {
-        return Array3D(*P_);
+        return P_.get() ? Array3D(*P_) : Array3D();
     }
 
     bool isNull() const { return P_ == nullptr; }
@@ -218,6 +240,16 @@ public:
     const Scalar** operator[](int i) const { return (const Scalar**)(P_->p[i]); }
     Scalar* data() { return P_->buffer.data(); }
     const Scalar* data() const { return P_->buffer.data(); }
+
+    Array3D& operator+=(const Array3D& a) {
+        if (size()==a.size()) {
+            Scalar* p = data();
+            Scalar* pend = p + size();
+            const Scalar* q = a.data();
+            while(p<pend) *p++ += *q++;
+        }
+        return *this;
+    }
 
 };
 

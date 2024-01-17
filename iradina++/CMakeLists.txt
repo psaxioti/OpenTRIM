@@ -54,7 +54,9 @@ add_executable(iradina++
     event_recorder.h event_recorder.cpp
     out_file.h out_file.cpp
     simulation_base.cpp
-    parser.cpp)
+    parser.cpp
+    tally.h
+    ion_queues.h)
 
 target_link_libraries(iradina++ "-lm"
     Eigen3::Eigen

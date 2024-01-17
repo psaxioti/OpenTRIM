@@ -377,6 +377,7 @@ int parse(std::string& fname, simulation_base* &S)
                                  simulation_base::Sampled, simulation_base::Tabulated);
                 read_enum_option(opts->second,"random_generator_type", p.random_generator_type,
                                  simulation_base::MinStd, simulation_base::MersenneTwister);
+                read_option(opts->second,"threads", p.threads);
 
 
             } catch (std::invalid_argument& e) {
@@ -499,7 +500,7 @@ int parse(std::string& fname, simulation_base* &S)
     G.setY(0, cell_count.y()*cell_size.y(), cell_count.y());
     G.setZ(0, cell_count.z()*cell_size.z(), cell_count.z());
 
-    const std::vector<material*>& imat = S->getInventory().materials();
+    const std::vector<material*>& imat = S->getTarget()->materials();
     for(const region_data& rd : rdat) {
         box3D box;
         box.min() = vector3(rd.extX[0],rd.extY[0],rd.extZ[0]);

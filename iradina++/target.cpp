@@ -7,19 +7,19 @@
 
 
 
-atom::atom(class inventory* i, class material* m, int id) :
-    id_(id), mat_(m), inv_(i)
+atom::atom(target *t, class material* m, int id) :
+    id_(id), mat_(m), target_(t)
 {}
 
-material::material(inventory *i, const char* name, const float& density, int id) :
-    id_(id), name_(name), massDensity_(density), inv_(i)
+material::material(target *t, const char* name, const float& density, int id) :
+    id_(id), name_(name), massDensity_(density), target_(t)
 {}
 
 atom* material::addAtom(int Z, float M, float X,
                          float Ed, float El, float Es, float Er)
 {
-    atom* a = new atom(inv_, this, inv_->atoms_.size());
-    inv_->atoms_.push_back(a);
+    atom* a = new atom(target_, this, target_->atoms_.size());
+    target_->atoms_.push_back(a);
     this->atoms_.push_back(a);
     a->Z_ = Z;
     a->M_ = M;
@@ -57,8 +57,8 @@ void material::init()
      * we calculate the mean screening length and
      * energy reduction factor (as in ZBL85)
      */
-    int ionZ = inv_->projectile()->Z();
-    float ionM = inv_->projectile()->M();
+    int ionZ = target_->projectile()->Z();
+    float ionM = target_->projectile()->M();
     meanA_ = screeningZBL::screeningLength(ionZ, meanZ_); // nm
     meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
     meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
@@ -75,38 +75,37 @@ void material::init()
 
 }
 
-inventory::inventory()
+target::target()
 {
     // create the projectile ion placehoder
     atoms_.push_back(new atom(this,0,0));
 }
 
-inventory::~inventory()
+target::~target()
 {
 
     for(material* m : materials_) delete m;
     for(atom* a : atoms_) delete a;
 }
 
-void inventory::setProjectile(int Z, float M)
+void target::setProjectile(int Z, float M)
 {
     atom* i = atoms_[0];
     i->Z_ = Z;
     i->M_ = M;
 }
 
-void inventory::init() {
+void target::init() {
     for(material* m : materials_) m->init();
 }
 
-material* inventory::addMaterial(const char* name, const float& density)
+material* target::addMaterial(const char* name, const float& density)
 {
     materials_.push_back(new material(this, name, density, materials_.size()));
     return materials_.back();
 }
 
-target::target()
-{}
+
 
 void target::fill(const box3D& box, const material* m)
 {

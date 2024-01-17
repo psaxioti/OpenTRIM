@@ -13,7 +13,7 @@
 
 #include <limits>
 
-
+#include <thread>
 
 int Fe_2MeV_on_Fe();
 void print_ini_template();
@@ -38,9 +38,50 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    print_ini_template();
+    std::string path = argv[1];
+    simulation_base* S;
 
-    return 0;
+    int ret = parse(path, S);
+    if (ret!=0) return ret;
+
+    S->init();
+
+    //simulation_base* S1 = S0->clone();
+    //simulation_base* S2 = S0->clone();
+
+    //S1->setMaxIons(200);
+    //S2->setMaxIons(200);
+
+    cout << endl << endl << "Starting simulation ..." << endl << endl;
+
+    //std::thread t1(&simulation_base::run, S1);
+    //std::thread t2(&simulation_base::run, S2);
+    //t1.join();
+    //t2.join();
+
+    S->run(S->getParameters().threads);
+
+    S->saveTallys();
+
+    tally t = S->getTally();
+
+    cout << endl << endl << "Completed." << endl;
+    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "Ions = " << t.Nions() << endl;
+    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
+    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
+
+    return ret ? 0 : -1;
+}
+
+
+int test0(int argc, char* argv[])
+{
+    if(argc != 2)
+    {
+        cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
+        return 1;
+    }
 
     std::string path = argv[1];
     simulation_base* S;
@@ -48,15 +89,21 @@ int main(int argc, char* argv[])
     int ret = parse(path, S);
     if (ret!=0) return ret;
 
+    S->setMaxIons(200);
+
     cout << endl << endl << "Starting simulation ..." << endl << endl;
 
     ret = (S->init()==0) && (S->run()==0);
 
+    S->saveTallys();
+
+    tally t = S->getTally();
+
     cout << endl << endl << "Completed." << endl;
     cout << "ms/ion = " << S->ms_per_ion() << endl;
-    cout << "Ions = " << S->ion_histories() << endl;
-    cout << "PKA/Ion = " << 1.f*S->pkas()/S->ion_histories() << endl;
-    cout << "Recoils/PKA = " << 1.f*S->recoils()/S->pkas() << endl;
+    cout << "Ions = " << t.Nions() << endl;
+    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
+    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
 
     return ret ? 0 : -1;
 }
@@ -98,10 +145,13 @@ int Fe_2MeV_on_Fe()
     S->init();
     S->run();
 
+    tally t = S->getTally();
+
+    cout << endl << endl << "Completed." << endl;
     cout << "ms/ion = " << S->ms_per_ion() << endl;
-    cout << "Ions = " << S->ion_histories() << endl;
-    cout << "PKA/Ion = " << 1.f*S->pkas()/S->ion_histories() << endl;
-    cout << "Recoils/PKA = " << 1.f*S->recoils()/S->pkas() << endl;
+    cout << "Ions = " << t.Nions() << endl;
+    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
+    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
 
     return 0;
 }

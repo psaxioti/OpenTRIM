@@ -33,7 +33,6 @@ protected:
 
     parameters par_;
     const atom* atom_; // atomic species
-    unsigned int counter;
 
     // protected constructor
     // ion_beam is created by the simulation object
@@ -52,10 +51,6 @@ public:
     vector3 ionDir() const { return par_.dir_; }
     vector3 ionPos() const { return par_.pos_; }
     const parameters& getParameters() const { return par_; }
-
-
-
-    unsigned int ionCount() const { return counter; }
 
     const atom* projectile() const { return atom_; }
     void setProjectile(const atom* at)

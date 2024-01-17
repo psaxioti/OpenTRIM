@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-class inventory;
+class target;
 class material;
 class scatteringXS;
 class reducedXS;
@@ -15,7 +15,7 @@ class reducedXS;
 class atom {
     int id_;
     material* mat_;
-    inventory* inv_;
+    target* target_;
     int Z_; // atomic number
     float M_; // mass
     float X_; // fraction, concentration
@@ -43,9 +43,9 @@ public:
 
 private:
     atom();
-    atom(class inventory* i, class material* m, int id);
+    atom(target* t, material* m, int id);
 
-    friend class inventory;
+    friend class target;
     friend class material;
 };
 
@@ -56,7 +56,7 @@ class material {
     std::string name_;
     float massDensity_; // gr/cm^3
 
-    inventory* inv_;
+    target* target_;
     std::vector<atom*> atoms_;
     std::vector<float> cumX_;
 
@@ -112,40 +112,17 @@ public:
 
 private:
     material();
-    material(class inventory* i, const char* name, const float& density, int id);
+    material(class target* t, const char* name, const float& density, int id);
 
-    friend class inventory;
-};
-
-
-
-class inventory {
-
-    std::vector<atom*> atoms_;
-    std::vector<material*> materials_;
-
-public:
-
-    inventory();
-    ~inventory();
-
-    void setProjectile(int Z, float M);
-    const atom* projectile() const { return atoms_.front(); }
-    material* addMaterial(const char* name, const float &density);
-
-    const std::vector<atom*>& atoms() const { return atoms_; }
-    const std::vector<material*>& materials() const { return materials_; }
-
-
-    void init();
-
-    friend class material;
-
+    friend class target;
 };
 
 class target
 {
 protected:
+
+    std::vector<atom*> atoms_;
+    std::vector<material*> materials_;
 
     // grid points
     grid3D grid_;
@@ -153,8 +130,11 @@ protected:
     // cells
     Array3D<const material*> cells_;
 
+    friend class material;
+
 public:
     target();
+    ~target();
 
     grid3D& grid() { return grid_; }
     const grid3D& grid() const { return grid_; }
@@ -167,6 +147,14 @@ public:
     const material* cell(int i) const
     { return cells_.data()[i]; }
 
+    void setProjectile(int Z, float M);
+    const atom* projectile() const { return atoms_.front(); }
+    material* addMaterial(const char* name, const float &density);
+
+    const std::vector<atom*>& atoms() const { return atoms_; }
+    const std::vector<material*>& materials() const { return materials_; }
+
+    void init();
 };
 
 #endif // TARGET_H

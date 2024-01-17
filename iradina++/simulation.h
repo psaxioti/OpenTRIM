@@ -4,10 +4,12 @@
 #include "target.h"
 #include "random_vars.h"
 #include "ion_beam.h"
+#include "ion_queues.h"
 #include "ion.h"
 #include "xs.h"
+#include "tally.h"
 
-#include <queue>
+
 
 class out_file;
 
@@ -97,36 +99,20 @@ public:
         float min_energy;
         random_var_t random_var_type;
         random_generator_t random_generator_type;
+        int threads;
         parameters(); // set defaults
     };
 
 protected:
 
-    // FIFO ion buffers
-    typedef std::queue<ion*> ion_queue_t;
-    ion_queue_t ion_buffer_; // buffer of allocated ion objects
-    ion_queue_t recoil_queue_; // queue of generated recoils
-    ion_queue_t pka_queue_; // queue of generated PKAs
-
-    // return finished ion to buffer
-    void free_ion(ion* i) { ion_buffer_.push(i); }
-    // pop an ion from the respective queue
-    static ion* pop_one_(ion_queue_t& Q)
-    { ion* i = Q.front(); Q.pop(); return i; }
-    // ...
-    ion* pop_pka() { return pop_one_(pka_queue_); }
-    // ...
-    ion* pop_recoil() { return pop_one_(recoil_queue_); }
-    // push an ion. if recoil_id>0 goes to recoil queue
-    void push(ion* i)
-    { i->recoil_id > 1 ? recoil_queue_.push(i) : pka_queue_.push(i); }
+    ion_queues< ion > q_;
 
     // simulation paramenters
     parameters par_;
     // components
-    target target_;
-    inventory inventory_;
-    ion_beam source_;
+    std::shared_ptr<ion_beam> source_;
+    std::shared_ptr<target> target_;
+    tally tally_;
 
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
@@ -136,36 +122,60 @@ protected:
     Array2Df dedx1; // proton stopping (materials x energy)
     Array3Df de_strag_; // straggling data (atoms x materials x energy)
 
-    // total counters & statistics
+    // timing
     double ms_per_ion_;
-    unsigned int Nions_;
-    unsigned int Npkas_;
-    unsigned int Nrecoils_;
-    unsigned int Nv_;
-    unsigned int Ni_;
-    unsigned int Nr_;
 
-    /*
-     * Tallys
-     */
-    // Counters (Type: unsigned int)
-    Array2Dui InterstitialTally;
-    Array2Dui ReplacementTally;
-    Array2Dui VacancyTally;
-    // Energy, KP models etc (Real numbers)
-    Array2Dd KPTally;
-    Array2Dd IonizationEnergyTally;
-    Array2Dd PhononEnergyTally;
-
-    out_file* out_file_;
     friend class out_file;
 
-    ion* new_ion(const ion* parent = nullptr);
+public:
+
+    virtual ~simulation_base();
+
+    static simulation_base* fromParameters(const parameters &par);
+
+    void setIonBeam(const ion_beam::parameters& p) {
+        source_->setParameters(p);
+    }
+
+    void setMaxIons(unsigned int n) { par_.max_no_ions = n; }
+
+    const parameters& getParameters() const { return par_; }
+    const std::string& title() const { return par_.title; }
+    simulation_type_t simulationType() const { return par_.simulation_type; }
+    flight_path_type_t flightPathType() const { return par_.flight_path_type; }
+    straggling_model_t stragglingModel() const { return par_.straggling_model; }
+    random_var_t randomVarType() const { return par_.random_var_type; }
+    random_generator_t rngType() const { return par_.random_generator_type; }
+
+    double ms_per_ion() const { return ms_per_ion_; }
+
+    // simulation setup
+    material* addMaterial(const char* name, const float& density) {
+        return target_->addMaterial(name, density);
+    }
+    //void setProjectile(int Z, float M, float E0);
+    grid3D& grid() { return target_->grid(); }
+    const grid3D& grid() const { return target_->grid(); }
+    void fill(const box3D& box, const material* m) {
+        target_->fill(box,m);
+    }
+
+    const target* getTarget() const { return target_.get(); }
+    const ion_beam* getSource() const { return source_.get(); }
+    const tally& getTally() const { return tally_; }
+
+
+    int saveTallys();
+
+    virtual int init();
+    virtual int run() = 0;
+    int run(int nthreads);
+
+protected:
+
     ion* new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
                     const vector3& dir0, const float& mass_ratio);
 
-    void tallyIonizationEnergy(const ion* i, const float& v);
-    void tallyPhononEnergy(const ion* i, const float& v);
     void tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed);
 
     float LSS_Tdam(int Z, float M, float T);
@@ -178,50 +188,11 @@ protected:
     // cannot instantiate simulation base objects
     simulation_base(const parameters& p);
 
-public:
+    virtual simulation_base* clone();
 
-    ~simulation_base();
-
-    static simulation_base* fromParameters(const parameters &par);
-    simulation_base* clone();
-
-    void setIonBeam(const ion_beam::parameters& p) {
-        source_.setParameters(p);
-    }
-
-    const parameters& getParameters() const { return par_; }
-    const std::string& title() const { return par_.title; }
-    simulation_type_t simulationType() const { return par_.simulation_type; }
-    flight_path_type_t flightPathType() const { return par_.flight_path_type; }
-    straggling_model_t stragglingModel() const { return par_.straggling_model; }
-    random_var_t randomVarType() const { return par_.random_var_type; }
-    random_generator_t rngType() const { return par_.random_generator_type; }
-
-    unsigned int ion_histories() const { return Nions_; }
-    double ms_per_ion() const { return ms_per_ion_; }
-    unsigned int pkas() const { return Npkas_; }
-    unsigned int recoils() const { return Nrecoils_; }
-    unsigned int vacancies() const { return Nv_; }
-    unsigned int implantedIons() const { return Ni_; }
-    unsigned int replacements() const { return Nr_; }
-
-    // simulation setup
-    material* addMaterial(const char* name, const float& density) {
-        return inventory_.addMaterial(name, density);
-    }
-    //void setProjectile(int Z, float M, float E0);
-    grid3D& grid() { return target_.grid(); }
-    const grid3D& grid() const { return target_.grid(); }
-    void fill(const box3D& box, const material* m) {
-        target_.fill(box,m);
-    }
-
-    const target& getTarget() const { return target_; }
-    const inventory& getInventory() const { return inventory_; }
-    const ion_beam& getSource() const { return source_; }
-
-    virtual int init();
-    virtual int run() = 0;
+    virtual int transport(ion* i) = 0;
+    virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
+    virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) = 0;
 
 };
 
@@ -238,10 +209,11 @@ public:
 
 private:
 
+    typedef simulation< _XScm, _RNG_E > _Myt;
+
     URBG urbg;
     random_vars_base* rnd;
-
-    Array2D<scatteringXSlab*> scattering_matrix_;
+    Array2D< std::shared_ptr<scatteringXSlab> > scattering_matrix_;
 
 public:
     simulation(const simulation_base::parameters& p);
@@ -252,9 +224,14 @@ public:
     virtual int run() override;
 
 protected:
-    int transport(ion* i);
-    float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax);
-    float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax);
+    virtual int transport(ion* i) override;
+    virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
+    virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
+
+    random_vars_base* createRandomVars();
+
+    virtual simulation_base* clone() override;
+
 };
 
 typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;

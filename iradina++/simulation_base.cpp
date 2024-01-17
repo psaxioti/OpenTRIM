@@ -1,8 +1,10 @@
 #include "simulation.h"
 #include "dedx.h"
 #include "elements.h"
+#include "out_file.h"
 
 #include <iostream>
+#include <thread>
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
@@ -21,31 +23,30 @@ simulation_base::parameters::parameters()
     min_energy = 1.f;
     random_var_type = Sampled;
     random_generator_type = MinStd;
+    threads = 1;
 };
 
 simulation_base::simulation_base(const struct parameters &p) :
-    par_(p)
+    par_(p),
+    source_(new ion_beam),
+    target_(new target)
 {}
 
 simulation_base::~simulation_base()
 {
-    while (!ion_buffer_.empty()) {
-        ion* i = ion_buffer_.front();
-        ion_buffer_.pop();
-        delete i;
-    }
+    q_.clear();
 }
 
 int simulation_base::init() {
 
-    inventory_.init();
+    target_->init();
 
-    // adjust projectile codes in inventory & source
-    inventory_.setProjectile(source_.ionZ(), source_.ionM());
-    source_.setProjectile(inventory_.projectile());
+    // adjust projectile codes in target & source
+    target_->setProjectile(source_->ionZ(), source_->ionM());
+    source_->setProjectile(target_->projectile());
 
     // calculate sqrt{l/l0} in each material for constant flight path
-    auto materials = inventory_.materials();
+    auto materials = target_->materials();
     sqrtfp_const.resize(materials.size());
     for(int i=0; i<materials.size(); i++)
         sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicDistance());
@@ -56,7 +57,7 @@ int simulation_base::init() {
      * (all target atoms + projectile ) x (all target materials)
      * For each combi, get a corteo dedx table
      */
-    auto atoms = inventory_.atoms();
+    auto atoms = target_->atoms();
     int natoms = atoms.size();
     int nmat = materials.size();
     int nerg = dedx_index::dim;
@@ -176,23 +177,56 @@ int simulation_base::init() {
      *
      *   I, R are not available
      */
-    int nCells = target_.grid().ncells();
-    int nAtoms = inventory_.atoms().size();
-    if (par_.simulation_type == FullCascade) {
-        InterstitialTally = Array2Dui(nAtoms,nCells);
-        ReplacementTally = Array2Dui(nAtoms,nCells);
-        VacancyTally = Array2Dui(nAtoms,nCells);
-        IonizationEnergyTally = Array2Dd(nAtoms,nCells);
-        PhononEnergyTally = Array2Dd(nAtoms,nCells);
-    } else {
-        KPTally = Array2Dd(3,nCells);
-        VacancyTally = Array2Dui(1,nCells);
-        IonizationEnergyTally = Array2Dd(1,nCells);
-        PhononEnergyTally = Array2Dd(1,nCells);
+    int ncells = target_->grid().ncells();
+    tally_.init(natoms, ncells);
+
+    return 0;
+}
+
+struct runner {
+    simulation_base* s;
+    int run() { return s->run(); }
+};
+
+int simulation_base::run(int nthreads)
+{
+    if (nthreads <= 1) return run();
+
+    // TIMING
+    struct timespec start, end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    std::vector< std::thread* > threads;
+    std::vector< runner > sims;
+    unsigned int N = par_.max_no_ions;
+    unsigned int Nth = N/nthreads;
+    for(int i=0; i<nthreads; i++) {
+        runner r;
+        r.s = clone();
+        r.s->setMaxIons(Nth);
+        N -= Nth;
+        sims.push_back(r);
+        threads.push_back(new std::thread(&runner::run, &r));
     }
 
-    // reset counters
-    Nions_ = Npkas_ = Nrecoils_ = Nv_ = Ni_ = Nr_ = 0;
+    // waiting for threads to finish...
+    for(int i=0; i<nthreads; i++) threads[i]->join();
+
+    // consolidate results
+    for(int i=0; i<nthreads; i++)
+        tally_ += sims[i].s->getTally();
+
+    // delete threads
+    for(int i=0; i<nthreads; i++) {
+        delete threads[i];
+        delete sims[i].s;
+    }
+
+    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / tally_.Nions() / nthreads;
+    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / tally_.Nions() / nthreads;
+
 
     return 0;
 }
@@ -222,51 +256,37 @@ int simulation_base::getDEtables(const atom* z1, const material* m,
     return 0;
 }
 
-void simulation_base::tallyIonizationEnergy(const ion* i, const float& v) {
-    int ic = i->cellid();
-    int ia = i->atom_->id();
-    IonizationEnergyTally(ia, ic) += v;
-}
-void simulation_base::tallyPhononEnergy(const ion* i, const float& v) {
-    int ic = i->cellid();
-    int ia = i->atom_->id();
-    double& d = PhononEnergyTally(ia, ic);
-    d += v;
-}
 void simulation_base::tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed)
 {
     int ic = i->cellid();
     int ie = (Tdam < 2.5f*Ed) ? 0 : 1;
-    KPTally(ie,ic) += Tdam;
-    KPTally( 2,ic) += nv;
-}
-
-
-
-ion* simulation_base::new_ion(const ion *parent)
-{
-    ion* i;
-    if (ion_buffer_.empty()) i = new ion(target_.grid());
-    else { i = ion_buffer_.front(); ion_buffer_.pop(); }
-    if (parent) *i = *parent;
-    return i;
+    //KPTally(ie,ic) += Tdam;
+    //KPTally( 2,ic) += nv;
 }
 
 ion* simulation_base::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
                             const vector3& dir0, const float &mass_ratio)
 {
-    ion* j = new_ion(proj);
+    // clone the projectile ion
+    ion* j = q_.new_ion(*proj);
     // assert(grid().contains(j->pos()));
+
+    // calc recoil direction from momentum conserv.
     float f1, f2;
     f1 = proj->erg / recoil_erg;
     f2 = std::sqrt(f1);
     f1 = std::sqrt(f1+1);
     j->dir = (f1*dir0 - f2*(proj->dir))*mass_ratio;
-    j->ion_id = proj->ion_id;
-    j->recoil_id = proj->recoil_id + 1;
+
+    // adjust recoil atom type and energy
     j->atom_ = target;
     j->erg = recoil_erg;
-    push(j);
+
+    // adjust recoil generation id and store in respective queue
+    j->recoil_id++;
+    if (j->recoil_id==1) q_.push_pka(j);
+    else q_.push_recoil(j);
+
     return j;
 }
 
@@ -284,6 +304,15 @@ float simulation_base::NRT(float Ed, float T)
     if (T<Ed) return 0.f;
     float v = 2*T/5/Ed;
     return (v < 1.f) ? 1.f : v;
+}
+
+int simulation_base::saveTallys()
+{
+    out_file of(this);
+    if (of.open("iradina++.h5")!=0) return -1;
+    of.save();
+    of.close();
+    return 0;
 }
 
 
