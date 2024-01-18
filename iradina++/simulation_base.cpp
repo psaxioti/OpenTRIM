@@ -26,15 +26,34 @@ simulation_base::parameters::parameters()
     threads = 1;
 };
 
-simulation_base::simulation_base(const struct parameters &p) :
+simulation_base::simulation_base(const parameters &p) :
     par_(p),
     source_(new ion_beam),
-    target_(new target)
-{}
+    target_(new target),
+    ref_count_(new int(0))
+{
+}
+
+simulation_base::simulation_base(const simulation_base* s) :
+    par_(s->par_),
+    source_(s->source_),
+    target_(s->target_),
+    ref_count_(s->ref_count_),
+    sqrtfp_const(s->sqrtfp_const),
+    dedx_(s->dedx_),
+    dedx1(s->dedx1),
+    de_strag_(s->de_strag_)
+{
+    tally_.copy(s->tally_);
+}
 
 simulation_base::~simulation_base()
 {
     q_.clear();
+    if (ref_count_.use_count()==1) {
+        delete source_;
+        delete target_;
+    }
 }
 
 int simulation_base::init() {

@@ -38,24 +38,13 @@ public:
             delete i;
         }
     }
-    ion_ptr_t new_ion(const ion_ptr_t p) {
+    ion_ptr_t new_ion(const ion_t& p) {
         ion_ptr_t i;
         if (ion_buffer_.empty()) i = new ion_t(p);
         else {
             i = ion_buffer_.front();
             ion_buffer_.pop();
-            *i = *p;
-        }
-        return i;
-    }
-    template<class U>
-    ion_ptr_t new_ion(const U& u) {
-        ion_ptr_t i;
-        if (ion_buffer_.empty()) i = new ion_t(u);
-        else {
-            i = ion_buffer_.front();
-            ion_buffer_.pop();
-            *i = u;
+            *i = p;
         }
         return i;
     }

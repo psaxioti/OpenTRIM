@@ -5,21 +5,36 @@
 #include <iostream>
 
 template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const struct parameters &p) :
+simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
     simulation_base(p), rnd(nullptr)
-{}
+{
+    /*
+     * create random variables object
+     */
+    createRandomVars();
+}
+
+template<class _XScm, class _RNG_E>
+simulation<_XScm,  _RNG_E>::simulation(const _Myt* p) :
+    simulation_base(p), rnd(nullptr),
+    scattering_matrix_(p->scattering_matrix_)
+{
+    /*
+     * create random variables object
+     */
+    createRandomVars();
+}
+
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
-//    int natoms = target_->atoms().size();
-//    for(int z1 = 0; z1<natoms; z1++)
-//        for(int z2 = 1; z2<natoms; z2++)
-//        {
-//            scatteringXSlab* s = scattering_matrix_[z1][z2];
-//            if (s) delete s;
-//        }
     if (rnd) delete rnd;
+    if (ref_count_.use_count()==1) {
+        scatteringXSlab** xs = scattering_matrix_.data();
+        for (int i=0; i<scattering_matrix_.size(); i++)
+            delete *xs;
+    }
 }
 
 template<class _XScm, class _RNG_E>
@@ -34,39 +49,31 @@ int simulation<_XScm,  _RNG_E>::init() {
      */
     auto atoms = target_->atoms();
     int natoms = atoms.size();
-    scattering_matrix_ = Array2D< std::shared_ptr<scatteringXSlab> >(natoms, natoms);
+    scattering_matrix_ = Array2D<scatteringXSlab*>(natoms, natoms);
     for(int z1 = 0; z1<natoms; z1++)
         for(int z2 = 1; z2<natoms; z2++)
         {
-            std::shared_ptr<scatteringXSlab> sc(new scatteringXSlab);
-            sc->init(atoms[z1]->Z(), atoms[z1]->M(),
+            scattering_matrix_[z1][z2] = new scatteringXSlab;
+            scattering_matrix_[z1][z2]->init(atoms[z1]->Z(), atoms[z1]->M(),
                      atoms[z2]->Z(), atoms[z2]->M());
-            scattering_matrix_[z1][z2] = sc;
         }
-
-    /*
-     * create random variables object
-     */
-    if (rnd) delete rnd;
-    rnd = createRandomVars();
 
     return 0;
 }
 
 template<class _XScm, class _RNG_E>
-random_vars_base* simulation<_XScm,  _RNG_E>::createRandomVars()
+void simulation<_XScm, _RNG_E>::createRandomVars()
 {
-    random_vars_base* r;
+    if (rnd) delete rnd;
     switch (par_.random_var_type) {
     case Sampled:
-        r = new random_vars< _RNG_E >(urbg);
+        rnd = new random_vars< _RNG_E >(urbg);
         break;
     case Tabulated:
-        r = new random_vars_tbl< _RNG_E >(urbg);
+        rnd = new random_vars_tbl< _RNG_E >(urbg);
         break;
 
     }
-    return r;
 }
 
 template<class _XScm, class _RNG_E>
@@ -76,10 +83,12 @@ int simulation<_XScm,  _RNG_E>::run()
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
+    ion i0(target_->grid());
+
     for(int k=0; k<par_.max_no_ions; k++) {
 
         // generate ion
-        ion* i = q_.new_ion(target_->grid());
+        ion* i = q_.new_ion(i0);
         i->ion_id = ++tally_.Nions();
         i->recoil_id = 0;
         source_->source_ion(urbg, *target_, *i);
@@ -390,14 +399,11 @@ simulation_base* simulation<_XScm, _RNG_E>::clone()
 
     // first clone the base object
     // and up-cast it to this type
-    _Myt* S = reinterpret_cast<_Myt*>(simulation_base::clone());
+    // _Myt* S = reinterpret_cast<_Myt*>(simulation_base::clone());
+    _Myt* S = new _Myt(this);
 
     // now clone our resources
     S->scattering_matrix_ = scattering_matrix_;
-
-    // random vars must be separate
-    S->rnd = createRandomVars();
-
 
     return S;
 }
@@ -449,25 +455,25 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
     return S;
 }
 
-simulation_base* simulation_base::clone()
-{
-    // It is assumed we are cloning an already initialized simulation
+//simulation_base* simulation_base::clone()
+//{
+//    // It is assumed we are cloning an already initialized simulation
 
-    simulation_base* S = fromParameters(getParameters());
+//    simulation_base* S = fromParameters(getParameters());
 
-    // shared resources
-    S->target_ = target_;
-    S->source_ = source_;
-    S->dedx_ = dedx_;
-    S->dedx1 = dedx1;
-    S->de_strag_ = de_strag_;
+//    // shared resources
+//    S->target_ = target_;
+//    S->source_ = source_;
+//    S->dedx_ = dedx_;
+//    S->dedx1 = dedx1;
+//    S->de_strag_ = de_strag_;
 
-    S->sqrtfp_const = sqrtfp_const;
+//    S->sqrtfp_const = sqrtfp_const;
 
-    // tallys must be separate, thus we make copies
-    S->tally_.copy(tally_);
+//    // tallys must be separate, thus we make copies
+//    S->tally_.copy(tally_);
 
-    return S;
-}
+//    return S;
+//}
 
 

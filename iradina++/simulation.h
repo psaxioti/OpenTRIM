@@ -109,9 +109,13 @@ protected:
 
     // simulation paramenters
     parameters par_;
-    // components
-    std::shared_ptr<ion_beam> source_;
-    std::shared_ptr<target> target_;
+
+    // shared components
+    ion_beam* source_;
+    target* target_;
+    std::shared_ptr<int> ref_count_;
+
+    // non shared
     tally tally_;
 
     // helper variable for flight path calc
@@ -149,6 +153,8 @@ public:
 
     double ms_per_ion() const { return ms_per_ion_; }
 
+    virtual void seed(unsigned int s) = 0;
+
     // simulation setup
     material* addMaterial(const char* name, const float& density) {
         return target_->addMaterial(name, density);
@@ -160,9 +166,10 @@ public:
         target_->fill(box,m);
     }
 
-    const target* getTarget() const { return target_.get(); }
-    const ion_beam* getSource() const { return source_.get(); }
+    const target* getTarget() const { return target_; }
+    const ion_beam* getSource() const { return source_; }
     const tally& getTally() const { return tally_; }
+    void addTally(const tally& t) { tally_ += t; }
 
 
     int saveTallys();
@@ -187,8 +194,9 @@ protected:
     // protected constructor
     // cannot instantiate simulation base objects
     simulation_base(const parameters& p);
+    simulation_base(const simulation_base* s);
 
-    virtual simulation_base* clone();
+    virtual simulation_base* clone() = 0;
 
     virtual int transport(ion* i) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
@@ -213,22 +221,28 @@ private:
 
     URBG urbg;
     random_vars_base* rnd;
-    Array2D< std::shared_ptr<scatteringXSlab> > scattering_matrix_;
+    Array2D<scatteringXSlab*> scattering_matrix_;
 
 public:
-    simulation(const simulation_base::parameters& p);
+    simulation(const parameters& p);
+    simulation(const _Myt* p);
     ~simulation();
 
     virtual int init() override;
 
     virtual int run() override;
 
+    virtual void seed(unsigned int s) override
+    {
+        urbg.seed(s);
+    }
+
 protected:
     virtual int transport(ion* i) override;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
 
-    random_vars_base* createRandomVars();
+    void createRandomVars();
 
     virtual simulation_base* clone() override;
 

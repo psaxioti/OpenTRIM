@@ -30,7 +30,19 @@ typedef corteo_index<4,0,2> tsti;
 
 int parse(std::string& fname, simulation_base* &S);
 
+int test1(int argc, char* argv[]);
+
 int main(int argc, char* argv[])
+{
+    return test1(argc,argv);
+}
+
+struct runner {
+    simulation_base* s;
+    int run() { return s->run(); }
+};
+
+int test1(int argc, char* argv[])
 {
     if(argc != 2)
     {
@@ -44,32 +56,70 @@ int main(int argc, char* argv[])
     int ret = parse(path, S);
     if (ret!=0) return ret;
 
-    S->init();
-
-    //simulation_base* S1 = S0->clone();
-    //simulation_base* S2 = S0->clone();
-
-    //S1->setMaxIons(200);
-    //S2->setMaxIons(200);
+    int nthreads = S->getParameters().threads;
+    unsigned int N = S->getParameters().max_no_ions;
+    unsigned int Nth = N/nthreads;
 
     cout << endl << endl << "Starting simulation ..." << endl << endl;
 
-    //std::thread t1(&simulation_base::run, S1);
-    //std::thread t2(&simulation_base::run, S2);
-    //t1.join();
-    //t2.join();
+    // TIMING
+    struct timespec start, end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
-    S->run(S->getParameters().threads);
+    S->setMaxIons(Nth);
+    ret = S->init();
+    if (ret!=0) return ret;
 
-    S->saveTallys();
+    std::vector< runner > sims(nthreads);
+    std::seed_seq sseq{1, 2, 3, 4, 5};
+    std::vector<std::uint32_t> seeds(nthreads);
+    sseq.generate(seeds.begin(), seeds.end());
+    sims[0].s = S;
+    S->seed(seeds[0]);
+    for(int i=1; i<nthreads; i++) {
+        parse(path, sims[i].s);
+        sims[i].s->setMaxIons(Nth);
+        sims[i].s->seed(seeds[i]);
+        sims[i].s->init();
+    }
+
+    std::vector< std::thread* > threads;
+    for(int i=0; i<nthreads; i++) {
+        threads.push_back(new std::thread(&runner::run, &sims[i]));
+    }
+
+    // waiting for threads to finish...
+    for(int i=0; i<nthreads; i++) threads[i]->join();
+
+    // consolidate results
+    for(int i=1; i<nthreads; i++)
+        S->addTally(sims[i].s->getTally());
 
     tally t = S->getTally();
 
+    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+    double ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / t.Nions() / nthreads;
+    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / t.Nions() / nthreads;
+
+
+
+    S->saveTallys();
+
+
+
     cout << endl << endl << "Completed." << endl;
-    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "ms/ion = " << ms_per_ion_ << endl;
+    cout << "ion/s = " << floor(1000/ms_per_ion_) << endl;
     cout << "Ions = " << t.Nions() << endl;
     cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
     cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
+
+    // delete threads
+    for(int i=0; i<nthreads; i++) {
+        delete threads[i];
+        delete sims[i].s;
+    }
 
     return ret ? 0 : -1;
 }
@@ -88,8 +138,6 @@ int test0(int argc, char* argv[])
 
     int ret = parse(path, S);
     if (ret!=0) return ret;
-
-    S->setMaxIons(200);
 
     cout << endl << endl << "Starting simulation ..." << endl << endl;
 
