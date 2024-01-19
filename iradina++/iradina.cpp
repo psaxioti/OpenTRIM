@@ -64,36 +64,6 @@ int test0(int argc, char* argv[])
     return 0;
 }
 
-int test1(int argc, char* argv[])
-{
-    if(argc != 2)
-    {
-        cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
-        return -1;
-    }
-
-    settings s;
-    if (s.parse(argv[1],true)!=0) return -1;
-
-    cout << endl << endl << "Starting simulation ..." << endl << endl;
-
-    simulation_base* S = s.createSimulation();
-    S->init();
-    S->run();
-    S->saveTallys();
-
-    tally t = S->getTally();
-    cout << endl << endl << "Completed." << endl;
-    cout << "ion/s = " << S->ips() << " (total), ";
-    cout << S->ips()/S->getParameters().threads << " (per thread)" << endl;
-    cout << "Ions = " << t.Nions() << endl;
-
-
-    return 0;
-}
-
-
-
 int Fe_2MeV_on_Fe()
 {
     simulation_base::parameters p;

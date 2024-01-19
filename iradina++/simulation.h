@@ -132,13 +132,6 @@ protected:
 
     friend class out_file;
 
-    friend struct runner;
-
-    struct runner {
-        simulation_base* s;
-        int run() { return s->run_all_ions(); }
-    };
-
 public:
 
     virtual ~simulation_base();
@@ -161,8 +154,6 @@ public:
     uint ions_done() { return nion_thread_.exchange(0); }
     double ips() const { return ips_; }
 
-    void seed(const std::vector<unsigned int>& s) { par_.seeds = s; }
-
     // simulation setup
     material* addMaterial(const char* name)
     { return target_->addMaterial(name); }
@@ -181,13 +172,9 @@ public:
 
 
     int saveTallys();
-
     virtual int init();
-
-    int run();
-
-    virtual void seed_(unsigned int s) = 0;
-    virtual int run_all_ions() = 0;
+    virtual void seed(unsigned int s) = 0;
+    virtual int run() = 0;
     virtual simulation_base* clone() const = 0;
 
 protected:
@@ -242,9 +229,9 @@ public:
 
     virtual int init() override;
 
-    virtual void seed_(unsigned int s) override { urbg.seed(s); }
-    virtual int run_all_ions() override;
-        virtual simulation_base* clone() const override { return new _Myt(*this); }
+    virtual void seed(unsigned int s) override { urbg.seed(s); }
+    virtual int run() override;
+    virtual simulation_base* clone() const override { return new _Myt(*this); }
 
 protected:
     virtual int transport(ion* i) override;

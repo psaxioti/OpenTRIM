@@ -15,28 +15,6 @@ typedef ini::IniSectionCaseInsensitive inisection_t;
 
 bool ini_verbose_flag_;
 
-//settings::material_desc::material_desc(const material_desc& m) :
-//    name(m.name), density(m.density), isMassDensity(m.isMassDensity),
-//    Z(m.Z), M(m.M), X(m.X), Ed(m.Ed), El(m.El), Es(m.Es), Er(m.Er)
-//{
-
-//}
-
-//settings::material_desc& settings::material_desc::operator=(const material_desc& m)
-//{
-//    name = m.name; density = m.density;
-//    isMassDensity = m.isMassDensity;
-//    Z = m.Z; M = m.M; X = m.X; Ed = m.Ed;
-//    El = m.El; Es = m.Es; Er = m.Er;
-//    return *this;
-//}
-
-//settings::region_desc& settings::region_desc::operator=(const settings::region_desc& m) {
-//    name = m.name; material_id = m.material_id;
-//    extX = m.extX; extY = m.extY; extZ = m.extZ;
-//    return *this;
-//}
-
 settings::settings() :
     cell_count({1,1,1}),
     periodic_bc({0,1,1}),
@@ -623,13 +601,13 @@ int controller::run_simulation(const settings& s)
     for(int i=0; i<nthreads; i++) {
         sims[i]->setMaxIons(i==nthreads-1 ? N : Nth);
         N -= Nth;
-        sims[i]->seed_(rd());
+        sims[i]->seed(rd());
     }
 
     std::vector< std::thread* > threads;
     for(int i=0; i<nthreads; i++) {
         threads.push_back(
-            new std::thread(&simulation_base::run_all_ions, sims[i])
+            new std::thread(&simulation_base::run, sims[i])
             );
     }
 
@@ -669,12 +647,3 @@ int controller::run_simulation(const settings& s)
     return 0;
 }
 
-int controller::worker::run() {
-    S_ = s_.createSimulation();
-    if (S_ && (S_->init()==0)) {
-        S_->setMaxIons(max_no_ions);
-        S_->seed_(seed);
-        return S_->run_all_ions();
-    }
-    return -1;
-}

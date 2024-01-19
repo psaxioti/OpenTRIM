@@ -88,7 +88,7 @@ void simulation<_XScm, _RNG_E>::createRandomVars()
 }
 
 template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::run_all_ions()
+int simulation<_XScm,  _RNG_E>::run()
 {
     ion i0(target_->grid());
 
