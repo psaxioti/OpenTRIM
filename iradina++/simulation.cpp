@@ -16,7 +16,8 @@ simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
-    simulation_base(S), rnd(nullptr)
+    simulation_base(S), rnd(nullptr),
+    scattering_matrix_(S.scattering_matrix_)
 {
     /*
      * create random variables object
@@ -25,15 +26,15 @@ simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
     /*
      * copy XS
      */
-    int natoms = target_->atoms().size();
-    if (natoms) {
-        assert(natoms == S.scattering_matrix_.rows());
-        scattering_matrix_ = Array2D<scatteringXSlab*>(natoms,natoms);
-        for(int z1=0; z1<natoms; z1++)
-            for(int z2=1; z2<natoms; z2++)
-                scattering_matrix_[z1][z2] =
-                    new scatteringXSlab(*(S.scattering_matrix_[z1][z2]));
-    }
+//    int natoms = target_->atoms().size();
+//    if (natoms) {
+//        assert(natoms == S.scattering_matrix_.rows());
+//        scattering_matrix_ = Array2D<scatteringXSlab*>(natoms,natoms);
+//        for(int z1=0; z1<natoms; z1++)
+//            for(int z2=1; z2<natoms; z2++)
+//                scattering_matrix_[z1][z2] =
+//                    new scatteringXSlab(*(S.scattering_matrix_[z1][z2]));
+//    }
 
 }
 
@@ -42,9 +43,9 @@ template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
     if (rnd) delete rnd;
-    scatteringXSlab** xs = scattering_matrix_.data();
-    for (int i=0; i<scattering_matrix_.size(); i++)
-        delete *xs;
+    //scatteringXSlab** xs = scattering_matrix_.data();
+    //for (int i=0; i<scattering_matrix_.size(); i++)
+    //    delete *xs;
 }
 
 template<class _XScm, class _RNG_E>

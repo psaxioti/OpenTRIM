@@ -41,9 +41,9 @@ simulation_base::simulation_base(const simulation_base &s) :
     target_(new target(*s.target_)),
     nion_thread_(0),
     sqrtfp_const(s.sqrtfp_const),
-    dedx_(s.dedx_.copy()),
-    dedx1(s.dedx1.copy()),
-    de_strag_(s.de_strag_.copy())
+    dedx_(s.dedx_),
+    dedx1(s.dedx1),
+    de_strag_(s.de_strag_)
 {
     tally_.copy(s.tally_);
 }
@@ -237,9 +237,9 @@ int simulation_base::run()
     unsigned int n = 0;
     while(n < par_.max_no_ions) {
         std::this_thread::sleep_for(1000ms);
-        n = 0;
+
         for(int i=0; i<nthreads; i++) {
-            uint u = sims[i].s->nion_thread_;
+            uint u = sims[i].s->ions_done();
             n += u;
             std::cout << u << '\t';
         }

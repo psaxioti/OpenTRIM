@@ -158,7 +158,7 @@ public:
     straggling_model_t stragglingModel() const { return par_.straggling_model; }
     random_var_t randomVarType() const { return par_.random_var_type; }
     random_generator_t rngType() const { return par_.random_generator_type; }
-    uint ions_done() const { return nion_thread_; }
+    uint ions_done() { return nion_thread_.exchange(0); }
     double ips() const { return ips_; }
 
     void seed(const std::vector<unsigned int>& s) { par_.seeds = s; }
@@ -188,6 +188,7 @@ public:
 
     virtual void seed_(unsigned int s) = 0;
     virtual int run_all_ions() = 0;
+    virtual simulation_base* clone() const = 0;
 
 protected:
 
@@ -207,7 +208,7 @@ protected:
     simulation_base(const parameters& p);
     simulation_base(const simulation_base& s);
 
-    virtual simulation_base* clone() const = 0;
+
 
     virtual int transport(ion* i) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
@@ -243,6 +244,7 @@ public:
 
     virtual void seed_(unsigned int s) override { urbg.seed(s); }
     virtual int run_all_ions() override;
+        virtual simulation_base* clone() const override { return new _Myt(*this); }
 
 protected:
     virtual int transport(ion* i) override;
@@ -251,7 +253,7 @@ protected:
 
     void createRandomVars();
 
-    virtual simulation_base* clone() const override { return new _Myt(*this); }
+
 };
 
 typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;

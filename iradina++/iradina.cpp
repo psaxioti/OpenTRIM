@@ -36,7 +36,7 @@ int test1(int argc, char* argv[]);
 
 int main(int argc, char* argv[])
 {
-    return test1(argc,argv);
+    return test0(argc,argv);
 }
 
 int test0(int argc, char* argv[])

@@ -299,13 +299,12 @@ template<class _XS>
 class xs_corteo_impl_ {
     typedef typename _XS::corteo_idx_t _My_t;
     cm_pars P_;
-    std::array<float, _My_t::rows * _My_t::cols > sin2thetaby2, sinTable, cosTable;
+    std::array<float, _My_t::rows * _My_t::cols > sinTable, cosTable;
 public:
     xs_corteo_impl_()
     {}
     xs_corteo_impl_(const xs_corteo_impl_& x) :
         P_(x.P_),
-        sin2thetaby2(x.sin2thetaby2),
         sinTable(x.sinTable),
         cosTable(x.cosTable)
     {}
@@ -330,7 +329,6 @@ public:
                 }
 
                 int k = ie*_My_t::cols + is;
-                sin2thetaby2[k] = s2;
                 cosTable[k] = costhetaLab;
                 sinTable[k] = sinthetaLab;
 
@@ -346,7 +344,8 @@ public:
                  float &recoil_erg, float &sintheta, float &costheta) const
     {
         int k = _My_t::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
-        recoil_erg = e*P_.kfactor_m*sin2thetaby2[k];
+        const float* p = _XS::data();
+        recoil_erg = e*P_.kfactor_m*p[k];
         sintheta=sinTable[k];
         costheta=cosTable[k];
     }

@@ -606,39 +606,41 @@ int controller::run_simulation(const settings& s)
     struct timespec start, end;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
+    // create simulations
+    std::vector< simulation_base* > sims(nthreads);
+    sims[0] = s.createSimulation();
+    sims[0]->init();
+    for(int i=1; i<nthreads; i++) {
+        sims[i] = sims[0]->clone();
+    }
+
     std::random_device rd;
     std::seed_seq sseq({1, 5, 8 , 101});
     std::vector<std::uint32_t> myseeds(nthreads);
     sseq.generate(myseeds.begin(), myseeds.end());
-
-    std::vector< std::thread* > threads;
-    std::vector< worker > sims;
     unsigned int N = s.psim_.max_no_ions;
     unsigned int Nth = N/nthreads;
     for(int i=0; i<nthreads; i++) {
-        worker r;
-        r.s_ = s;
-        r.max_no_ions = i==nthreads-1 ? N : Nth;
+        sims[i]->setMaxIons(i==nthreads-1 ? N : Nth);
         N -= Nth;
-        r.seed = rd();
-        sims.push_back(r);
+        sims[i]->seed_(rd());
     }
+
+    std::vector< std::thread* > threads;
     for(int i=0; i<nthreads; i++) {
-        threads.push_back(new std::thread(&worker::run, &sims[i]));
+        threads.push_back(
+            new std::thread(&simulation_base::run_all_ions, sims[i])
+            );
     }
 
     unsigned int n = 0;
     N = s.psim_.max_no_ions;
     while(n < N) {
         std::this_thread::sleep_for(1000ms);
-        n = 0;
         for(int i=0; i<nthreads; i++) {
-            auto s = sims[i].S_;
-            if (s) {
-                uint u = sims[i].S_->ions_done();
-                n += u;
-                std::cout << u << '\t';
-            }
+            uint u = sims[i]->ions_done();
+            n += u;
+            std::cout << u << '\t';
         }
         std::cout << n << std::endl;
     }
@@ -648,14 +650,14 @@ int controller::run_simulation(const settings& s)
 
     // consolidate results
     for(int i=1; i<nthreads; i++)
-        sims[0].S_->addTally(sims[i].S_->getTally());
+        sims[0]->addTally(sims[i]->getTally());
 
-    sims[0].S_->saveTallys();
+    sims[0]->saveTallys();
 
     // delete threads
     for(int i=0; i<nthreads; i++) {
         delete threads[i];
-        delete sims[i].S_;
+        delete sims[i];
     }
 
     // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
