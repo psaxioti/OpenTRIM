@@ -34,15 +34,12 @@ protected:
     parameters par_;
     const atom* atom_; // atomic species
 
-    // protected constructor
-    // ion_beam is created by the simulation object
+public:
     ion_beam();
+    ion_beam(const ion_beam& i);
 
     void setParameters(const parameters& p) { par_ = p; }
-
-    friend class simulation_base;
-
-public:
+    const parameters& getParameters() const { return par_; }
 
     int ionZ() const { return par_.ionZ_; }
     float ionM() const { return par_.ionM_; }
@@ -50,11 +47,9 @@ public:
     ion_distribution_t distributionType() const { return par_.ion_distribution; }
     vector3 ionDir() const { return par_.dir_; }
     vector3 ionPos() const { return par_.pos_; }
-    const parameters& getParameters() const { return par_; }
 
     const atom* projectile() const { return atom_; }
-    void setProjectile(const atom* at)
-    { atom_ = at; }
+    void setProjectile(const atom* at) { atom_ = at; }
 
     template<class _U>
     void source_ion(_U& g, const target& t, ion& i);

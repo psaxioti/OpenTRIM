@@ -3,43 +3,51 @@
 
 #include "geometry.h"
 #include "arrays.h"
+#include "elements.h"
 
 #include <string>
 #include <vector>
 
 class target;
 class material;
-class scatteringXS;
-class reducedXS;
 
 class atom {
+
+public:
+
+    struct parameters {
+        int Z; // atomic number
+        float M; // mass
+        float Ed; // Displacement threshold energy (eV)
+        float El; // Lattice energy (eV)
+        float Es; // Surface binding energy (eV)
+        float Er; // Replacement threshold energy (eV)
+    };
+
+private:
+
     int id_;
     material* mat_;
     target* target_;
-    int Z_; // atomic number
-    float M_; // mass
-    float X_; // fraction, concentration
-    float Ed_; // Displacement threshold energy (eV)
-    float El_; // Lattice energy (eV)
-    float Es_; // Surface binding energy (eV)
-    float Er_; // Replacement threshold energy (eV)
+    parameters p_;
+    float X_; // proxy concentration
 
 public:
 
     int id() const { return id_; }
     const material* mat() const { return mat_; }
 
-    int Z() const { return Z_; }
-    float M() const { return M_; }
+    const char* name() const { return elements::name(p_.Z); }
+    int Z() const { return p_.Z; }
+    float M() const { return p_.M; }
     float X() const { return X_; }
-    float Ed() const { return Ed_; }
-    float El() const { return El_; }
-    float Es() const { return Es_; }
-    float Er() const { return Er_; }
+    float Ed() const { return p_.Ed; }
+    float El() const { return p_.El; }
+    float Es() const { return p_.Es; }
+    float Er() const { return p_.Er; }
 
     bool operator==(const atom& other) const
-    { return (Z_ == other.Z_) && (M_ == other.M_); }
-
+    { return (p_.Z == other.p_.Z) && (p_.M == other.p_.M); }
 
 private:
     atom();
@@ -58,13 +66,14 @@ class material {
 
     target* target_;
     std::vector<atom*> atoms_;
+    std::vector<float> X_;
     std::vector<float> cumX_;
 
     float atomicDistance_; // nm
     float sqrtAtomicDistance_;
     float layerDistance_;
 
-    float atomicDensity_; // at/cm^3 ??
+    // float atomicDensity_; // at/cm^3 ??
     float atomicDensityNM_; // at/nm^3
     float sqrtRecFlDensity_;
     float meanZ_;
@@ -78,6 +87,23 @@ class material {
 
 public:
 
+    /**
+     * @brief Set atomic density of the material
+     *
+     * Invalidates other previous density setting
+     *
+     * @param v density in [at/nm^3]
+     */
+    void setAtomicDensity(float v) { atomicDensityNM_ = v; massDensity_ = -1; }
+    /**
+     * @brief Set mass density of the material
+     *
+     * Invalidates other previous density setting
+     *
+     * @param v density in [g/cm^3]
+     */
+    void setMassDensity(float v) { massDensity_ = v; atomicDensityNM_ = -1; }
+
     const std::string& name() const { return name_; }
     float atomicDensity() const { return atomicDensityNM_; }
     float massDensity() const { return massDensity_; }
@@ -90,9 +116,7 @@ public:
     float meanImpactPar() const { return meanImpactPar_; }
     float sqrtRecFlDensity() const { return sqrtRecFlDensity_; }
 
-    atom* addAtom(int Z, float M, float X,
-                  float Ed, float El, float Es, float Er);
-
+    atom* addAtom(const atom::parameters& p, float x);
 
     void init();
 
@@ -112,7 +136,7 @@ public:
 
 private:
     material();
-    material(class target* t, const char* name, const float& density, int id);
+    material(class target* t, const char* name, int id);
 
     friend class target;
 };
@@ -134,6 +158,7 @@ protected:
 
 public:
     target();
+    target(const target& t);
     ~target();
 
     grid3D& grid() { return grid_; }
@@ -149,7 +174,7 @@ public:
 
     void setProjectile(int Z, float M);
     const atom* projectile() const { return atoms_.front(); }
-    material* addMaterial(const char* name, const float &density);
+    material* addMaterial(const char* name);
 
     const std::vector<atom*>& atoms() const { return atoms_; }
     const std::vector<material*>& materials() const { return materials_; }

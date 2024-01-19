@@ -272,6 +272,10 @@ class XSlab<XS_zbl_magic>
 {
     cm_pars P_;
 public:
+    XSlab() : P_()
+    {}
+    XSlab(const XSlab& x) : P_(x.P_)
+    {}
     float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
     void init(float Z1, float M1, float Z2, float M2) {
         P_.init<XS_zbl_magic>(Z1,M1,Z2,M2);
@@ -295,19 +299,27 @@ template<class _XS>
 class xs_corteo_impl_ {
     typedef typename _XS::corteo_idx_t _My_t;
     cm_pars P_;
-    std::array<float, _My_t::rows * _My_t::cols > sinTable, cosTable;
+    std::array<float, _My_t::rows * _My_t::cols > sin2thetaby2, sinTable, cosTable;
 public:
+    xs_corteo_impl_()
+    {}
+    xs_corteo_impl_(const xs_corteo_impl_& x) :
+        P_(x.P_),
+        sin2thetaby2(x.sin2thetaby2),
+        sinTable(x.sinTable),
+        cosTable(x.cosTable)
+    {}
     float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
     void init(float Z1, float M1, float Z2, float M2) {
         P_.init<_XS>(Z1,M1,Z2,M2);
         /* compute scattering angle components */
-        double sin2thetaby2, costheta, costhetaLab, sinthetaLab;
+        double costhetaLab, sinthetaLab;
         double mr = P_.mass_ratio;
         for (typename _My_t::e_index ie; ie!=ie.end(); ie++)
             for (typename _My_t::s_index is; is!=is.end(); is++)
             {
-                sin2thetaby2 = _XS::sin2Thetaby2(ie,is);
-                costheta = 1.-2.*sin2thetaby2;
+                double s2 = _XS::sin2Thetaby2(ie,is);
+                double costheta = 1.-2.*s2;
 
                 if(costheta==-1.0 && mr==1.0) {
                     costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
@@ -318,6 +330,7 @@ public:
                 }
 
                 int k = ie*_My_t::cols + is;
+                sin2thetaby2[k] = s2;
                 cosTable[k] = costhetaLab;
                 sinTable[k] = sinthetaLab;
 
@@ -333,9 +346,7 @@ public:
                  float &recoil_erg, float &sintheta, float &costheta) const
     {
         int k = _My_t::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
-        const float* p = _XS::data();
-        float sin2thetaby2 = p[k];
-        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+        recoil_erg = e*P_.kfactor_m*sin2thetaby2[k];
         sintheta=sinTable[k];
         costheta=cosTable[k];
     }

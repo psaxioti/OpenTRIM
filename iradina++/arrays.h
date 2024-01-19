@@ -223,10 +223,10 @@ public:
     { P_ = other.P_; return *this; }
     Array3D copy() const
     {
-        return P_.get() ? Array3D(*P_) : Array3D();
+        return P_ ? Array3D(*P_) : Array3D();
     }
 
-    bool isNull() const { return P_ == nullptr; }
+    bool isNull() const { return !P_; }
 
     int rows() const { return P_->rows; }
     int cols() const { return P_->cols; }

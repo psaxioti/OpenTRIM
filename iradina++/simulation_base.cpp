@@ -1,10 +1,11 @@
-#include "simulation.h"
+﻿#include "simulation.h"
 #include "dedx.h"
 #include "elements.h"
 #include "out_file.h"
 
 #include <iostream>
 #include <thread>
+#include <chrono>
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
@@ -30,30 +31,28 @@ simulation_base::simulation_base(const parameters &p) :
     par_(p),
     source_(new ion_beam),
     target_(new target),
-    ref_count_(new int(0))
+    nion_thread_(0)
 {
 }
 
-simulation_base::simulation_base(const simulation_base* s) :
-    par_(s->par_),
-    source_(s->source_),
-    target_(s->target_),
-    ref_count_(s->ref_count_),
-    sqrtfp_const(s->sqrtfp_const),
-    dedx_(s->dedx_),
-    dedx1(s->dedx1),
-    de_strag_(s->de_strag_)
+simulation_base::simulation_base(const simulation_base &s) :
+    par_(s.par_),
+    source_(new ion_beam(*s.source_)),
+    target_(new target(*s.target_)),
+    nion_thread_(0),
+    sqrtfp_const(s.sqrtfp_const),
+    dedx_(s.dedx_.copy()),
+    dedx1(s.dedx1.copy()),
+    de_strag_(s.de_strag_.copy())
 {
-    tally_.copy(s->tally_);
+    tally_.copy(s.tally_);
 }
 
 simulation_base::~simulation_base()
 {
     q_.clear();
-    if (ref_count_.use_count()==1) {
-        delete source_;
-        delete target_;
-    }
+    delete source_;
+    delete target_;
 }
 
 int simulation_base::init() {
@@ -202,18 +201,21 @@ int simulation_base::init() {
     return 0;
 }
 
-struct runner {
-    simulation_base* s;
-    int run() { return s->run(); }
-};
-
-int simulation_base::run(int nthreads)
+int simulation_base::run()
 {
-    if (nthreads <= 1) return run();
+    using namespace std::chrono_literals;
+
+    int nthreads = par_.threads;
+    if (nthreads < 1) nthreads = 1;
 
     // TIMING
     struct timespec start, end;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    std::random_device rd;
+    std::seed_seq sseq({1, 5, 8 , 101});
+    std::vector<std::uint32_t> myseeds(nthreads);
+    sseq.generate(myseeds.begin(), myseeds.end());
 
     std::vector< std::thread* > threads;
     std::vector< runner > sims;
@@ -222,10 +224,26 @@ int simulation_base::run(int nthreads)
     for(int i=0; i<nthreads; i++) {
         runner r;
         r.s = clone();
-        r.s->setMaxIons(Nth);
+        r.s->setMaxIons(i==nthreads-1 ? N : Nth);
+        r.s->seed_(rd());
+        r.s->nion_thread_ = 0;
         N -= Nth;
         sims.push_back(r);
-        threads.push_back(new std::thread(&runner::run, &r));
+    }
+
+    for(int i=0; i<nthreads; i++)
+        threads.push_back(new std::thread(&runner::run, &sims[i]));
+
+    unsigned int n = 0;
+    while(n < par_.max_no_ions) {
+        std::this_thread::sleep_for(1000ms);
+        n = 0;
+        for(int i=0; i<nthreads; i++) {
+            uint u = sims[i].s->nion_thread_;
+            n += u;
+            std::cout << u << '\t';
+        }
+        std::cout << n << std::endl;
     }
 
     // waiting for threads to finish...
@@ -243,9 +261,9 @@ int simulation_base::run(int nthreads)
 
     // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
-    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / tally_.Nions() / nthreads;
-    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / tally_.Nions() / nthreads;
-
+    ips_ = 1. * (end.tv_sec - start.tv_sec) / nthreads;
+    ips_ += 1.e-9 * (end.tv_nsec - start.tv_nsec) / nthreads;
+    ips_ = tally_.Nions() / ips_;
 
     return 0;
 }

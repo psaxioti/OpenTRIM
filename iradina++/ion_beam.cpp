@@ -13,7 +13,13 @@ ion_beam::parameters::parameters() {
 }
 
 ion_beam::ion_beam() :
-    atom_(nullptr)
+    par_(), atom_(nullptr)
+{
+
+}
+
+ion_beam::ion_beam(const ion_beam& i) :
+    par_(i.par_), atom_(i.atom_)
 {
 
 }

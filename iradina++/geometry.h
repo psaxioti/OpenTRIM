@@ -23,6 +23,14 @@ struct grid1D : public std::vector<float> {
     bool equispaced;
     bool periodic;
 
+    grid1D() : vec_t(), w(0),
+        equispaced(false), periodic(false)
+    {}
+    grid1D(const grid1D& g) : vec_t(g),
+        w(g.w), equispaced(g.equispaced),
+        periodic(g.periodic)
+    {}
+
     void set(const vec_t& x) {
         vec_t::assign(x.begin(),x.end());
         w = back() - front();
@@ -128,6 +136,9 @@ public:
         z_.set(0.f,1.f,1);
         calcBox();
     }
+    grid3D(const grid3D& g) :
+        x_(g.x_), y_(g.y_), z_(g.z_), box_(g.box_)
+    {}
 
     void setX(const float& x0, const float& x1, int n, bool periodic = false)
     { x_.set(x0,x1,n); calcBox(); x_.periodic = periodic; }

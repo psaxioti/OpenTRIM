@@ -1,6 +1,7 @@
 #include "simulation.h"
 #include "elements.h"
 #include "xs.h"
+#include "settings.h"
 
 #include <cmath>
 
@@ -30,6 +31,7 @@ typedef corteo_index<4,0,2> tsti;
 
 int parse(std::string& fname, simulation_base* &S);
 
+int test0(int argc, char* argv[]);
 int test1(int argc, char* argv[]);
 
 int main(int argc, char* argv[])
@@ -37,123 +39,57 @@ int main(int argc, char* argv[])
     return test1(argc,argv);
 }
 
-struct runner {
-    simulation_base* s;
-    int run() { return s->run(); }
-};
+int test0(int argc, char* argv[])
+{
+    if(argc != 2)
+    {
+        cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
+        return -1;
+    }
+
+    settings s;
+    if (s.parse(argv[1],true)!=0) return -1;
+
+    cout << endl << endl << "Starting simulation ..." << endl << endl;
+
+    controller C;
+    C.run_simulation(s);
+
+    cout << endl << endl << "Completed." << endl;
+    cout << "ion/s = " << C.ips << " (total), ";
+    cout << C.ips/s.psim_.threads << " (per thread)" << endl;
+    cout << "Ions = " << s.psim_.max_no_ions << endl;
+
+
+    return 0;
+}
 
 int test1(int argc, char* argv[])
 {
     if(argc != 2)
     {
         cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
-        return 1;
+        return -1;
     }
 
-    std::string path = argv[1];
-    simulation_base* S;
-
-    int ret = parse(path, S);
-    if (ret!=0) return ret;
-
-    int nthreads = S->getParameters().threads;
-    unsigned int N = S->getParameters().max_no_ions;
-    unsigned int Nth = N/nthreads;
+    settings s;
+    if (s.parse(argv[1],true)!=0) return -1;
 
     cout << endl << endl << "Starting simulation ..." << endl << endl;
 
-    // TIMING
-    struct timespec start, end;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    S->setMaxIons(Nth);
-    ret = S->init();
-    if (ret!=0) return ret;
-
-    std::vector< runner > sims(nthreads);
-    std::seed_seq sseq{1, 2, 3, 4, 5};
-    std::vector<std::uint32_t> seeds(nthreads);
-    sseq.generate(seeds.begin(), seeds.end());
-    sims[0].s = S;
-    S->seed(seeds[0]);
-    for(int i=1; i<nthreads; i++) {
-        parse(path, sims[i].s);
-        sims[i].s->setMaxIons(Nth);
-        sims[i].s->seed(seeds[i]);
-        sims[i].s->init();
-    }
-
-    std::vector< std::thread* > threads;
-    for(int i=0; i<nthreads; i++) {
-        threads.push_back(new std::thread(&runner::run, &sims[i]));
-    }
-
-    // waiting for threads to finish...
-    for(int i=0; i<nthreads; i++) threads[i]->join();
-
-    // consolidate results
-    for(int i=1; i<nthreads; i++)
-        S->addTally(sims[i].s->getTally());
-
-    tally t = S->getTally();
-
-    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
-    double ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / t.Nions() / nthreads;
-    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / t.Nions() / nthreads;
-
-
-
-    S->saveTallys();
-
-
-
-    cout << endl << endl << "Completed." << endl;
-    cout << "ms/ion = " << ms_per_ion_ << endl;
-    cout << "ion/s = " << floor(1000/ms_per_ion_) << endl;
-    cout << "Ions = " << t.Nions() << endl;
-    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
-    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
-
-    // delete threads
-    for(int i=0; i<nthreads; i++) {
-        delete threads[i];
-        delete sims[i].s;
-    }
-
-    return ret ? 0 : -1;
-}
-
-
-int test0(int argc, char* argv[])
-{
-    if(argc != 2)
-    {
-        cerr << "usage: iradina++ [ConfigFile.ini]" << endl;
-        return 1;
-    }
-
-    std::string path = argv[1];
-    simulation_base* S;
-
-    int ret = parse(path, S);
-    if (ret!=0) return ret;
-
-    cout << endl << endl << "Starting simulation ..." << endl << endl;
-
-    ret = (S->init()==0) && (S->run()==0);
-
+    simulation_base* S = s.createSimulation();
+    S->init();
+    S->run();
     S->saveTallys();
 
     tally t = S->getTally();
-
     cout << endl << endl << "Completed." << endl;
-    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "ion/s = " << S->ips() << " (total), ";
+    cout << S->ips()/S->getParameters().threads << " (per thread)" << endl;
     cout << "Ions = " << t.Nions() << endl;
-    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
-    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
 
-    return ret ? 0 : -1;
+
+    return 0;
 }
 
 
@@ -177,9 +113,9 @@ int Fe_2MeV_on_Fe()
 
     S->setIonBeam(bp);
 
-    material* Fe = S->addMaterial("Fe", 7.8658);
-    Fe->addAtom(Zfe, Mfe, 1.f, 40.f,
-                  1.f, 1.f, 40.f);
+    material* Fe = S->addMaterial("Fe");
+    Fe->setMassDensity(7.8658f);
+    Fe->addAtom({.Z=Zfe, .M=Mfe, .Ed=40.f, .El=1.f, .Es=1.f, .Er=40.f}, 1.f);
 
     grid3D& g = S->grid();
     float L = 1200;
@@ -196,7 +132,7 @@ int Fe_2MeV_on_Fe()
     tally t = S->getTally();
 
     cout << endl << endl << "Completed." << endl;
-    cout << "ms/ion = " << S->ms_per_ion() << endl;
+    cout << "ion/s = " << S->ips() << endl;
     cout << "Ions = " << t.Nions() << endl;
     cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
     cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;

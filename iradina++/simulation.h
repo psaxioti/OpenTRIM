@@ -9,7 +9,7 @@
 #include "xs.h"
 #include "tally.h"
 
-
+#include <atomic>
 
 class out_file;
 
@@ -100,6 +100,7 @@ public:
         random_var_t random_var_type;
         random_generator_t random_generator_type;
         int threads;
+        std::vector<unsigned int> seeds;
         parameters(); // set defaults
     };
 
@@ -113,7 +114,6 @@ protected:
     // shared components
     ion_beam* source_;
     target* target_;
-    std::shared_ptr<int> ref_count_;
 
     // non shared
     tally tally_;
@@ -127,9 +127,17 @@ protected:
     Array3Df de_strag_; // straggling data (atoms x materials x energy)
 
     // timing
-    double ms_per_ion_;
+    double ips_;
+    std::atomic_uint nion_thread_;
 
     friend class out_file;
+
+    friend struct runner;
+
+    struct runner {
+        simulation_base* s;
+        int run() { return s->run_all_ions(); }
+    };
 
 public:
 
@@ -150,15 +158,15 @@ public:
     straggling_model_t stragglingModel() const { return par_.straggling_model; }
     random_var_t randomVarType() const { return par_.random_var_type; }
     random_generator_t rngType() const { return par_.random_generator_type; }
+    uint ions_done() const { return nion_thread_; }
+    double ips() const { return ips_; }
 
-    double ms_per_ion() const { return ms_per_ion_; }
-
-    virtual void seed(unsigned int s) = 0;
+    void seed(const std::vector<unsigned int>& s) { par_.seeds = s; }
 
     // simulation setup
-    material* addMaterial(const char* name, const float& density) {
-        return target_->addMaterial(name, density);
-    }
+    material* addMaterial(const char* name)
+    { return target_->addMaterial(name); }
+
     //void setProjectile(int Z, float M, float E0);
     grid3D& grid() { return target_->grid(); }
     const grid3D& grid() const { return target_->grid(); }
@@ -175,8 +183,11 @@ public:
     int saveTallys();
 
     virtual int init();
-    virtual int run() = 0;
-    int run(int nthreads);
+
+    int run();
+
+    virtual void seed_(unsigned int s) = 0;
+    virtual int run_all_ions() = 0;
 
 protected:
 
@@ -194,9 +205,9 @@ protected:
     // protected constructor
     // cannot instantiate simulation base objects
     simulation_base(const parameters& p);
-    simulation_base(const simulation_base* s);
+    simulation_base(const simulation_base& s);
 
-    virtual simulation_base* clone() = 0;
+    virtual simulation_base* clone() const = 0;
 
     virtual int transport(ion* i) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
@@ -225,17 +236,13 @@ private:
 
 public:
     simulation(const parameters& p);
-    simulation(const _Myt* p);
+    simulation(const _Myt& S);
     ~simulation();
 
     virtual int init() override;
 
-    virtual int run() override;
-
-    virtual void seed(unsigned int s) override
-    {
-        urbg.seed(s);
-    }
+    virtual void seed_(unsigned int s) override { urbg.seed(s); }
+    virtual int run_all_ions() override;
 
 protected:
     virtual int transport(ion* i) override;
@@ -244,8 +251,7 @@ protected:
 
     void createRandomVars();
 
-    virtual simulation_base* clone() override;
-
+    virtual simulation_base* clone() const override { return new _Myt(*this); }
 };
 
 typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;

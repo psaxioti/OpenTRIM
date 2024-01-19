@@ -1,7 +1,10 @@
-#include "simulation.h"
+#include "settings.h"
 
 #include <iostream>
 #include <inicpp.h>
+
+#include <chrono>
+#include <thread>
 
 using std::cout;
 using std::cerr;
@@ -9,6 +12,38 @@ using std::endl;
 
 typedef ini::IniFileCaseInsensitive inifile_t;
 typedef ini::IniSectionCaseInsensitive inisection_t;
+
+bool ini_verbose_flag_;
+
+//settings::material_desc::material_desc(const material_desc& m) :
+//    name(m.name), density(m.density), isMassDensity(m.isMassDensity),
+//    Z(m.Z), M(m.M), X(m.X), Ed(m.Ed), El(m.El), Es(m.Es), Er(m.Er)
+//{
+
+//}
+
+//settings::material_desc& settings::material_desc::operator=(const material_desc& m)
+//{
+//    name = m.name; density = m.density;
+//    isMassDensity = m.isMassDensity;
+//    Z = m.Z; M = m.M; X = m.X; Ed = m.Ed;
+//    El = m.El; Es = m.Es; Er = m.Er;
+//    return *this;
+//}
+
+//settings::region_desc& settings::region_desc::operator=(const settings::region_desc& m) {
+//    name = m.name; material_id = m.material_id;
+//    extX = m.extX; extY = m.extY; extZ = m.extZ;
+//    return *this;
+//}
+
+settings::settings() :
+    cell_count({1,1,1}),
+    periodic_bc({0,1,1}),
+    cell_size({100.f, 100.f, 100.f})
+{
+
+}
 
 /**
  * @brief Read an option from an ini-file section
@@ -44,7 +79,7 @@ void read_option(const inisection_t& s,
             msg += s.what();
             throw std::invalid_argument(msg);
         }
-        cout << name << " = " << v << endl;
+        if (ini_verbose_flag_) cout << name << " = " << v << endl;
     } else {
         if (required) {
             std::stringstream msg;
@@ -73,9 +108,9 @@ void read_option(const inisection_t& s,
  */
 template<typename T>
 void read_enum_option(const inisection_t& s,
-                 const std::string& name,
-                 T& v, int vmin, int vmax,
-                 bool required = false)
+                      const std::string& name,
+                      T& v, int vmin, int vmax,
+                      bool required = false)
 {
     const auto& opt = s.find(name);
     if (opt!=s.end()) {
@@ -97,7 +132,7 @@ void read_enum_option(const inisection_t& s,
             msg += s.what();
             throw std::invalid_argument(msg);
         }
-        cout << name << " = " << v << endl;
+        if (ini_verbose_flag_) cout << name << " = " << v << endl;
     } else {
         if (required) {
             std::stringstream msg;
@@ -192,7 +227,7 @@ struct Convert<std::vector<T>>
  */
 template<typename T>
 void read_option_array(const inisection_t& s,
-                 const std::string& name,
+                       const std::string& name,
                        std::vector<T>& v, bool required = false,
                        int sz = -1)
 {
@@ -212,11 +247,13 @@ void read_option_array(const inisection_t& s,
             msg << "Must be a " << sz << "-element vector";
             throw std::invalid_argument(msg.str());
         }
-        cout << name << "[" << v.size() << "] = ";
-        for(int i=0; i< std::min(3UL,v.size()); i++)
-            cout << v[i] << ' ';
-        if (v.size() > 3) cout << "...";
-        cout << endl;
+        if (ini_verbose_flag_) {
+            cout << name << "[" << v.size() << "] = ";
+            for(int i=0; i< std::min(3UL,v.size()); i++)
+                cout << v[i] << ' ';
+            if (v.size() > 3) cout << "...";
+            cout << endl;
+        }
     } else {
         if (required) {
             std::stringstream msg;
@@ -229,9 +266,9 @@ void read_option_array(const inisection_t& s,
 
 template<typename T>
 void read_option_v3(const inisection_t& s,
-                       const std::string& name,
-                       Eigen::AlignedVector3<T>& v3,
-                       bool required = false)
+                    const std::string& name,
+                    Eigen::AlignedVector3<T>& v3,
+                    bool required = false)
 {
     const auto& opt = s.find(name);
     if (opt!=s.end()) {
@@ -243,26 +280,13 @@ void read_option_v3(const inisection_t& s,
     }
 }
 
-struct material_data {
-    std::string name;
-    int count;
-    float density;
-    std::vector<int> Z;
-    std::vector<float> M;
-    std::vector<float> X;
-    std::vector<float> Ed;
-    std::vector<float> El;
-    std::vector<float> Es;
-    std::vector<float> Er;
-};
-
-int parse_material(const inisection_t& s, material_data& md) {
-    md.count = 0;
+int parse_material(const inisection_t& s, settings::material_desc& md) {
+    int count = 0;
     md.density = 0;
     try {
-        read_option(s,"ElementCount",md.count,true);
-        if (md.count < 1) {
-            cerr << "Invalid ElementCount in " << endl;
+        read_option(s,"ElementCount",count,true);
+        if (count < 1) {
+            cerr << "Invalid ElementCount in material " << md.name << endl;
             return -1;
         }
         read_option(s,"Density",md.density,true);
@@ -270,41 +294,36 @@ int parse_material(const inisection_t& s, material_data& md) {
             cerr << "Invalid Density" << endl;
             return -1;
         }
-        read_option_array(s,"ElementsZ",            md.Z, true, md.count);
-        read_option_array(s,"ElementsM",            md.M, true, md.count);
-        read_option_array(s,"ElementsConc",         md.X, true, md.count);
-        read_option_array(s,"ElementsDispEnergy",   md.Ed,true, md.count);
-        read_option_array(s,"ElementsLattEnergy",   md.El,true, md.count);
-        read_option_array(s,"ElementsSurfEnergy",   md.Es,true, md.count);
-        read_option_array(s,"ElementsReplEnergy",   md.Er,true, md.count);
+        read_option_array(s,"ElementsZ",            md.Z, true, count);
+        read_option_array(s,"ElementsM",            md.M, true, count);
+        read_option_array(s,"ElementsConc",         md.X, true, count);
+        read_option_array(s,"ElementsDispEnergy",   md.Ed,true, count);
+        read_option_array(s,"ElementsLattEnergy",   md.El,true, count);
+        read_option_array(s,"ElementsSurfEnergy",   md.Es,true, count);
+        read_option_array(s,"ElementsReplEnergy",   md.Er,true, count);
 
     } catch (std::invalid_argument& e) {
         cerr << e.what() << endl;
         return -1;
     }
+
     return 0;
 }
 
-struct region_data {
-    int material_id;
-    std::vector<float> extX;
-    std::vector<float> extY;
-    std::vector<float> extZ;
-};
-
 int parse_region(const inisection_t& s,
-                 const std::vector<std::string>& materials,
-                 region_data& rd)
+                 const std::vector<std::string>& material_ids,
+                 settings::region_desc& rd)
 {
     try {
         std::string mname;
         read_option(s,"material",mname,true);
-        auto i = std::find(materials.begin(), materials.end(),mname);
-        if (i == materials.end()) {
-            cerr << "Material " << mname << " is not in the [Targey] materials list " << endl;
+        auto i = std::find(material_ids.begin(), material_ids.end(),mname);
+        if (i == material_ids.end()) {
+            cerr << "In region " << rd.name << " the specified material " << mname
+                 << " is not in the [Target] materials list " << endl;
             return -1;
         }
-        rd.material_id = i - materials.begin();
+        rd.material_id = i - material_ids.begin();
 
         read_option_array(s,"extent_x", rd.extX, true, 2);
         read_option_array(s,"extent_y", rd.extY, true, 2);
@@ -318,9 +337,11 @@ int parse_region(const inisection_t& s,
 }
 
 
-int parse(std::string& fname, simulation_base* &S)
+int settings::parse(const char* fname, bool verbose)
 {
-    cout << "Parsing config file " << fname << endl;
+    ini_verbose_flag_ = verbose;
+
+    if (verbose) cout << "Parsing config file " << fname << endl;
 
     // load the config file
     ini::IniFileCaseInsensitive fconfig;
@@ -333,51 +354,51 @@ int parse(std::string& fname, simulation_base* &S)
     }
 
     // Simulation
-    simulation_base::parameters p;
-    {
+     {
         const auto& opts = fconfig.find("Simulation");
         if (opts != fconfig.end()) {
-            cout << "[Simulation]" << endl;
+            if (verbose) cout << "[Simulation]" << endl;
             try {
-                read_option(opts->second,"title", p.title, true);
-                read_option(opts->second,"max_no_ions", p.max_no_ions, true);
-                read_enum_option(opts->second,"simulation_type", p.simulation_type,
+                read_option(opts->second,"title", psim_.title, true);
+                read_option(opts->second,"max_no_ions", psim_.max_no_ions, true);
+                read_enum_option(opts->second,"simulation_type", psim_.simulation_type,
                                  simulation_base::FullCascade, simulation_base::KP2,
                                  true);
 
                 // iradina does not define simulation type 1 & 2
-                if (p.simulation_type == simulation_base::Invalid1 ||
-                    p.simulation_type == simulation_base::Invalid2)
+                if (psim_.simulation_type == simulation_base::Invalid1 ||
+                    psim_.simulation_type == simulation_base::Invalid2)
                 {
                     std::stringstream msg;
-                    msg << "simulation_type: Invalid option " << p.simulation_type;
+                    msg << "simulation_type: Invalid option " << psim_.simulation_type;
                     throw std::invalid_argument(msg.str());
                 }
 
                 // KP2 not yet implementd
-                if (p.simulation_type == simulation_base::KP2)
+                if (psim_.simulation_type == simulation_base::KP2)
                 {
                     std::stringstream msg;
-                    msg << "simulation_type=" << p.simulation_type;
+                    msg << "simulation_type=" << psim_.simulation_type;
                     msg << " not yet implemented.";
                     throw std::invalid_argument(msg.str());
                 }
 
-                read_enum_option(opts->second,"scattering_calculation", p.scattering_calculation,
+                read_enum_option(opts->second,"scattering_calculation", psim_.scattering_calculation,
                                  simulation_base::Corteo4bit, simulation_base::ZBL_MAGICK);
-                read_enum_option(opts->second,"flight_path_type", p.flight_path_type,
+                read_enum_option(opts->second,"flight_path_type", psim_.flight_path_type,
                                  simulation_base::Poisson, simulation_base::SRIMlike);
-                read_enum_option(opts->second,"straggling_model", p.straggling_model,
+                read_enum_option(opts->second,"straggling_model", psim_.straggling_model,
                                  simulation_base::NoStraggling, simulation_base::YangStraggling);
 
-                read_option(opts->second,"flight_path_const", p.flight_path_const);
-                read_option(opts->second,"min_energy", p.min_energy);
+                read_option(opts->second,"flight_path_const", psim_.flight_path_const);
+                read_option(opts->second,"min_energy", psim_.min_energy);
 
-                read_enum_option(opts->second,"random_var_type", p.random_var_type,
+                read_enum_option(opts->second,"random_var_type", psim_.random_var_type,
                                  simulation_base::Sampled, simulation_base::Tabulated);
-                read_enum_option(opts->second,"random_generator_type", p.random_generator_type,
+                read_enum_option(opts->second,"random_generator_type", psim_.random_generator_type,
                                  simulation_base::MinStd, simulation_base::MersenneTwister);
-                read_option(opts->second,"threads", p.threads);
+                read_option(opts->second,"threads", psim_.threads);
+                read_option_array(opts->second,"seeds", psim_.seeds);
 
 
             } catch (std::invalid_argument& e) {
@@ -392,21 +413,20 @@ int parse(std::string& fname, simulation_base* &S)
 
 
     // ion beam
-    ion_beam::parameters ibp;
     {
         const auto& opts = fconfig.find("IonBeam");
         if (opts != fconfig.end()) {
             cout << "[IonBeam]" << endl;
             try {
-                read_enum_option(opts->second,"ion_distribution", ibp.ion_distribution,
+                read_enum_option(opts->second,"ion_distribution", psrc_.ion_distribution,
                                  ion_beam::SurfaceRandom, ion_beam::VolumeRandom);
-                read_option(opts->second,"ionZ",ibp.ionZ_,true);
-                read_option(opts->second,"ionM",ibp.ionM_,true);
-                read_option(opts->second,"ionE0",ibp.ionE0_,true);
+                read_option(opts->second,"ionZ",psrc_.ionZ_,true);
+                read_option(opts->second,"ionM",psrc_.ionM_,true);
+                read_option(opts->second,"ionE0",psrc_.ionE0_,true);
 
-                read_option_v3(opts->second,"ion_dir",ibp.dir_);
-                ibp.dir_.normalize();
-                read_option_v3(opts->second,"ion_pos",ibp.pos_);
+                read_option_v3(opts->second,"ion_dir",psrc_.dir_);
+                psrc_.dir_.normalize();
+                read_option_v3(opts->second,"ion_pos",psrc_.pos_);
 
             } catch (std::invalid_argument& e) {
                 cerr << e.what() << endl;
@@ -419,10 +439,7 @@ int parse(std::string& fname, simulation_base* &S)
     }
 
     // target
-    ivector3 cell_count = {1, 1, 1};
-    ivector3 periodic_bc = {0, 1, 1};
-    vector3 cell_size = {100.f, 100.f, 100.f};
-    std::vector<std::string> materials, regions;
+    std::vector<std::string> material_ids, region_ids;
     {
         const auto& opts = fconfig.find("Target");
         if (opts != fconfig.end()) {
@@ -431,21 +448,21 @@ int parse(std::string& fname, simulation_base* &S)
                 read_option_v3(opts->second,"cell_count",cell_count,true);
                 read_option_v3(opts->second,"cell_size",cell_size,true);
                 read_option_v3(opts->second,"periodic_boundary",periodic_bc,true);
-                read_option_array(opts->second,"materials",materials,true);
-                read_option_array(opts->second,"regions",regions,true);
+                read_option_array(opts->second,"materials",material_ids,true);
+                read_option_array(opts->second,"regions",region_ids,true);
             } catch (std::invalid_argument& e) {
                 cerr << e.what() << endl;
                 return -1;
             }
         } else {
-            cerr << "Required section [IonBeam] not found" << endl;
+            cerr << "Required section [Target] not found" << endl;
             return -1;
         }
-        if (materials.empty()) {
+        if (material_ids.empty()) {
             cerr << "Error : No materials specified." << endl;
             return -1;
         }
-        if (regions.empty()) {
+        if (region_ids.empty()) {
             cerr << "Error : No regions specified." << endl;
             return -1;
         }
@@ -453,65 +470,37 @@ int parse(std::string& fname, simulation_base* &S)
     }
 
     // check that we have readable materials and regions
-    std::vector<material_data> mdat;
-    for(std::string name : materials) {
-        cout << "[" << name << "]" << endl;
+    for(std::string name : material_ids) {
+        if (verbose) cout << "[" << name << "]" << endl;
         const auto& opts = fconfig.find(name);
         if (opts == fconfig.end()) {
             cerr << "Error : material section [" << name << "] not found." << endl;
             return -1;
         }
-        material_data md;
+        material_desc md;
         md.name = name;
-        if (parse_material(opts->second, md)==0) mdat.push_back(md);
+        if (parse_material(opts->second, md)==0) materials.push_back(md);
         else {
             cerr << "Error reading material " << name << endl;
             return -1;
         }
 
     }
-    std::vector<region_data> rdat;
-    for(std::string name : regions) {
-        cout << "[" << name << "]" << endl;
+    for(std::string name : region_ids) {
+        if (verbose) cout << "[" << name << "]" << endl;
         const auto& opts = fconfig.find(name);
         if (opts == fconfig.end()) {
             cerr << "Error : region section [" << name << "] not found." << endl;
             return -1;
         }
-        region_data rd;
-        if (parse_region(opts->second, materials, rd)==0) rdat.push_back(rd);
+        region_desc rd;
+        rd.name = name;
+        if (parse_region(opts->second, material_ids, rd)==0) regions.push_back(rd);
         else {
             cerr << "Error reading region " << name << endl;
             return -1;
         }
     }
-
-    S = simulation_base::fromParameters(p);
-    S->setIonBeam(ibp);
-
-    for(const material_data& md : mdat) {
-        material* m = S->addMaterial(md.name.c_str());
-        m->setMassDensity(md.density);
-        for(int i=0; i<md.count; i++)
-            m->addAtom(
-                {.Z=md.Z[i],.M=md.M[i],.Ed=md.Ed[i],
-                 .El=md.El[i],.Es=md.Es[i],.Er=md.Er[i]},
-                md.X[i]);
-    }
-
-    grid3D& G = S->grid();
-    G.setX(0, cell_count.x()*cell_size.x(), cell_count.x());
-    G.setY(0, cell_count.y()*cell_size.y(), cell_count.y());
-    G.setZ(0, cell_count.z()*cell_size.z(), cell_count.z());
-
-    const std::vector<material*>& imat = S->getTarget()->materials();
-    for(const region_data& rd : rdat) {
-        box3D box;
-        box.min() = vector3(rd.extX[0],rd.extY[0],rd.extZ[0]);
-        box.max() = vector3(rd.extX[1],rd.extY[1],rd.extZ[1]);
-        S->fill(box,imat[rd.material_id]);
-    }
-
     return 0;
 }
 
@@ -568,9 +557,122 @@ static const char* ini_template_ =
     "extent_x=0 1200                     # Required. Region extent Xmin, Xmax\n"
     "extent_y=0 1200                     # Required. Region extent Ymin, Ymax\n"
     "extent_z=0 1200                     # Required. Region extent Zmin, Zmax\n"
-                                   "\n";
+    "\n";
 
-void print_ini_template()
+const char* settings::ini_template() const
 {
-    cout << ini_template_;
+    return ini_template_;
+}
+
+simulation_base* settings::createSimulation() const
+{
+    simulation_base* S = simulation_base::fromParameters(psim_);
+    S->setIonBeam(psrc_);
+
+    for(const material_desc& md : materials) {
+        material* m = S->addMaterial(md.name.c_str());
+        m->setMassDensity(md.density);
+        for(int i=0; i<md.Z.size(); i++)
+            m->addAtom(
+                {.Z=md.Z[i],.M=md.M[i],.Ed=md.Ed[i],
+                 .El=md.El[i],.Es=md.Es[i],.Er=md.Er[i]},
+                md.X[i]);
+    }
+
+    grid3D& G = S->grid();
+    G.setX(0, cell_count.x()*cell_size.x(), cell_count.x());
+    G.setY(0, cell_count.y()*cell_size.y(), cell_count.y());
+    G.setZ(0, cell_count.z()*cell_size.z(), cell_count.z());
+
+    const std::vector<material*>& imat = S->getTarget()->materials();
+    for(const region_desc& rd : regions) {
+        box3D box;
+        box.min() = vector3(rd.extX[0],rd.extY[0],rd.extZ[0]);
+        box.max() = vector3(rd.extX[1],rd.extY[1],rd.extZ[1]);
+        S->fill(box,imat[rd.material_id]);
+    }
+
+    return S;
+}
+
+int controller::run_simulation(const settings& s)
+{
+    using namespace std::chrono_literals;
+
+    int nthreads = s.psim_.threads;
+    if (nthreads < 1) nthreads = 1;
+
+    // TIMING
+    struct timespec start, end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    std::random_device rd;
+    std::seed_seq sseq({1, 5, 8 , 101});
+    std::vector<std::uint32_t> myseeds(nthreads);
+    sseq.generate(myseeds.begin(), myseeds.end());
+
+    std::vector< std::thread* > threads;
+    std::vector< worker > sims;
+    unsigned int N = s.psim_.max_no_ions;
+    unsigned int Nth = N/nthreads;
+    for(int i=0; i<nthreads; i++) {
+        worker r;
+        r.s_ = s;
+        r.max_no_ions = i==nthreads-1 ? N : Nth;
+        N -= Nth;
+        r.seed = rd();
+        sims.push_back(r);
+    }
+    for(int i=0; i<nthreads; i++) {
+        threads.push_back(new std::thread(&worker::run, &sims[i]));
+    }
+
+    unsigned int n = 0;
+    N = s.psim_.max_no_ions;
+    while(n < N) {
+        std::this_thread::sleep_for(1000ms);
+        n = 0;
+        for(int i=0; i<nthreads; i++) {
+            auto s = sims[i].S_;
+            if (s) {
+                uint u = sims[i].S_->ions_done();
+                n += u;
+                std::cout << u << '\t';
+            }
+        }
+        std::cout << n << std::endl;
+    }
+
+    // waiting for threads to finish...
+    for(int i=0; i<nthreads; i++) threads[i]->join();
+
+    // consolidate results
+    for(int i=1; i<nthreads; i++)
+        sims[0].S_->addTally(sims[i].S_->getTally());
+
+    sims[0].S_->saveTallys();
+
+    // delete threads
+    for(int i=0; i<nthreads; i++) {
+        delete threads[i];
+        delete sims[i].S_;
+    }
+
+    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+    ips = 1. * (end.tv_sec - start.tv_sec) / nthreads;
+    ips += 1.e-9 * (end.tv_nsec - start.tv_nsec) / nthreads;
+    ips = N / ips;
+
+    return 0;
+}
+
+int controller::worker::run() {
+    S_ = s_.createSimulation();
+    if (S_ && (S_->init()==0)) {
+        S_->setMaxIons(max_no_ions);
+        S_->seed_(seed);
+        return S_->run_all_ions();
+    }
+    return -1;
 }

@@ -11,23 +11,18 @@ atom::atom(target *t, class material* m, int id) :
     id_(id), mat_(m), target_(t)
 {}
 
-material::material(target *t, const char* name, const float& density, int id) :
-    id_(id), name_(name), massDensity_(density), target_(t)
+material::material(target *t, const char* name, int id) :
+    id_(id), name_(name), target_(t)
 {}
 
-atom* material::addAtom(int Z, float M, float X,
-                         float Ed, float El, float Es, float Er)
+atom* material::addAtom(const atom::parameters& p, float x)
 {
     atom* a = new atom(target_, this, target_->atoms_.size());
     target_->atoms_.push_back(a);
     this->atoms_.push_back(a);
-    a->Z_ = Z;
-    a->M_ = M;
-    a->X_ = X;
-    a->Ed_ = Ed;
-    a->El_ = El;
-    a->Es_ = Es;
-    a->Er_ = Er;
+    a->p_ = p;
+    a->X_ = x;
+    X_.push_back(x);
     return a;
 }
 
@@ -36,22 +31,21 @@ void material::init()
     cumX_.resize(atoms_.size());
     // prepare concentrations
     float tot = 0;
-    for(int i=0; i<atoms_.size(); i++) tot += atoms_[i]->X_;
+    for(int i=0; i<atoms_.size(); i++) tot += X_[i];
     meanZ_ = 0;
     meanM_ = 0;
     for(int i=0; i<atoms_.size(); i++) {
-        float & x = atoms_[i]->X_;
-        x /= tot;
-        meanZ_ += x*atoms_[i]->Z_;
-        meanM_ += x*atoms_[i]->M_;
+        X_[i] /= tot;
+        atoms_[i]->X_ /= tot;
+        meanZ_ += X_[i]*atoms_[i]->Z();
+        meanM_ += X_[i]*atoms_[i]->M();
     }
 
     // make cumulative (for random sel)
-    cumX_[0] = atoms_[0]->X_;
+    cumX_[0] = X_[0];
     for(int i=1; i<atoms_.size(); i++)
-        cumX_[i] += atoms_[i]->X_ + cumX_[i-1];
+        cumX_[i] += X_[i] + cumX_[i-1];
 
-    // TODO
     /*
      * For testing purposes and comparisons for SRIM,
      * we calculate the mean screening length and
@@ -63,9 +57,14 @@ void material::init()
     meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
     meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
 
+    static const float AvogadroNum = 6.02214076e2f; // note the nm^3
+    if (atomicDensityNM_ <= 0) {
+        atomicDensityNM_ = AvogadroNum * massDensity_ / meanM_;
+    } else if (massDensity_ <= 0) {
+        massDensity_ = atomicDensityNM_ * meanM_ / AvogadroNum;
+    }
     //static const float AvogadroNum = 6.02214076e23;
-    atomicDensityNM_ = 6.02214076e2f * massDensity_ / meanM_; // at / nm^3
-    atomicDensity_ = atomicDensityNM_*1e21f; // at/cm^3
+    // atomicDensity_ = atomicDensityNM_*1e21f; // at/cm^3
     atomicDistance_ = 1.0/std::pow(4.0*M_PI*atomicDensityNM_/3, 1.0/3); /* for conversion from cm to nm */
     layerDistance_ = 1.0/std::pow(atomicDensityNM_, 1.0/3); /* for conversion from cm to nm */
     sqrtAtomicDistance_ = std::sqrt(atomicDistance_);
@@ -81,9 +80,40 @@ target::target()
     atoms_.push_back(new atom(this,0,0));
 }
 
+target::target(const target& t) :
+    grid_(t.grid_),
+    cells_(t.cells_.copy())
+{
+    // create projectile and copy from t
+    atoms_.push_back(new atom(this,0,0));
+    atoms_[0]->p_ = t.atoms_[0]->p_;
+
+    // create all materials as in t
+    if (!t.materials_.empty()) {
+        for(const material* m : t.materials_) {
+            material* m1 = addMaterial(m->name().c_str());
+            for(const atom* a : m->atoms_)
+                m1->addAtom(a->p_, a->X());
+            m1->massDensity_ = m->massDensity_;
+            m1->X_ = m->X_;
+            m1->cumX_ = m->cumX_;
+            m1->atomicDistance_ = m->atomicDistance_;
+            m1->sqrtAtomicDistance_ = m->sqrtAtomicDistance_;
+            m1->layerDistance_ = m->layerDistance_;
+            m1->atomicDensityNM_ = m->atomicDensityNM_;
+            m1->sqrtRecFlDensity_ = m->sqrtRecFlDensity_;
+            m1->meanZ_ = m->meanZ_;
+            m1->meanM_ = m->meanM_;
+            m1->meanF_ = m->meanF_;
+            m1->meanA_ = m->meanA_;
+            m1->meanMinRedTransfer_ = m->meanMinRedTransfer_;
+            m1->meanImpactPar_ = m->meanImpactPar_;
+        }
+    }
+}
+
 target::~target()
 {
-
     for(material* m : materials_) delete m;
     for(atom* a : atoms_) delete a;
 }
@@ -91,21 +121,19 @@ target::~target()
 void target::setProjectile(int Z, float M)
 {
     atom* i = atoms_[0];
-    i->Z_ = Z;
-    i->M_ = M;
+    i->p_.Z = Z;
+    i->p_.M = M;
 }
 
 void target::init() {
     for(material* m : materials_) m->init();
 }
 
-material* target::addMaterial(const char* name, const float& density)
+material* target::addMaterial(const char* name)
 {
-    materials_.push_back(new material(this, name, density, materials_.size()));
+    materials_.push_back(new material(this, name, materials_.size()));
     return materials_.back();
 }
-
-
 
 void target::fill(const box3D& box, const material* m)
 {

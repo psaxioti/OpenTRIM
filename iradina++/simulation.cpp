@@ -15,14 +15,26 @@ simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
 }
 
 template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const _Myt* p) :
-    simulation_base(p), rnd(nullptr),
-    scattering_matrix_(p->scattering_matrix_)
+simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
+    simulation_base(S), rnd(nullptr)
 {
     /*
      * create random variables object
      */
     createRandomVars();
+    /*
+     * copy XS
+     */
+    int natoms = target_->atoms().size();
+    if (natoms) {
+        assert(natoms == S.scattering_matrix_.rows());
+        scattering_matrix_ = Array2D<scatteringXSlab*>(natoms,natoms);
+        for(int z1=0; z1<natoms; z1++)
+            for(int z2=1; z2<natoms; z2++)
+                scattering_matrix_[z1][z2] =
+                    new scatteringXSlab(*(S.scattering_matrix_[z1][z2]));
+    }
+
 }
 
 
@@ -30,11 +42,9 @@ template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
     if (rnd) delete rnd;
-    if (ref_count_.use_count()==1) {
-        scatteringXSlab** xs = scattering_matrix_.data();
-        for (int i=0; i<scattering_matrix_.size(); i++)
-            delete *xs;
-    }
+    scatteringXSlab** xs = scattering_matrix_.data();
+    for (int i=0; i<scattering_matrix_.size(); i++)
+        delete *xs;
 }
 
 template<class _XScm, class _RNG_E>
@@ -77,12 +87,8 @@ void simulation<_XScm, _RNG_E>::createRandomVars()
 }
 
 template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::run()
+int simulation<_XScm,  _RNG_E>::run_all_ions()
 {
-    // TIMING
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
     ion i0(target_->grid());
 
     for(int k=0; k<par_.max_no_ions; k++) {
@@ -111,16 +117,8 @@ int simulation<_XScm,  _RNG_E>::run()
             }
         }
 
-        if (tally_.Nions() % 100 ==0) {
-            std::cout << "Ion: " << tally_.Nions() << std::endl;
-        }
+        nion_thread_++;
     }
-
-    // CALC TIME/ion
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    ms_per_ion_ = (end.tv_sec - start.tv_sec) * 1.e3 / tally_.Nions();
-    ms_per_ion_ += 1.e-6*(end.tv_nsec - start.tv_nsec) / tally_.Nions();
-
     return 0;
 }
 
@@ -274,6 +272,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     if ((i->atom_->Z() == z2->Z()) && (i->erg < z2->Er())) {
                         // Count replacement, energy goes to phonons {???}
                         tally_.replacements(i->atom_->id(), i->cellid())++;
+                        tally_.Nrepl()++;
                         tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
                         //tallyPhononEnergy(i, i->erg);
                         // TODO: event: ion stops - replacement
@@ -283,6 +282,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     // vacancy is created
                     // store the vacancy
                     tally_.vacancies(z2->id(), i->cellid())++;
+                    tally_.Nvac()++;
 
 
                 } else { // E<Ed, recoil cannot be displaced
@@ -327,6 +327,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
         /* Check what happens to the projectile after possible collision: */
         if(i->erg < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
             tally_.implantations(i->atom_->id(), i->cellid())++;
+            tally_.Nimpl()++;
             // energy goes to phonons
             tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
             // tallyPhononEnergy(i, i->erg);
@@ -392,22 +393,6 @@ float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, cons
     return p;
 }
 
-template<class _XScm, class _RNG_E>
-simulation_base* simulation<_XScm, _RNG_E>::clone()
-{
-    // It is assumed we are cloning an already initialized simulation
-
-    // first clone the base object
-    // and up-cast it to this type
-    // _Myt* S = reinterpret_cast<_Myt*>(simulation_base::clone());
-    _Myt* S = new _Myt(this);
-
-    // now clone our resources
-    S->scattering_matrix_ = scattering_matrix_;
-
-    return S;
-}
-
 // explicit instantiation of all variants
 template class simulation< XS_zbl_magic,   std::mt19937 >;
 template class simulation< XS_corteo4bit,  std::mt19937 >;
@@ -454,26 +439,4 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
     }
     return S;
 }
-
-//simulation_base* simulation_base::clone()
-//{
-//    // It is assumed we are cloning an already initialized simulation
-
-//    simulation_base* S = fromParameters(getParameters());
-
-//    // shared resources
-//    S->target_ = target_;
-//    S->source_ = source_;
-//    S->dedx_ = dedx_;
-//    S->dedx1 = dedx1;
-//    S->de_strag_ = de_strag_;
-
-//    S->sqrtfp_const = sqrtfp_const;
-
-//    // tallys must be separate, thus we make copies
-//    S->tally_.copy(tally_);
-
-//    return S;
-//}
-
 

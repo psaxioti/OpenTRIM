@@ -56,7 +56,8 @@ add_executable(iradina++
     simulation_base.cpp
     parser.cpp
     tally.h
-    ion_queues.h)
+    ion_queues.h
+    settings.h settings.cpp)
 
 target_link_libraries(iradina++ "-lm"
     Eigen3::Eigen
