@@ -104,6 +104,8 @@ public:
         parameters(); // set defaults
     };
 
+    typedef void (*progress_callback)(const std::vector<uint>& v);
+
 protected:
 
     ion_queues< ion > q_;
@@ -111,12 +113,13 @@ protected:
     // simulation paramenters
     parameters par_;
 
-    // shared components
+    // components
     ion_beam* source_;
     target* target_;
-
-    // non shared
     tally tally_;
+
+    // ref counter
+    std::shared_ptr<int> ref_count_;
 
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
@@ -127,8 +130,8 @@ protected:
     Array3Df de_strag_; // straggling data (atoms x materials x energy)
 
     // timing
-    double ips_;
-    std::atomic_uint nion_thread_;
+    double ips_; // ions/s
+    std::atomic_uint nion_thread_; // thread safe simulated ion counter
 
     friend class out_file;
 
@@ -151,7 +154,16 @@ public:
     straggling_model_t stragglingModel() const { return par_.straggling_model; }
     random_var_t randomVarType() const { return par_.random_var_type; }
     random_generator_t rngType() const { return par_.random_generator_type; }
-    uint ions_done() { return nion_thread_.exchange(0); }
+    int nThreads() const { return par_.threads; }
+
+    void setTitle(const char* t) { par_.title = t; }
+    void setSimulationType(simulation_type_t v) { par_.simulation_type = v; }
+    void setFlightPathType(flight_path_type_t v) { par_.flight_path_type = v; }
+    void setStragglingModel(straggling_model_t v) { par_.straggling_model = v; }
+    void setRandomVarType(random_var_t v) { par_.random_var_type = v; }
+    void setNThreads(int n) { par_.threads = n; }
+    void setSeeds(const std::vector<uint>& s) { par_.seeds = s; }
+
     double ips() const { return ips_; }
 
     // simulation setup
@@ -173,9 +185,8 @@ public:
 
     int saveTallys();
     virtual int init();
+    int exec(progress_callback cb = 0, uint msInterval = 1000);
     virtual void seed(unsigned int s) = 0;
-    virtual int run() = 0;
-    virtual simulation_base* clone() const = 0;
 
 protected:
 
@@ -192,6 +203,7 @@ protected:
 
     // protected constructor
     // cannot instantiate simulation base objects
+    simulation_base();
     simulation_base(const parameters& p);
     simulation_base(const simulation_base& s);
 
@@ -200,6 +212,9 @@ protected:
     virtual int transport(ion* i) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) = 0;
+    virtual int run() = 0;
+    virtual simulation_base* clone() const = 0;
+    uint ions_done() { return nion_thread_.exchange(0); }
 
 };
 
@@ -223,20 +238,20 @@ private:
     Array2D<scatteringXSlab*> scattering_matrix_;
 
 public:
-    simulation(const parameters& p);
+    explicit simulation(const char* t = 0);
+    explicit simulation(const parameters& p);
     simulation(const _Myt& S);
     ~simulation();
 
     virtual int init() override;
 
-    virtual void seed(unsigned int s) override { urbg.seed(s); }
-    virtual int run() override;
-    virtual simulation_base* clone() const override { return new _Myt(*this); }
-
 protected:
     virtual int transport(ion* i) override;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
+    virtual int run() override;
+    virtual simulation_base* clone() const override { return new _Myt(*this); }
+    virtual void seed(unsigned int s) override { urbg.seed(s); }
 
     void createRandomVars();
 

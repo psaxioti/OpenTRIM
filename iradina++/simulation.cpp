@@ -3,6 +3,27 @@
 #include "dedx.h"
 
 #include <iostream>
+#include <type_traits>
+
+template<class _XScm, class _RNG_E>
+simulation<_XScm,  _RNG_E>::simulation(const char* t) :
+    simulation_base(), rnd(nullptr)
+{
+    if (t) par_.title = t;
+
+    if (std::is_same<_XScm, XS_zbl_magic>::value)
+        par_.scattering_calculation =  ZBL_MAGICK;
+    else if (std::is_same<_XScm, XS_corteo4bit>::value)
+        par_.scattering_calculation =  Corteo4bit;
+    else if (std::is_same<_XScm, XS_corteo6bit>::value)
+        par_.scattering_calculation =  Corteo6bit;
+
+    if (std::is_same<_RNG_E, std::mt19937>::value)
+        par_.random_generator_type =  MersenneTwister;
+    else if (std::is_same<_RNG_E, std::minstd_rand>::value)
+        par_.random_generator_type =  MinStd;
+
+}
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
@@ -23,19 +44,6 @@ simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
      * create random variables object
      */
     createRandomVars();
-    /*
-     * copy XS
-     */
-//    int natoms = target_->atoms().size();
-//    if (natoms) {
-//        assert(natoms == S.scattering_matrix_.rows());
-//        scattering_matrix_ = Array2D<scatteringXSlab*>(natoms,natoms);
-//        for(int z1=0; z1<natoms; z1++)
-//            for(int z2=1; z2<natoms; z2++)
-//                scattering_matrix_[z1][z2] =
-//                    new scatteringXSlab(*(S.scattering_matrix_[z1][z2]));
-//    }
-
 }
 
 
@@ -43,9 +51,12 @@ template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
     if (rnd) delete rnd;
-    //scatteringXSlab** xs = scattering_matrix_.data();
-    //for (int i=0; i<scattering_matrix_.size(); i++)
-    //    delete *xs;
+    if (ref_count_.use_count() == 1) {
+        scatteringXSlab** xs = scattering_matrix_.data();
+        for (int i=0; i<scattering_matrix_.size(); i++) {
+            delete xs[i];
+        }
+    }
 }
 
 template<class _XScm, class _RNG_E>
@@ -68,6 +79,8 @@ int simulation<_XScm,  _RNG_E>::init() {
             scattering_matrix_[z1][z2]->init(atoms[z1]->Z(), atoms[z1]->M(),
                      atoms[z2]->Z(), atoms[z2]->M());
         }
+
+    createRandomVars();
 
     return 0;
 }

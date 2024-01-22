@@ -398,13 +398,13 @@ int settings::parse(const char* fname, bool verbose)
             try {
                 read_enum_option(opts->second,"ion_distribution", psrc_.ion_distribution,
                                  ion_beam::SurfaceRandom, ion_beam::VolumeRandom);
-                read_option(opts->second,"ionZ",psrc_.ionZ_,true);
-                read_option(opts->second,"ionM",psrc_.ionM_,true);
-                read_option(opts->second,"ionE0",psrc_.ionE0_,true);
+                read_option(opts->second,"ionZ",psrc_.ionZ,true);
+                read_option(opts->second,"ionM",psrc_.ionM,true);
+                read_option(opts->second,"ionE0",psrc_.ionE0,true);
 
-                read_option_v3(opts->second,"ion_dir",psrc_.dir_);
-                psrc_.dir_.normalize();
-                read_option_v3(opts->second,"ion_pos",psrc_.pos_);
+                read_option_v3(opts->second,"ion_dir",psrc_.dir);
+                psrc_.dir.normalize();
+                read_option_v3(opts->second,"ion_pos",psrc_.pos);
 
             } catch (std::invalid_argument& e) {
                 cerr << e.what() << endl;
@@ -573,77 +573,5 @@ simulation_base* settings::createSimulation() const
     return S;
 }
 
-int controller::run_simulation(const settings& s)
-{
-    using namespace std::chrono_literals;
 
-    int nthreads = s.psim_.threads;
-    if (nthreads < 1) nthreads = 1;
-
-    // TIMING
-    struct timespec start, end;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    // create simulations
-    std::vector< simulation_base* > sims(nthreads);
-    sims[0] = s.createSimulation();
-    sims[0]->init();
-    for(int i=1; i<nthreads; i++) {
-        sims[i] = sims[0]->clone();
-    }
-
-    std::random_device rd;
-    std::seed_seq sseq({1, 5, 8 , 101});
-    std::vector<std::uint32_t> myseeds(nthreads);
-    sseq.generate(myseeds.begin(), myseeds.end());
-    unsigned int N = s.psim_.max_no_ions;
-    unsigned int Nth = N/nthreads;
-    for(int i=0; i<nthreads; i++) {
-        sims[i]->setMaxIons(i==nthreads-1 ? N : Nth);
-        N -= Nth;
-        sims[i]->seed(rd());
-    }
-
-    std::vector< std::thread* > threads;
-    for(int i=0; i<nthreads; i++) {
-        threads.push_back(
-            new std::thread(&simulation_base::run, sims[i])
-            );
-    }
-
-    unsigned int n = 0;
-    N = s.psim_.max_no_ions;
-    while(n < N) {
-        std::this_thread::sleep_for(1000ms);
-        for(int i=0; i<nthreads; i++) {
-            uint u = sims[i]->ions_done();
-            n += u;
-            std::cout << u << '\t';
-        }
-        std::cout << n << std::endl;
-    }
-
-    // waiting for threads to finish...
-    for(int i=0; i<nthreads; i++) threads[i]->join();
-
-    // consolidate results
-    for(int i=1; i<nthreads; i++)
-        sims[0]->addTally(sims[i]->getTally());
-
-    sims[0]->saveTallys();
-
-    // delete threads
-    for(int i=0; i<nthreads; i++) {
-        delete threads[i];
-        delete sims[i];
-    }
-
-    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
-    ips = 1. * (end.tv_sec - start.tv_sec) / nthreads;
-    ips += 1.e-9 * (end.tv_nsec - start.tv_nsec) / nthreads;
-    ips = N / ips;
-
-    return 0;
-}
 

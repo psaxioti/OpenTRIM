@@ -43,10 +43,4 @@ struct settings
 
 };
 
-struct controller
-{
-    double ips;
-    int run_simulation(const settings& s);
-};
-
 #endif // SETTINGS_H

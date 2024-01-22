@@ -54,7 +54,6 @@ add_executable(iradina++
     event_recorder.h event_recorder.cpp
     out_file.h out_file.cpp
     simulation_base.cpp
-    parser.cpp
     tally.h
     ion_queues.h
     settings.h settings.cpp)

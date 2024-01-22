@@ -20,13 +20,13 @@ public:
     } ion_distribution_t;
 
     struct parameters {
-        ion_distribution_t ion_distribution;
-        int ionZ_; // atomic number
-        float ionM_; // ion mass
-        float ionE0_; // initial energy eV
-        vector3 dir_; // initial direction
-        vector3 pos_; // initial position
-        parameters();
+        ion_distribution_t ion_distribution{SurfaceRandom};
+        int ionZ{1}; // atomic number
+        float ionM{1.f}; // ion mass
+        float ionE0{1000.f}; // initial energy eV
+        vector3 dir{1,0,0}; // initial direction
+        vector3 pos{0,0,0}; // initial position
+        //parameters();
     };
 
 protected:
@@ -41,12 +41,12 @@ public:
     void setParameters(const parameters& p) { par_ = p; }
     const parameters& getParameters() const { return par_; }
 
-    int ionZ() const { return par_.ionZ_; }
-    float ionM() const { return par_.ionM_; }
-    float ionE0() const { return par_.ionE0_; }
+    int ionZ() const { return par_.ionZ; }
+    float ionM() const { return par_.ionM; }
+    float ionE0() const { return par_.ionE0; }
     ion_distribution_t distributionType() const { return par_.ion_distribution; }
-    vector3 ionDir() const { return par_.dir_; }
-    vector3 ionPos() const { return par_.pos_; }
+    vector3 ionDir() const { return par_.dir; }
+    vector3 ionPos() const { return par_.pos; }
 
     const atom* projectile() const { return atom_; }
     void setProjectile(const atom* at) { atom_ = at; }

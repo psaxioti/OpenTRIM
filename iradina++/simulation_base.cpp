@@ -27,18 +27,30 @@ simulation_base::parameters::parameters()
     threads = 1;
 };
 
+simulation_base::simulation_base() :
+    source_(new ion_beam),
+    target_(new target),
+    ref_count_(new int(0)),
+    nion_thread_(0)
+{
+}
+
 simulation_base::simulation_base(const parameters &p) :
     par_(p),
     source_(new ion_beam),
     target_(new target),
+    ref_count_(new int(0)),
     nion_thread_(0)
 {
 }
 
 simulation_base::simulation_base(const simulation_base &s) :
     par_(s.par_),
-    source_(new ion_beam(*s.source_)),
-    target_(new target(*s.target_)),
+    //source_(new ion_beam(*s.source_)),
+    //target_(new target(*s.target_)),
+    source_(s.source_),
+    target_(s.target_),
+    ref_count_(s.ref_count_),
     nion_thread_(0),
     sqrtfp_const(s.sqrtfp_const),
     dedx_(s.dedx_),
@@ -51,8 +63,10 @@ simulation_base::simulation_base(const simulation_base &s) :
 simulation_base::~simulation_base()
 {
     q_.clear();
-    delete source_;
-    delete target_;
+    if (ref_count_.use_count() == 1) {
+        delete source_;
+        delete target_;
+    }
 }
 
 int simulation_base::init() {
@@ -223,6 +237,89 @@ int simulation_base::getDEtables(const atom* z1, const material* m,
     int im = m->id();
     dedx = dedx_[ia][im];
     de_stragg = de_strag_[ia][im];
+    return 0;
+}
+
+int simulation_base::exec(progress_callback cb, uint msInterval)
+{
+    using namespace std::chrono_literals;
+
+    int nthreads = par_.threads;
+    if (nthreads < 1) nthreads = 1;
+
+    // TIMING
+    struct timespec t_start, t_end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_start);
+
+    // create simulations
+    std::vector< simulation_base* > sims(nthreads);
+    sims[0] = this;
+    for(int i=1; i<nthreads; i++) {
+        sims[i] = clone();
+    }
+
+    // if no seeds given, generate random seeds
+    std::vector<uint> myseeds = par_.seeds;
+    if (myseeds.size() < nthreads) {
+        myseeds.resize(nthreads);
+        std::random_device rd;
+        for(int i = 0; i<nthreads; i++)
+            myseeds[i] = rd();
+
+    }
+    // set # ions and seed in each thread
+    unsigned int maxIons = par_.max_no_ions;
+    unsigned int N = maxIons;
+    unsigned int Nth = N/nthreads;
+    for(int i=0; i<nthreads; i++) {
+        sims[i]->setMaxIons(i==nthreads-1 ? N : Nth);
+        N -= Nth;
+        sims[i]->seed(myseeds[i]);
+    }
+    // create worker threads
+    std::vector< std::thread* > threads;
+    for(int i=0; i<nthreads; i++) {
+        threads.push_back(
+            new std::thread(&simulation_base::run, sims[i])
+            );
+    }
+    // report progress if callback function is given
+    if (cb) {
+        std::vector<uint> progv(nthreads+1,0);
+        unsigned int n = 0;
+        while(n < maxIons) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(msInterval));
+            int i=0;
+            for(; i<nthreads; i++) {
+                progv[i] = sims[i]->ions_done();
+                n += progv[i];
+            }
+            progv[i] = n;
+            cb(progv);
+        }
+    }
+    // wait for threads to finish...
+    for(int i=0; i<nthreads; i++) threads[i]->join();
+    // consolidate results
+    for(int i=1; i<nthreads; i++)
+        sims[0]->addTally(sims[i]->getTally());
+    // delete threads
+    for(int i=0; i<nthreads; i++) {
+        delete threads[i];
+    }
+    // delete simulation clones
+    for(int i=1; i<nthreads; i++) {
+        delete sims[i];
+    }
+    // restore my max_no_ions
+    par_.max_no_ions = maxIons;
+
+    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_end); // POSIX
+    double t_secs = 1. * (t_end.tv_sec - t_start.tv_sec) / nthreads;
+    t_secs += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec) / nthreads;
+    ips_ = tally_.Nions()/t_secs;
+
     return 0;
 }
 
