@@ -2,6 +2,7 @@
 #include "dedx.h"
 #include "elements.h"
 #include "out_file.h"
+#include "event_recorder.h"
 
 #include <iostream>
 #include <thread>
@@ -31,6 +32,7 @@ simulation_base::simulation_base() :
     source_(new ion_beam),
     target_(new target),
     ref_count_(new int(0)),
+    count_offset_(0),
     nion_thread_(0)
 {
 }
@@ -40,18 +42,19 @@ simulation_base::simulation_base(const parameters &p) :
     source_(new ion_beam),
     target_(new target),
     ref_count_(new int(0)),
+    count_offset_(0),
     nion_thread_(0)
 {
 }
 
 simulation_base::simulation_base(const simulation_base &s) :
     par_(s.par_),
-    //source_(new ion_beam(*s.source_)),
-    //target_(new target(*s.target_)),
+    out_opts_(s.out_opts_),
     source_(s.source_),
     target_(s.target_),
     ref_count_(s.ref_count_),
     nion_thread_(0),
+    count_offset_(0),
     sqrtfp_const(s.sqrtfp_const),
     dedx_(s.dedx_),
     dedx1(s.dedx1),
@@ -254,8 +257,10 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     // create simulations
     std::vector< simulation_base* > sims(nthreads);
     sims[0] = this;
+    thread_id_ = 0;
     for(int i=1; i<nthreads; i++) {
         sims[i] = clone();
+        sims[i]->thread_id_ = i;
     }
 
     // if no seeds given, generate random seeds
@@ -271,9 +276,13 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     unsigned int maxIons = par_.max_no_ions;
     unsigned int N = maxIons;
     unsigned int Nth = N/nthreads;
+    uint offset = 0;
     for(int i=0; i<nthreads; i++) {
-        sims[i]->setMaxIons(i==nthreads-1 ? N : Nth);
-        N -= Nth;
+        uint n = i==nthreads-1 ? N : Nth;
+        sims[i]->setMaxIons(n);
+        sims[i]->count_offset_ = offset;
+        offset += n;
+        N -= n;
         sims[i]->seed(myseeds[i]);
     }
     // create worker threads
@@ -300,9 +309,23 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     }
     // wait for threads to finish...
     for(int i=0; i<nthreads; i++) threads[i]->join();
+
     // consolidate results
     for(int i=1; i<nthreads; i++)
         sims[0]->addTally(sims[i]->getTally());
+
+    if (out_opts_.store_pka) {
+        std::string f1;
+        getOutFileName("pka",0,f1);
+        for(int i=1; i<nthreads; i++) {
+            std::string f2;
+            getOutFileName("pka",i,f2);
+            event_recorder::merge(f1.c_str(), f2.c_str(),"pka");
+            std::remove(f2.c_str());
+        }
+    }
+
+
     // delete threads
     for(int i=0; i<nthreads; i++) {
         delete threads[i];
@@ -376,11 +399,23 @@ float simulation_base::NRT(float Ed, float T)
 int simulation_base::saveTallys()
 {
     out_file of(this);
-    if (of.open("iradina++.h5")!=0) return -1;
+    std::string fname(out_opts_.outFileBaseName);
+    fname += ".h5";
+    if (of.open(fname.c_str())!=0) return -1;
     of.save();
     of.close();
     return 0;
 }
+
+void simulation_base::getOutFileName(const char* type, int thread_id, std::string& name)
+{
+    std::stringstream ss;
+    ss << out_opts_.outFileBaseName << '.' << type;
+    if (thread_id) ss << thread_id;
+    ss << ".h5";
+    name = ss.str();
+}
+
 
 
 

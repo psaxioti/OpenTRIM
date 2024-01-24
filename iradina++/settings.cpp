@@ -315,24 +315,22 @@ int parse_region(const inisection_t& s,
 }
 
 
-int settings::parse(const char* fname, bool verbose)
+int settings::parse(std::istream &is, bool verbose)
 {
     ini_verbose_flag_ = verbose;
-
-    if (verbose) cout << "Parsing config file " << fname << endl;
 
     // load the config file
     ini::IniFileCaseInsensitive fconfig;
 
     try {
-        fconfig.load(fname);
+        fconfig.decode(is);
     } catch (std::exception& e) {
         cerr << "Error reading config: " << e.what() << endl;
         return -1;
     }
 
     // Simulation
-     {
+    {
         const auto& opts = fconfig.find("Simulation");
         if (opts != fconfig.end()) {
             if (verbose) cout << "[Simulation]" << endl;
@@ -394,7 +392,7 @@ int settings::parse(const char* fname, bool verbose)
     {
         const auto& opts = fconfig.find("IonBeam");
         if (opts != fconfig.end()) {
-            cout << "[IonBeam]" << endl;
+            if (verbose) cout << "[IonBeam]" << endl;
             try {
                 read_enum_option(opts->second,"ion_distribution", psrc_.ion_distribution,
                                  ion_beam::SurfaceRandom, ion_beam::VolumeRandom);
@@ -421,7 +419,7 @@ int settings::parse(const char* fname, bool verbose)
     {
         const auto& opts = fconfig.find("Target");
         if (opts != fconfig.end()) {
-            cout << "[Target]" << endl;
+            if (verbose) cout << "[Target]" << endl;
             try {
                 read_option_v3(opts->second,"cell_count",cell_count,true);
                 read_option_v3(opts->second,"cell_size",cell_size,true);
@@ -477,6 +475,28 @@ int settings::parse(const char* fname, bool verbose)
         else {
             cerr << "Error reading region " << name << endl;
             return -1;
+        }
+    }
+
+    // Output Options
+    {
+        const auto& opts = fconfig.find("Output");
+        if (opts != fconfig.end()) {
+            if (verbose) cout << "[Output]" << endl;
+            try {
+                read_option(opts->second,"OutputFileBaseName", out_opt_.outFileBaseName);
+                read_option(opts->second,"storage_interval", out_opt_.storage_interval);
+                read_option(opts->second,"store_transmitted_ions", out_opt_.store_transmitted_ions);
+                read_option(opts->second,"store_range_3d", out_opt_.store_range_3d);
+                read_option(opts->second,"store_ion_paths", out_opt_.store_ion_paths);
+                read_option(opts->second,"store_path_limit", out_opt_.store_path_limit);
+                read_option(opts->second,"store_recoil_cascades", out_opt_.store_recoil_cascades);
+                read_option(opts->second,"store_path_limit_recoils", out_opt_.store_path_limit_recoils);
+                read_option(opts->second,"store_pka", out_opt_.store_pka);
+            } catch (std::invalid_argument& e) {
+                cerr << e.what() << endl;
+                return -1;
+            }
         }
     }
     return 0;
@@ -545,6 +565,7 @@ const char* settings::ini_template() const
 simulation_base* settings::createSimulation() const
 {
     simulation_base* S = simulation_base::fromParameters(psim_);
+    S->setOutputOptions(out_opt_);
     S->setIonBeam(psrc_);
 
     for(const material_desc& md : materials) {
@@ -571,6 +592,32 @@ simulation_base* settings::createSimulation() const
     }
 
     return S;
+}
+
+template<class T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
+{
+    os << v[0];
+    for(int i=1; i<v.size(); i++)
+        os << ", " << v[i];
+    return os;
+}
+
+void settings::print(std::ostream& os)
+{
+    os << "[Simulation]" << endl;
+    os << "title = " << psim_.title << endl;
+    os << "max_no_ions = " << psim_.max_no_ions << endl;
+    os << "simulation_type = " << psim_.simulation_type << endl;
+    os << "scattering_calculation = " << psim_.scattering_calculation << endl;
+    os << "flight_path_type = " << psim_.flight_path_type << endl;
+    os << "straggling_model = " << psim_.straggling_model << endl;
+    os << "flight_path_const = " << psim_.flight_path_const << endl;
+    os << "min_energy = " << psim_.min_energy << endl;
+    os << "random_var_type = " << psim_.random_var_type << endl;
+    os << "random_generator_type = " << psim_.random_generator_type << endl;
+    os << "threads = " << psim_.threads << endl;
+    os << "seeds = " << psim_.seeds << endl;
 }
 
 

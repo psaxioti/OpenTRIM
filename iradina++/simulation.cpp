@@ -1,6 +1,7 @@
 #include "simulation.h"
 #include "random_vars.h"
 #include "dedx.h"
+#include "event_recorder.h"
 
 #include <iostream>
 #include <type_traits>
@@ -105,11 +106,23 @@ int simulation<_XScm,  _RNG_E>::run()
 {
     ion i0(target_->grid());
 
+    pka_event_recorder pka_rec(
+        new pka_event(target_->atoms().size()-1)
+        );
+
+    if (out_opts_.store_pka) {
+        std::stringstream fname;
+        fname << out_opts_.outFileBaseName << ".pka";
+        if (thread_id_) fname << thread_id_;
+        fname << ".h5";
+        pka_rec.open(fname.str().c_str());
+    }
+
     for(int k=0; k<par_.max_no_ions; k++) {
 
         // generate ion
         ion* i = q_.new_ion(i0);
-        i->ion_id = ++tally_.Nions();
+        i->ion_id = ++tally_.Nions() + count_offset_;
         i->recoil_id = 0;
         source_->source_ion(urbg, *target_, *i);
 
@@ -120,19 +133,24 @@ int simulation<_XScm,  _RNG_E>::run()
         ion* j;
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
-            transport(j);
+            pka_event& pka = pka_rec.get();
+            pka.init(j->ion_id, j->atom_->id(), j->cellid(), j->erg);
+            transport_recoil(j,pka);
             tally_.Npkas()++;
             tally_.Nrecoils()++; // a PKA is also a recoil
             // transport all secondary recoils
             ion* k;
             while ((k = q_.pop_recoil())!=nullptr) {
-                transport(k);
+                transport_recoil(k,pka);
                 tally_.Nrecoils()++;
             }
         }
 
         nion_thread_++;
     }
+
+    pka_rec.flush();
+
     return 0;
 }
 
@@ -357,6 +375,197 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
 }
 
 template<class _XScm, class _RNG_E>
+int simulation<_XScm,  _RNG_E>::transport_recoil(ion* i, pka_event& pka)
+{
+
+    const material* mat = target_->cell(i->icell());
+    const float* de_stopping_tbl = nullptr;
+    const float* de_straggling_tbl = nullptr;
+    if (mat)
+        getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
+
+    int loop_count = 0;
+
+    while (i->erg > 1.f) {
+
+        loop_count++;
+
+        float sqrtfp, pmax;
+        float fp = flightPath(i, mat, sqrtfp, pmax);
+
+        if (mat) { // calc stopping + straggling
+
+            int ie = dedx_index::fromValue(i->erg);
+            float de_stopping = fp * de_stopping_tbl[ie];
+            if (par_.straggling_model != NoStraggling) {
+
+                float de_straggling = de_straggling_tbl[ie] * rnd->normal() * sqrtfp;
+
+                /*
+                 * Due to gaussian distribution, the straggling can in some cases
+                 * get so large that the projectile gains energy or suddenly looses
+                 * a huge amount of energy. Is this realistic? This might actually
+                 * happen. However, in the simulation, ions may have higher energy
+                 * than the initial energy.
+                 * We will therefore limit the |straggling| to |stopping|.
+                 * Furthermore, with hydrogen, the straggling is often so big,
+                 * that ions gain huge amount of energy, and the phononic system
+                 * would actually gain energy.
+                 */
+                if (std::abs(de_straggling)>de_stopping) {
+                    if(de_straggling<0){
+                        de_straggling = -de_stopping;
+                    } else {
+                        de_straggling =  de_stopping;
+                    }
+                }
+                de_stopping += de_straggling;
+            }
+
+            /*
+             * The stopping tables have no values below minVal = 16 eV.
+             * Therefore, we do simple linear downscaling of electronic
+             * stopping below 16 eV.
+             */
+            if (i->erg < dedx_index::minVal)
+                de_stopping *= i->erg/dedx_index::minVal;
+
+            if (de_stopping != 0.f) {
+                i->erg -= de_stopping;
+
+                tally_.ionization(i->atom_->id(), i->cellid()) += de_stopping;
+            }
+
+        }
+
+        int cellid0 = i->cellid();
+        i->propagate(fp); // apply any periodic boundary
+        int cellid1 = i->cellid();
+        if (cellid1 < 0) {
+
+            // TODO: exit event
+
+            break; // ion left the target, history ends!
+        }
+
+        if (cellid1 != cellid0) { // did the ion change cell ?
+
+            mat = target_->cell(cellid1);
+            if (mat) getDEtables(i->atom_, mat, de_stopping_tbl, de_straggling_tbl);
+
+            /*
+             * TODO: if material changed we should correct stopping.
+             * However, since the flightlengths are significantly smaller
+             * than the cell dimensions, this can only cause very small
+             * errors and only in cases where the material changes and
+             * also the stopping powers are very different!
+             */
+        }
+
+        if (mat && (i->erg >= par_.min_energy)) { // collision
+
+            const atom* z2 = mat->selectAtom(urbg);
+            float p = impactPar(i,mat,sqrtfp,pmax);
+
+            /*
+             * IRADINA
+             * If impact parameter much larger than interatomic distance:
+             * assume collision has missed
+             * Is this valid? Yes: tests have shown, that increasing the
+             * limit to 10 times the atomic distance yields practically
+             * the same distribution of implanted ions and damage!
+             *
+             * This is not done for SRIM KP mode
+             */
+            if (par_.flight_path_type != SRIMlike &&
+                p > 2.f*mat->layerDistance()) {
+                // TODO: register missed collision
+                continue;
+            }
+
+            auto xs = scattering_matrix_[i->atom_->id()][z2->id()];
+            float T; // recoil energy
+            float sintheta, costheta; // scattering angle in Lab sys
+            assert(i->erg > 0);
+            xs->scatter(i->erg, p, T, sintheta, costheta);
+            float nx, ny; // azimuthial dir
+            rnd->azimuth(nx,ny);
+
+            vector3 dir0 = i->dir; // store initial dir
+            i->deflect(
+                vector3(nx*sintheta, ny*sintheta, costheta)
+                );
+            i->erg -= T;
+
+                // TODO: special treatment of surface effects (sputtering etc.)
+
+                if (T >= z2->Ed()) { // displacement
+
+                    // TODO: count displacements in matrix [target_atom][cell]
+
+                    // Create recoil and store in ion queue
+                    ion* j = new_recoil(i,z2,T,dir0,xs->sqrtMassRatio());
+                    // Energy of recoil has to be reduced by lattice binding energy
+                    // add El to phonon energy
+                    j->erg -= z2->El();
+                    tally_.phonons(j->atom_->id(), j->cellid()) += z2->El();
+                    pka.Tdam() += z2->El();
+
+                    /*
+                     * Now check whether the projectile might replace the recoil
+                     *
+                     * Check if Z1==Z2 and E < Er
+                     *
+                     * This is different from Iradina, where it is required
+                     * Z1==Z2 && M1==M2
+                     */
+                    if ((i->atom_->Z() == z2->Z()) && (i->erg < z2->Er())) {
+                        // Count replacement, energy goes to phonons {???}
+                        tally_.replacements(i->atom_->id(), i->cellid())++;
+                        tally_.Nrepl()++;
+                        pka.addRepl(i->atom_->id()-1);
+                        tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
+                        pka.Tdam() += i->erg;
+                        // TODO: event: ion stops - replacement
+                        break; // end of ion history
+                    }
+                    /* projectile and target not the same */
+                    // vacancy is created
+                    // store the vacancy
+                    tally_.vacancies(z2->id(), i->cellid())++;
+                    tally_.Nvac()++;
+                    pka.addVac(z2->id()-1);
+
+                } else { // E<Ed, recoil cannot be displaced
+                    // energy goes to phonons
+                    // tallyPhononEnergy(i, T);
+                    tally_.phonons(i->atom_->id(), i->cellid()) += T;
+                    pka.Tdam() += T;
+                }
+
+
+        }
+
+        /* Check what happens to the projectile after possible collision: */
+        if(i->erg < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
+            tally_.implantations(i->atom_->id(), i->cellid())++;
+            tally_.Nimpl()++;
+            pka.addImpl(i->atom_->id()-1);
+            // energy goes to phonons
+            tally_.phonons(i->atom_->id(), i->cellid()) += i->erg;
+            pka.Tdam() += i->erg;
+            // TODO: event: ion stops
+            break; // history ends
+        } /* else: Enough energy to advance to next collision site */
+
+    }
+
+    // ion finished
+    q_.free_ion(i);
+    return 0;
+}
+
+template<class _XScm, class _RNG_E>
 float simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, float &sqrtfp, float& pmax)
 {
     if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
@@ -453,4 +662,6 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
     }
     return S;
 }
+
+
 

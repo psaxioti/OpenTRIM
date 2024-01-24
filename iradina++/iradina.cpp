@@ -3,6 +3,7 @@
 #include "settings.h"
 
 #include <iostream>
+#include <fstream>
 
 int Fe_2MeV_on_Fe();
 
@@ -13,7 +14,7 @@ using std::endl;
 int test0(int argc, char* argv[]);
 int Fe_2MeV_on_Fe();
 
-void mycallback(const std::vector<uint>& v)
+void my_progress_callback(const std::vector<uint>& v)
 {
     static int i = 0;
 
@@ -33,8 +34,8 @@ void mycallback(const std::vector<uint>& v)
 
 int main(int argc, char* argv[])
 {
-    //return test0(argc,argv);
-    return Fe_2MeV_on_Fe();
+    return test0(argc,argv);
+    //return Fe_2MeV_on_Fe();
 }
 
 int test0(int argc, char* argv[])
@@ -45,14 +46,20 @@ int test0(int argc, char* argv[])
         return -1;
     }
 
+    cout << "Parsing config file ... ";
     settings s;
-    if (s.parse(argv[1])!=0) return -1;
+    std::ifstream is(argv[1]);
+    if (s.parse(is)!=0) {
+        cout << "error!" << endl;
+        return -1;
+    }
 
-    cout << endl << endl << "Starting simulation ..." << endl << endl;
+    cout << "done." << endl << endl;
+    cout << "Starting simulation ..." << endl << endl;
 
     simulation_base* S = s.createSimulation();
     S->init();
-    S->exec(mycallback);
+    S->exec(my_progress_callback);
     S->saveTallys();
 
     tally t = S->getTally();
@@ -71,8 +78,8 @@ int Fe_2MeV_on_Fe()
     simulation<XS_corteo4bit, std::mt19937> S("2MeV Fe on Fe");
 
     S.setRandomVarType(simulation_base::Sampled);
-    S.setMaxIons(1000);
-    S.setNThreads(4);
+    S.setMaxIons(10);
+    S.setNThreads(1);
 
     int Zfe = elements::atomicNum("Fe");
     float Mfe = elements::mass(Zfe);
@@ -83,7 +90,7 @@ int Fe_2MeV_on_Fe()
 
     material* Fe = S.addMaterial("Fe");
     Fe->setMassDensity(7.8658f);
-    Fe->addAtom({.Z=Zfe, .M=Mfe, .Ed=40.f, .El=1.f, .Es=1.f, .Er=40.f}, 1.f);
+    Fe->addAtom({.Z=Zfe, .M=Mfe, .Ed=40.f, .El=0.f, .Es=0.f, .Er=40.f}, 1.f);
 
     grid3D& g = S.grid();
     float L = 1200;
@@ -95,7 +102,7 @@ int Fe_2MeV_on_Fe()
     S.fill(box,Fe);
 
     S.init();
-    S.exec(mycallback);
+    S.exec(my_progress_callback);
     S.saveTallys();
 
     tally t = S.getTally();

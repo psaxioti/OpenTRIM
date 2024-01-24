@@ -27,6 +27,7 @@ struct settings
     };
 
     simulation_base::parameters psim_;
+    simulation_base::output_options out_opt_;
     ion_beam::parameters psrc_;
     std::vector< material_desc > materials;
     std::vector< region_desc > regions;
@@ -37,7 +38,8 @@ struct settings
 
     settings();
 
-    int parse(const char* fname, bool verbose = false);
+    int parse(std::istream& is, bool verbose = false);
+    void print(std::ostream& os);
     const char* ini_template() const;
     simulation_base* createSimulation() const;
 

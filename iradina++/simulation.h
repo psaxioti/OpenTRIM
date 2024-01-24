@@ -12,6 +12,7 @@
 #include <atomic>
 
 class out_file;
+class pka_event;
 
 class simulation_base
 {
@@ -73,8 +74,8 @@ public:
      * @brief The random number generator used
      */
     typedef enum {
-        MinStd = 0,  /**< Minimum standard - fast but low statistical quality */
-        MersenneTwister = 1   /**< slower but better statistics */
+        MersenneTwister = 0,   /**< std::mt19937, Std 32bit RNG with good statistics */
+        MinStd = 1  /**< std::minstd_rand, Minimum standard - faster but lower statistical quality */
     } random_generator_t;
 
     /**
@@ -104,6 +105,18 @@ public:
         parameters(); // set defaults
     };
 
+    struct output_options {
+        std::string outFileBaseName{"iradina++"};
+        int storage_interval{1000};
+        int store_transmitted_ions{0};
+        int store_range_3d{0};
+        int store_ion_paths{0};
+        int store_path_limit{100};
+        int store_recoil_cascades{0};
+        int store_path_limit_recoils{4};
+        int store_pka{0};
+    };
+
     typedef void (*progress_callback)(const std::vector<uint>& v);
 
 protected:
@@ -112,6 +125,7 @@ protected:
 
     // simulation paramenters
     parameters par_;
+    output_options out_opts_;
 
     // components
     ion_beam* source_;
@@ -120,6 +134,8 @@ protected:
 
     // ref counter
     std::shared_ptr<int> ref_count_;
+    int thread_id_;
+    uint count_offset_;
 
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
@@ -144,6 +160,11 @@ public:
     void setIonBeam(const ion_beam::parameters& p) {
         source_->setParameters(p);
     }
+
+    const output_options& outputOptions(const output_options& opts) const
+    { return out_opts_; }
+    void setOutputOptions(const output_options& opts)
+    { out_opts_ = opts; }
 
     void setMaxIons(unsigned int n) { par_.max_no_ions = n; }
 
@@ -207,9 +228,10 @@ protected:
     simulation_base(const parameters& p);
     simulation_base(const simulation_base& s);
 
-
+    void getOutFileName(const char* type, int thread_id, std::string& name);
 
     virtual int transport(ion* i) = 0;
+    virtual int transport_recoil(ion* i, pka_event& ev) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) = 0;
     virtual int run() = 0;
@@ -247,6 +269,7 @@ public:
 
 protected:
     virtual int transport(ion* i) override;
+    virtual int transport_recoil(ion* i, pka_event& ev) override;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
     virtual int run() override;
