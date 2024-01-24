@@ -1,0 +1,15 @@
+# Material file for iradina tFeFC
+
+[iron]
+IsVacuum=0
+ElementCount=1
+Density=8.48e+22
+ElementsZ=26
+ElementsM=53.476
+ElementsConc=1
+ElementsDispEnergy=40
+ElementsLattEnergy=3
+ElementsSurfEnergy=4.3
+ElementsReplEnergy=40
+IonSurfEnergy=0.0
+

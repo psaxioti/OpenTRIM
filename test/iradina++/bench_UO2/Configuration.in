@@ -1,0 +1,51 @@
+# Configuration file for iradina tUO2.1.2.3
+
+[Simulation]
+title = UO2 test
+max_no_ions=1000
+simulation_type=0
+scattering_calculation=0
+flight_length_type=0
+flight_length_constant=1.0
+min_energy=1.0
+transport_type=1
+scattering_calculation=0
+straggling_model=3
+random_var_type = 0
+random_generator = 1
+threads = 4
+# seeds = 1, 2, 3, 4
+
+[IonBeam]
+ionZ=54
+ionM=131.29
+ionE0=390000.0
+ion_dir=1 0 0
+ion_pos=0 0 0
+ion_distribution=1
+
+[Target]
+materials = UO2
+regions = R1
+cell_count=150 1 1
+cell_size=2.0 1000 1000
+periodic_boundary=0 1 1
+
+[UO2]
+ElementCount=2
+Density=10.97
+ElementsZ=92,8
+ElementsM=238.0,16.0
+ElementsConc=1,2
+ElementsDispEnergy=40,20
+ElementsLattEnergy=4,2
+ElementsSurfEnergy=4,2
+ElementsReplEnergy=-1,-1
+
+[R1]
+material=UO2
+extent_x=0 1000
+extent_y=0 1000
+extent_z=0 1000
+
+
