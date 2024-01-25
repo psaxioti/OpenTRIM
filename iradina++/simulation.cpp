@@ -1,7 +1,7 @@
 #include "simulation.h"
 #include "random_vars.h"
 #include "dedx.h"
-#include "event_recorder.h"
+#include "event_stream.h"
 
 #include <iostream>
 #include <type_traits>
@@ -106,12 +106,9 @@ int simulation<_XScm,  _RNG_E>::run()
 {
     ion i0(target_->grid());
 
-    pka_buffer_.init(
-        new pka_event(target_->atoms().size()-1),
-        32);
-    if (out_opts_.store_pka) {
-        pka_buffer_.open(outFileName("pka").c_str());
-    }
+    pka.setNatoms(target_->atoms().size()-1);
+    if (out_opts_.store_pka)
+        pka_stream_.open(outFileName("pka").c_str(),pka.size());
 
     for(int k=0; k<par_.max_no_ions; k++) {
 
@@ -128,7 +125,6 @@ int simulation<_XScm,  _RNG_E>::run()
         ion* j;
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
-            pka_event& pka = pka_buffer_.get();
             pka.init(j->ion_id, j->atom_->id(), j->cellid(), j->erg);
             transport_recoil(j,pka);
             tally_.Npkas()++;
@@ -139,12 +135,13 @@ int simulation<_XScm,  _RNG_E>::run()
                 transport_recoil(k,pka);
                 tally_.Nrecoils()++;
             }
+            pka_stream_.write(&pka);
         }
 
         nion_thread_++;
     }
 
-    pka_buffer_.close();
+    pka_stream_.close();
 
     return 0;
 }

@@ -361,18 +361,18 @@ int settings::parse(std::istream &is, bool verbose)
 
                 read_enum_option(opts->second,"scattering_calculation", psim_.scattering_calculation,
                                  simulation_base::Corteo4bit, simulation_base::ZBL_MAGICK);
-                read_enum_option(opts->second,"flight_path_type", psim_.flight_path_type,
+                read_enum_option(opts->second,"flight_length_type", psim_.flight_path_type,
                                  simulation_base::Poisson, simulation_base::SRIMlike);
                 read_enum_option(opts->second,"straggling_model", psim_.straggling_model,
                                  simulation_base::NoStraggling, simulation_base::YangStraggling);
 
-                read_option(opts->second,"flight_path_const", psim_.flight_path_const);
+                read_option(opts->second,"flight_length_constant", psim_.flight_path_const);
                 read_option(opts->second,"min_energy", psim_.min_energy);
 
                 read_enum_option(opts->second,"random_var_type", psim_.random_var_type,
                                  simulation_base::Sampled, simulation_base::Tabulated);
-                read_enum_option(opts->second,"random_generator_type", psim_.random_generator_type,
-                                 simulation_base::MinStd, simulation_base::MersenneTwister);
+                read_enum_option(opts->second,"random_generator", psim_.random_generator_type,
+                                 simulation_base::MersenneTwister, simulation_base::MinStd);
                 read_option(opts->second,"threads", psim_.threads);
                 read_option_array(opts->second,"seeds", psim_.seeds);
 

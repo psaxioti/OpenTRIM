@@ -8,12 +8,11 @@
 #include "ion.h"
 #include "xs.h"
 #include "tally.h"
-#include "event_recorder.h"
+#include "event_stream.h"
 
 #include <atomic>
 
 class out_file;
-class pka_event;
 
 class simulation_base
 {
@@ -132,7 +131,8 @@ protected:
     ion_beam* source_;
     target* target_;
     tally tally_;
-    pka_event_recorder pka_buffer_;
+    event_stream pka_stream_;
+    pka_event pka;
 
     // ref counter
     std::shared_ptr<int> ref_count_;

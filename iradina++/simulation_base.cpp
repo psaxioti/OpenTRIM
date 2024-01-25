@@ -2,7 +2,7 @@
 #include "dedx.h"
 #include "elements.h"
 #include "out_file.h"
-#include "event_recorder.h"
+#include "event_stream.h"
 
 #include <iostream>
 #include <thread>
@@ -317,12 +317,12 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     if (out_opts_.store_pka) {
         std::string h5fname = outFileName("pka");
         h5fname += ".h5";
-        std::vector<event_recorder *> ev(nthreads);
+        std::vector<event_stream *> ev(nthreads);
 
         for(int i=0; i<nthreads; i++)
-            ev[i] = &(sims[i]->pka_buffer_);
+            ev[i] = &(sims[i]->pka_stream_);
 
-        event_recorder::merge(ev, h5fname.c_str(), "pka");
+        event_stream::merge(ev, h5fname.c_str(), "pka");
     }
 
 

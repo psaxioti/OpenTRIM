@@ -1,52 +1,38 @@
-#include "event_recorder.h"
+#include "event_stream.h"
 
 #include <H5Cpp.h>
 
 using namespace H5;
 
-int event_recorder::init(event* ev, uint buff_rows)
+int event_stream::open(const char* fname, int cols)
 {
     close();
-    fname_ = "";
-    if (ev_) delete ev_;
-    ev_ = ev;
-    cols_ = ev->size();
-    rows_ = buff_rows;
-    buff_.resize(rows_*cols_,0.f);
-    file_row_cnt_ = 0;
-    buff_idx_ = 0;
-    return 0;
-}
-
-int event_recorder::open(const char* fname)
-{
     fname_ = fname;
-    fname_ += ".bin";
-    file_row_cnt_ = 0;
-    ofs.open(fname_,std::ios::binary);
-    return ofs.is_open() ? 0 : -1;
+    cols_ = cols;
+    rows_ = 0;
+    fs_.open(fname_, std::ios::binary);
+    return fs_.is_open() ? 0 : -1;
 }
 
-void event_recorder::flush()
+void event_stream::close()
 {
-    if (!ofs.is_open()) return;
-    file_row_cnt_ += buff_idx_;
-    ofs.write((const char*)buff_.data(), buff_idx_*cols_*sizeof(float));
+    if (fs_.is_open()) fs_.close();
 }
-
-void event_recorder::close()
+void event_stream::write(const event* ev)
 {
-    flush();
-    if (ofs.is_open()) ofs.close();
+    if (fs_.is_open()) {
+        fs_.write((char*)ev->data(),ev->size()*sizeof(float));
+        rows_++;
+    }
 }
 
-int event_recorder::merge(const std::vector<event_recorder *> ev, const char* fname, const char* ds_name)
+int event_stream::merge(const std::vector<event_stream *> ev, const char* fname, const char* ds_name)
 {
     uint cols = ev[0]->cols();
-    uint rows = ev[0]->file_rows();
+    uint rows = ev[0]->rows();
     for(int i = 1; i<ev.size(); i++) {
         assert(ev[i]->cols()==cols);
-        rows += ev[i]->file_rows();
+        rows += ev[i]->rows();
     }
     // Try block to detect exceptions raised by any of the calls inside it
     try
@@ -70,12 +56,12 @@ int event_recorder::merge(const std::vector<event_recorder *> ev, const char* fn
         hsize_t dims1[2];
         dims1[1] = cols;
 
-        for(const event_recorder* e : ev) {
+        for(const event_stream* e : ev) {
 
-            std::ifstream ifs(e->name(), std::ios::binary);
+            std::ifstream ifs(e->fileName(), std::ios::binary);
 
             // copy data in chunks
-            hsize_t nrows = e->file_rows(); // total rows to copy
+            hsize_t nrows = e->rows(); // total rows to copy
             while (nrows) {
                 dims1[0] = std::min(nrows,dims[0]); // # of rows to copy in this iter
                 nrows -= dims1[0];
@@ -94,7 +80,7 @@ int event_recorder::merge(const std::vector<event_recorder *> ev, const char* fn
 
             ifs.close();
 
-            std::remove(e->name().c_str());
+            std::remove(e->fileName().c_str());
         }
     }  // end of try block
 

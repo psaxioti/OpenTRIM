@@ -51,7 +51,7 @@ add_executable(iradina++
     ion_beam.h ion_beam.cpp
     straggling.cpp
     arrays.h
-    event_recorder.h event_recorder.cpp
+    event_stream.h event_stream.cpp
     out_file.h out_file.cpp
     simulation_base.cpp
     tally.h
