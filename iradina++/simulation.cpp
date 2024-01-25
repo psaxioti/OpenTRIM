@@ -106,16 +106,11 @@ int simulation<_XScm,  _RNG_E>::run()
 {
     ion i0(target_->grid());
 
-    pka_event_recorder pka_rec(
-        new pka_event(target_->atoms().size()-1)
-        );
-
+    pka_buffer_.init(
+        new pka_event(target_->atoms().size()-1),
+        32);
     if (out_opts_.store_pka) {
-        std::stringstream fname;
-        fname << out_opts_.outFileBaseName << ".pka";
-        if (thread_id_) fname << thread_id_;
-        fname << ".h5";
-        pka_rec.open(fname.str().c_str());
+        pka_buffer_.open(outFileName("pka").c_str());
     }
 
     for(int k=0; k<par_.max_no_ions; k++) {
@@ -133,7 +128,7 @@ int simulation<_XScm,  _RNG_E>::run()
         ion* j;
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
-            pka_event& pka = pka_rec.get();
+            pka_event& pka = pka_buffer_.get();
             pka.init(j->ion_id, j->atom_->id(), j->cellid(), j->erg);
             transport_recoil(j,pka);
             tally_.Npkas()++;
@@ -149,7 +144,7 @@ int simulation<_XScm,  _RNG_E>::run()
         nion_thread_++;
     }
 
-    pka_rec.flush();
+    pka_buffer_.close();
 
     return 0;
 }

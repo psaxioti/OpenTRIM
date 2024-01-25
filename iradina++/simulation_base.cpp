@@ -315,14 +315,14 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
         sims[0]->addTally(sims[i]->getTally());
 
     if (out_opts_.store_pka) {
-        std::string f1;
-        getOutFileName("pka",0,f1);
-        for(int i=1; i<nthreads; i++) {
-            std::string f2;
-            getOutFileName("pka",i,f2);
-            event_recorder::merge(f1.c_str(), f2.c_str(),"pka");
-            std::remove(f2.c_str());
-        }
+        std::string h5fname = outFileName("pka");
+        h5fname += ".h5";
+        std::vector<event_recorder *> ev(nthreads);
+
+        for(int i=0; i<nthreads; i++)
+            ev[i] = &(sims[i]->pka_buffer_);
+
+        event_recorder::merge(ev, h5fname.c_str(), "pka");
     }
 
 
@@ -407,13 +407,12 @@ int simulation_base::saveTallys()
     return 0;
 }
 
-void simulation_base::getOutFileName(const char* type, int thread_id, std::string& name)
+std::string simulation_base::outFileName(const char* type)
 {
     std::stringstream ss;
     ss << out_opts_.outFileBaseName << '.' << type;
-    if (thread_id) ss << thread_id;
-    ss << ".h5";
-    name = ss.str();
+    if (thread_id_) ss << thread_id_;
+    return ss.str();
 }
 
 

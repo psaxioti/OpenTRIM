@@ -5,11 +5,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
-
-namespace H5 {
-class H5File;
-class DataSet;
-};
+#include <fstream>
 
 class event_recorder;
 
@@ -44,27 +40,28 @@ public:
 protected:
     std::vector<float> buff_;
     uint rows_, cols_;
-    H5::H5File * h5f;
-    H5::DataSet * h5ds;
-    ullong file_idx_;
+    uint file_row_cnt_;
     uint buff_idx_;
+    std::ofstream ofs;
+    std::string fname_;
     event* ev_;
 
 public:
-    event_recorder(event* ev, uint buff_rows) :
-        buff_(buff_rows*ev->size(),0.f),
-        rows_(buff_rows), cols_(ev->size()),
-        h5f(nullptr), h5ds(nullptr),
-        file_idx_(0), buff_idx_(0),
-        ev_(ev)
-    {
-        ev_->setBuff(buff_.data());
-    }
+    event_recorder() :
+        rows_(0), cols_(0),
+        file_row_cnt_(0), buff_idx_(0),
+        ev_(nullptr)
+    {}
     virtual ~event_recorder()
     {
         close();
-        delete ev_;
+        if (ev_) delete ev_;
     }
+    int init(event* ev, uint buff_rows);
+    int open(const char* fname);
+    uint buff_rows() const { return rows_; }
+    uint file_rows() const { return file_row_cnt_; }
+    uint cols() const { return cols_; }
     event& get()
     {
         if (buff_idx_ == rows_) {
@@ -80,9 +77,9 @@ public:
         return *ev_;
     }
     void flush();
-    int open(const char* fname);
+    const std::string& name() const { return fname_; }
     void close();
-    static int merge(const char* fname1, const char* fname2, const char* ds_name);
+    static int merge(const std::vector<event_recorder*> ev, const char* fname, const char* ds_name);
 };
 
 class pka_event_recorder;
@@ -142,8 +139,8 @@ public:
 class pka_event_recorder : public event_recorder
 {
 public:
-    explicit pka_event_recorder(pka_event* ev, int buffer_size = 32) :
-        event_recorder(ev,buffer_size)
+    pka_event_recorder() :
+        event_recorder()
     {}
     pka_event& get() {
        event_recorder::get();

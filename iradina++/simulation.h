@@ -8,6 +8,7 @@
 #include "ion.h"
 #include "xs.h"
 #include "tally.h"
+#include "event_recorder.h"
 
 #include <atomic>
 
@@ -131,6 +132,7 @@ protected:
     ion_beam* source_;
     target* target_;
     tally tally_;
+    pka_event_recorder pka_buffer_;
 
     // ref counter
     std::shared_ptr<int> ref_count_;
@@ -228,7 +230,7 @@ protected:
     simulation_base(const parameters& p);
     simulation_base(const simulation_base& s);
 
-    void getOutFileName(const char* type, int thread_id, std::string& name);
+    std::string outFileName(const char* type);
 
     virtual int transport(ion* i) = 0;
     virtual int transport_recoil(ion* i, pka_event& ev) = 0;
