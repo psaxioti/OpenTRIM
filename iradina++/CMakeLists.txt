@@ -9,6 +9,8 @@ include_directories(${HDF5_INCLUDE_DIRS})
 
 include_directories( ../extern/inifile-cpp/include )
 
+include_directories( ../extern/json-3.11.3/single_include/)
+
 add_executable(gendedx
     gendedx.cpp
     elements.h elements.cpp)
@@ -56,7 +58,8 @@ add_executable(iradina++
     simulation_base.cpp
     tally.h
     ion_queues.h
-    settings.h settings.cpp)
+    settings.h settings.cpp
+    parse_json.cpp)
 
 target_link_libraries(iradina++ "-lm"
     Eigen3::Eigen

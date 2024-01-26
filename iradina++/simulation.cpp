@@ -315,7 +315,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i)
                     tally_.phonons(i->atom_->id(), i->cellid()) += T;
                 }
 
-            } else if (par_.simulation_type == KP1) {
+            } else {
 
                 // TODO
 

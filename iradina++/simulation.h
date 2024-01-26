@@ -25,10 +25,18 @@ public:
         FullCascade = 0,    /**< Full Damage Cascade, follow recoils */
         Invalid1 = 1,       // Compatibility. Iradina does not have simulation_type=1 & 2
         Invalid2 = 2,
-        IonsOnly = 3,       /**< Ions only. Recoils are not followed, No damage profiles stored (--- not deeply TESTED!) */
-        KP1 = 4,            /**< KP quick calculation of damage, mono-elemental formula similar to SRIM (added by J.-P. Crocombette) */
-        KP2 = 5             /**< KP quick calculation of damage, material averaging, more physical as 4 but different compared to SRIM (added by J.-P. Crocombette) */
+        IonsOnly = 3, /**< Ions only. Recoils are not followed. Damage estimate by NRT */
+        InvalidSimulationType = -1
     } simulation_type_t;
+
+    /**
+     * @brief Detail of NRT implementation
+     */
+    typedef enum {
+        NRT_element = 0, /**< NRT calculated for using Ed of struck atom (similar to SRIM) */
+        NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
+        NRT_InvalidOption = -1
+    } nrt_calculation_t;
 
     /**
      * @brief Determines how ion scattering is simulated
@@ -36,7 +44,8 @@ public:
     typedef enum {
         Corteo4bit = 0,
         Corteo6bit = 1,
-        ZBL_MAGICK = 2
+        ZBL_MAGICK = 2,
+        InvalidScatteringOption = -1
     } scattering_calculation_t;
 
     /**
@@ -49,7 +58,8 @@ public:
         Poisson = 0,    /**< Poisson distributed \f$P(\ell) = e^{-\ell/ell_0}\f$*/
         AtomicSpacing,  /**< Constant, equal to interatomic distance */
         Constant,       /**< Constant, equal to user supplied value */
-        SRIMlike        /**< Algorithm similar to SRIM */
+        SRIMlike,        /**< Algorithm similar to SRIM */
+        InvalidPath = -1
     } flight_path_type_t;
 
     /**
@@ -59,7 +69,8 @@ public:
         NoStraggling = 0,
         BohrStraggling,
         ChuStraggling,
-        YangStraggling
+        YangStraggling,
+        InvalidStraggling = -1
     } straggling_model_t;
 
     /**
@@ -67,7 +78,8 @@ public:
      */
     typedef enum {
         Sampled = 0,    /**< Sampling directly from distributions */
-        Tabulated = 1   /**< Sampling from tabulated values */
+        Tabulated = 1,   /**< Sampling from tabulated values */
+        InvalidRandomVar = -1
     } random_var_t;
 
     /**
@@ -75,7 +87,8 @@ public:
      */
     typedef enum {
         MersenneTwister = 0,   /**< std::mt19937, Std 32bit RNG with good statistics */
-        MinStd = 1  /**< std::minstd_rand, Minimum standard - faster but lower statistical quality */
+        MinStd = 1,  /**< std::minstd_rand, Minimum standard - faster but lower statistical quality */
+        InvalidRandomGenerator = -1
     } random_generator_t;
 
     /**
@@ -91,18 +104,18 @@ public:
 
     struct parameters {
         std::string title;
-        unsigned int max_no_ions;
-        simulation_type_t simulation_type;
-        scattering_calculation_t scattering_calculation;
-        flight_path_type_t flight_path_type;
-        straggling_model_t straggling_model;
-        float flight_path_const;
-        float min_energy;
-        random_var_t random_var_type;
-        random_generator_t random_generator_type;
-        int threads;
+        unsigned int max_no_ions{100};
+        simulation_type_t simulation_type{FullCascade};
+        nrt_calculation_t nrt_calculation{NRT_element};
+        scattering_calculation_t scattering_calculation{Corteo4bit};
+        flight_path_type_t flight_path_type{Poisson};
+        straggling_model_t straggling_model{YangStraggling};
+        float flight_path_const{0.1};
+        float min_energy{1.f};
+        random_var_t random_var_type{Sampled};
+        random_generator_t random_generator_type{MersenneTwister};
+        int threads{1};
         std::vector<unsigned int> seeds;
-        parameters(); // set defaults
     };
 
     struct output_options {

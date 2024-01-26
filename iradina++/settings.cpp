@@ -337,8 +337,11 @@ int settings::parse(std::istream &is, bool verbose)
             try {
                 read_option(opts->second,"title", psim_.title, true);
                 read_option(opts->second,"max_no_ions", psim_.max_no_ions, true);
-                read_enum_option(opts->second,"simulation_type", psim_.simulation_type,
-                                 simulation_base::FullCascade, simulation_base::KP2,
+                read_enum_option(opts->second,"simulation_type", psim_.nrt_calculation,
+                                 simulation_base::NRT_element, simulation_base::NRT_average);
+
+                read_enum_option(opts->second,"nrt_calculation", psim_.simulation_type,
+                                 simulation_base::FullCascade, simulation_base::IonsOnly,
                                  true);
 
                 // iradina does not define simulation type 1 & 2
@@ -351,13 +354,13 @@ int settings::parse(std::istream &is, bool verbose)
                 }
 
                 // KP2 not yet implementd
-                if (psim_.simulation_type == simulation_base::KP2)
-                {
-                    std::stringstream msg;
-                    msg << "simulation_type=" << psim_.simulation_type;
-                    msg << " not yet implemented.";
-                    throw std::invalid_argument(msg.str());
-                }
+//                if (psim_.simulation_type == simulation_base::KP2)
+//                {
+//                    std::stringstream msg;
+//                    msg << "simulation_type=" << psim_.simulation_type;
+//                    msg << " not yet implemented.";
+//                    throw std::invalid_argument(msg.str());
+//                }
 
                 read_enum_option(opts->second,"scattering_calculation", psim_.scattering_calculation,
                                  simulation_base::Corteo4bit, simulation_base::ZBL_MAGICK);

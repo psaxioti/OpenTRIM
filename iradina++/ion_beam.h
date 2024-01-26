@@ -16,7 +16,8 @@ public:
         SurfaceCentered,
         FixedPos,
         VolumeCentered,
-        VolumeRandom
+        VolumeRandom,
+        InvalidIonDistribution = -1
     } ion_distribution_t;
 
     struct parameters {

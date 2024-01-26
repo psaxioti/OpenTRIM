@@ -12,22 +12,6 @@ void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& 
                     int Z2, const float& Ns,
                     simulation_base::straggling_model_t model, float* strag);
 
-simulation_base::parameters::parameters()
-{
-    // set default options
-    title = "Iradina++ Simulation";
-    max_no_ions = 1000;
-    simulation_type = FullCascade;
-    scattering_calculation = Corteo4bit;
-    flight_path_type = Poisson;
-    straggling_model = YangStraggling;
-    flight_path_const = 0.1f;
-    min_energy = 1.f;
-    random_var_type = Sampled;
-    random_generator_type = MinStd;
-    threads = 1;
-};
-
 simulation_base::simulation_base() :
     source_(new ion_beam),
     target_(new target),

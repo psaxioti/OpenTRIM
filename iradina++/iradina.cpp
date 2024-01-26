@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
 {
     return test0(argc,argv);
     //return Fe_2MeV_on_Fe();
+    //return settings::test();
 }
 
 int test0(int argc, char* argv[])
@@ -47,12 +48,14 @@ int test0(int argc, char* argv[])
     }
 
     cout << "Parsing config file ... ";
-    settings s;
     std::ifstream is(argv[1]);
-    if (s.parse(is)!=0) {
-        cout << "error!" << endl;
-        return -1;
-    }
+    json j = json::parse(is);
+    settings s = j.template get<settings>();
+
+//    if (s.parse(is)!=0) {
+//        cout << "error!" << endl;
+//        return -1;
+//    }
 
     cout << "done." << endl << endl;
     cout << "Starting simulation ..." << endl << endl;
