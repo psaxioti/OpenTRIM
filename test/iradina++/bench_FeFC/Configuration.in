@@ -4,14 +4,14 @@
 title = 2MeV Fe on Fe benchmark # comment after key/value pair
 max_no_ions=8000
 simulation_type=0
+nrt_calculation=0
 scattering_calculation=0
 flight_length_type=0
 flight_length_constant=0.0
 straggling_model=3
 min_energy=1.0
-transport_type=1
 random_var_type = 0
-random_generator = 0
+random_generator = 1
 threads = 8
 
 [IonBeam]
