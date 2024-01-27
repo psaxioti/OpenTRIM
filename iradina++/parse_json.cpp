@@ -204,7 +204,7 @@ void from_json(const ojson& j, settings& p)
 {
     if (j.contains("Simulation"))
         p.psim_ = j["Simulation"];
-    if (j.contains("output"))
+    if (j.contains("Output"))
         p.out_opt_ = j["Output"];
     if (j.contains(("IonBeam")))
         p.psrc_ = j["IonBeam"];

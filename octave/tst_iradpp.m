@@ -1,8 +1,6 @@
 clear
 
-
-
-folder = '/home/george/Dev/ionsim/iradinapp/test/iradina++/bench_FeFC/';
+folder = '../test/iradina++/bench_FeFC/';
 
 A = load([folder 'FeFC.h5']);
 x = A.X;
@@ -19,8 +17,8 @@ plot(x, double(A.Vacancies)/N);
 title('Vacancies')
 
 subplot(2,2,2)
-plot(x, double(A.Implantations)/N);
-title('Implanted Ions')
+plot(x, double(A.Implantations(:,1))/N);
+title('Implanted ions')
 
 subplot(2,2,3)
 plot(x, A.IonizationEnergy/N);
@@ -30,31 +28,3 @@ subplot(2,2,4)
 plot(x, A.PhononEnergy/N);
 title('Phonon Energy')
 
-
-
-return
-
-sum(A.PhononEnergy)
-
-sum(A.IonizationEnergy)
-
-sum(sum(A.PhononEnergy))
-
-sum(sum(A.IonizationEnergy))
-
-sum(sum(A.IonizationEnergy+A.PhononEnergy))/N
-
-v = sum(A.Vacancies(1:50,:))/N
-
-sqrt(sum(A.Vacancies(1:50,:)))/N
-
-sum(v)/v(1)
-
-sum(A.PhononEnergy(1:50,:))/N/v(1)
-
-V1 = double(sum(A.Vacancies,2))./double(A.Vacancies(:,1));
-
-Tdam = A.PhononEnergy(:,2)./A.Vacancies(:,1);
-
-i=1:100;
-plot(i,Tdam(i,:))

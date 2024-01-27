@@ -2,7 +2,7 @@ clear
 
 
 
-folder = '/home/george/Dev/ionsim/iradinapp/test/iradina++/bench_FeFC/';
+folder = '../test/iradina++/bench_FeFC/';
 
 A = load([folder 'FeFC.pka.h5']);
 
