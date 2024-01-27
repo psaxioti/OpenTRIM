@@ -15,13 +15,8 @@ typedef ini::IniSectionCaseInsensitive inisection_t;
 
 bool ini_verbose_flag_;
 
-settings::settings() :
-    cell_count({1,1,1}),
-    periodic_bc({0,1,1}),
-    cell_size({100.f, 100.f, 100.f})
-{
-
-}
+settings::settings()
+{}
 
 /**
  * @brief Read an option from an ini-file section
@@ -424,9 +419,9 @@ int settings::parse(std::istream &is, bool verbose)
         if (opts != fconfig.end()) {
             if (verbose) cout << "[Target]" << endl;
             try {
-                read_option_v3(opts->second,"cell_count",cell_count,true);
-                read_option_v3(opts->second,"cell_size",cell_size,true);
-                read_option_v3(opts->second,"periodic_boundary",periodic_bc,true);
+                read_option_v3(opts->second,"cell_count",target_desc_.cell_count,true);
+                read_option_v3(opts->second,"cell_size",target_desc_.cell_size,true);
+                read_option_v3(opts->second,"periodic_boundary",target_desc_.periodic_bc,true);
                 read_option_array(opts->second,"materials",material_ids,true);
                 read_option_array(opts->second,"regions",region_ids,true);
             } catch (std::invalid_argument& e) {
@@ -582,9 +577,9 @@ simulation_base* settings::createSimulation() const
     }
 
     grid3D& G = S->grid();
-    G.setX(0, cell_count.x()*cell_size.x(), cell_count.x());
-    G.setY(0, cell_count.y()*cell_size.y(), cell_count.y());
-    G.setZ(0, cell_count.z()*cell_size.z(), cell_count.z());
+    G.setX(0, target_desc_.cell_count.x()*target_desc_.cell_size.x(), target_desc_.cell_count.x());
+    G.setY(0, target_desc_.cell_count.y()*target_desc_.cell_size.y(), target_desc_.cell_count.y());
+    G.setZ(0, target_desc_.cell_count.z()*target_desc_.cell_size.z(), target_desc_.cell_count.z());
 
     const std::vector<material*>& imat = S->getTarget()->materials();
     for(const region_desc& rd : regions) {
@@ -606,22 +601,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
     return os;
 }
 
-void settings::print(std::ostream& os)
-{
-    os << "[Simulation]" << endl;
-    os << "title = " << psim_.title << endl;
-    os << "max_no_ions = " << psim_.max_no_ions << endl;
-    os << "simulation_type = " << psim_.simulation_type << endl;
-    os << "scattering_calculation = " << psim_.scattering_calculation << endl;
-    os << "flight_path_type = " << psim_.flight_path_type << endl;
-    os << "straggling_model = " << psim_.straggling_model << endl;
-    os << "flight_path_const = " << psim_.flight_path_const << endl;
-    os << "min_energy = " << psim_.min_energy << endl;
-    os << "random_var_type = " << psim_.random_var_type << endl;
-    os << "random_generator_type = " << psim_.random_generator_type << endl;
-    os << "threads = " << psim_.threads << endl;
-    os << "seeds = " << psim_.seeds << endl;
-}
+
 
 
 

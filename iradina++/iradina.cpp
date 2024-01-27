@@ -47,17 +47,15 @@ int test0(int argc, char* argv[])
         return -1;
     }
 
-    cout << "Parsing config file ... ";
+    cout << "Parsing config file ... " << endl;
     std::ifstream is(argv[1]);
-    json j = json::parse(is);
-    settings s = j.template get<settings>();
+    settings s;
+    if (s.fromJSON(is)!=0) return -1;
 
-//    if (s.parse(is)!=0) {
-//        cout << "error!" << endl;
-//        return -1;
-//    }
+    cout << endl << "JSON config:" << endl;
+    s.print(cout);
 
-    cout << "done." << endl << endl;
+    cout << endl << endl;
     cout << "Starting simulation ..." << endl << endl;
 
     simulation_base* S = s.createSimulation();

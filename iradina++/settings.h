@@ -3,15 +3,6 @@
 
 #include "simulation.h"
 
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
-
-struct settings;
-
-void to_json(json& j, const settings& p);
-void from_json(const json& j, settings& p);
-
 struct settings
 {
     struct material_desc {
@@ -50,17 +41,10 @@ struct settings
     std::vector< material_desc > materials;
     std::vector< region_desc > regions;
 
-    ivector3 cell_count{1, 1, 1};
-    ivector3 periodic_bc{0, 1, 1};
-    vector3 cell_size{100.f, 100.f, 100.f};
-
-
-
     settings();
 
-    static int test();
+    int fromJSON(std::istream& js);
 
-    int parse(json j);
     int parse(std::istream& is, bool verbose = false);
     void print(std::ostream& os);
     const char* ini_template() const;
