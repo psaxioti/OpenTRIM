@@ -116,10 +116,11 @@ public:
         random_generator_t random_generator_type{MersenneTwister};
         int threads{1};
         std::vector<unsigned int> seeds;
+        int validate();
     };
 
     struct output_options {
-        std::string outFileBaseName{"iradina++"};
+        std::string OutputFileBaseName{"iradina++"};
         int storage_interval{1000};
         int store_transmitted_ions{0};
         int store_range_3d{0};
@@ -128,6 +129,7 @@ public:
         int store_recoil_cascades{0};
         int store_path_limit_recoils{4};
         int store_pka{0};
+        int validate();
     };
 
     typedef void (*progress_callback)(const std::vector<uint>& v);

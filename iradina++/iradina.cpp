@@ -1,6 +1,6 @@
 #include "simulation.h"
 #include "elements.h"
-#include "settings.h"
+#include "options.h"
 
 #include <iostream>
 #include <fstream>
@@ -49,7 +49,7 @@ int test0(int argc, char* argv[])
 
     cout << "Parsing config file ... " << endl;
     std::ifstream is(argv[1]);
-    settings s;
+    options s;
     if (s.fromJSON(is)!=0) return -1;
 
     cout << endl << "JSON config:" << endl;

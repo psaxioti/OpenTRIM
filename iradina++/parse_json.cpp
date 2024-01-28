@@ -1,8 +1,9 @@
-#include "settings.h"
+#include "options.h"
 
 #include <fstream>
 #include <iostream>
 
+#define JSON_DIAGNOSTICS 1
 #include <nlohmann/json.hpp>
 
 // using ordered_json = nlohmann::ordered_json;
@@ -41,14 +42,15 @@ struct adl_serializer< Eigen::AlignedVector3<T> > {
     inline void from_json(const ojson& nlohmann_json_j, Type& nlohmann_json_t) { const Type nlohmann_json_default_obj{}; NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM_WITH_DEFAULT, __VA_ARGS__)) }
 
 
-void to_json(ojson& j, const settings& p);
-void from_json(const ojson& j, settings& p);
+void to_json(ojson& j, const options& p);
+void from_json(const ojson& j, options& p);
 
-int settings::fromJSON(std::istream& js)
+int options::fromJSON(std::istream& js)
 {
     try {
         ojson j = ojson::parse(js,nullptr,true,true);
-        *this = j.template get<settings>();
+        *this = j.template get<options>();
+        validate();
     }
     catch (const ojson::exception& e) {
         cerr << "Error reading json input:" << endl;
@@ -63,12 +65,12 @@ int settings::fromJSON(std::istream& js)
     return 0;
 }
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(settings::region_desc,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(options::region_desc,
                                    name,
                                    material_id,
                                    extX, extY, extZ)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(settings::material_desc,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(options::material_desc,
                                    name,
                                    density, isMassDensity,
                                    Z, M, X, Ed, El, Es, Er)
@@ -169,11 +171,11 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::parameters,
                                    flight_path_type, straggling_model,
                                    flight_path_const, min_energy,
                                    random_var_type, random_generator_type,
-                                   threads)
+                                   threads, seeds)
 
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::output_options,
-                                                outFileBaseName,
+                                                OutputFileBaseName,
                                                 storage_interval,
                                                 store_transmitted_ions,
                                                 store_range_3d,
@@ -184,48 +186,51 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::output_options,
                                                 store_pka
                                                 )
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(settings::target_desc,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(options::target_desc_t,
                                                 materials,
                                                 regions,
                                                 cell_count,
                                                 periodic_bc,
                                                 cell_size)
 
-void to_json(ojson& j, const settings& p)
+void to_json(ojson& j, const options& p)
 {
-    j["Simulation"] = p.psim_;
-    j["IonBeam"] = p.psrc_;
-    j["Target"] = p.target_desc_;
-    j["Output"] = p.out_opt_;
-    for(const settings::material_desc& md : p.materials) j[md.name] = md;
-    for(const settings::region_desc& rd : p.regions)  j[rd.name] = ojson(rd);
+    j["Simulation"] = p.sim_par;
+    j["IonBeam"] = p.src_par;
+    j["Target"] = p.target_desc;
+    j["Output"] = p.out_opt;
+    for(const options::material_desc& md : p.materials) j[md.name] = md;
+    for(const options::region_desc& rd : p.regions)  j[rd.name] = ojson(rd);
 }
-void from_json(const ojson& j, settings& p)
+void from_json(const ojson& j, options& p)
 {
+    p = options();
+
     if (j.contains("Simulation"))
-        p.psim_ = j["Simulation"];
+        p.sim_par = j["Simulation"];
     if (j.contains("Output"))
-        p.out_opt_ = j["Output"];
+        p.out_opt = j["Output"];
     if (j.contains(("IonBeam")))
-        p.psrc_ = j["IonBeam"];
+        p.src_par = j["IonBeam"];
     if (!j.contains("Target")) {
         throw std::invalid_argument("Required section \"Target\" not found.");
     }
-    p.target_desc_ = j["Target"];
+    p.target_desc = j["Target"];
 
-    if (p.target_desc_.materials.empty()) {
+    if (p.target_desc.materials.empty()) {
         throw std::invalid_argument("No materials specified in \"Target\".");
     }
-    if (p.target_desc_.regions.empty()) {
+    if (p.target_desc.regions.empty()) {
         throw std::invalid_argument("No regions specified in \"Target\".");
     }
 
-    for(const std::string& m : p.target_desc_.materials)
+    for(const std::string& m : p.target_desc.materials)
     {
         if (j.contains(m)) {
             auto jm = j[m];
-            settings::material_desc md = jm.template get< settings::material_desc >();
+            options::material_desc md = jm.template get< options::material_desc >();
             p.materials.push_back(md);
+            p.mat2idx[m] = p.materials.size()-1;
         } else {
             std::string msg;
             msg = "Definition of material \"";
@@ -234,11 +239,20 @@ void from_json(const ojson& j, settings& p)
             throw std::invalid_argument(msg);
         }
     }
-    for(const std::string& r : p.target_desc_.regions)
+    for(const std::string& r : p.target_desc.regions)
     {
         if (j.contains(r)) {
             auto jr = j[r];
-            settings::region_desc rd = jr.template get< settings::region_desc >();
+            options::region_desc rd = jr.template get< options::region_desc >();
+            if (p.mat2idx.find(rd.material_id) == p.mat2idx.end()) {
+                std::string msg;
+                msg = "In region \"";
+                msg += r;
+                msg += "\" the specified material_id=\"";
+                msg += rd.material_id;
+                msg += "\" is not among the target materials.";
+                throw std::invalid_argument(msg);
+            }
             p.regions.push_back(rd);
         } else {
             std::string msg;
@@ -250,7 +264,7 @@ void from_json(const ojson& j, settings& p)
     }
 }
 
-void settings::print(std::ostream& os)
+void options::print(std::ostream& os)
 {
     ojson j(*this);
     os << j.dump(4) << endl;

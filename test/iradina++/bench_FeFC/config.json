@@ -4,7 +4,8 @@
         "max_no_ions" : 100,
         "simulation_type" : "FullCascade",
         "min_energy" : 1.0,
-        "threads" : 1
+        "threads" : 1,
+        "seeds" : [1]
     },
     "IonBeam" : {
         "ion_distribution" : "SurfaceCentered",
@@ -21,7 +22,7 @@
         "periodic_bc" : [0, 1, 1]
     },
     "Output" : {
-        "outFileBaseName" : "FeFC",
+        "OutputFileBaseName" : "FeFC",
         "store_pka" : 1
     },
     "Fe" : {
@@ -37,7 +38,7 @@
     },
     "R1" : {
         "name" : "R1",
-        "material_id" : 0,
+        "material_id" : "Cu",
         "extX" : [0, 1200],
         "extY" : [0, 1200],
         "extZ" : [0, 1200]

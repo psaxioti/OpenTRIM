@@ -7,10 +7,54 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <stdexcept>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
                     simulation_base::straggling_model_t model, float* strag);
+
+int simulation_base::parameters::validate()
+{
+    if (max_no_ions <= 0)
+        throw std::invalid_argument("Simulation.max_no_ions must be larger than 0.");
+
+    if (flight_path_type==Constant && flight_path_const<=0.f)
+        throw std::invalid_argument("Simulation.flight_path_type is \"Constant\" but Simulation.flight_path_const is negative.");
+
+    if (threads <=0)
+        throw std::invalid_argument("Simulation.threads must be 1 or larger.");
+
+    if (!seeds.empty()) {
+        if (seeds.size()!=threads) {
+            std::stringstream ss;
+            ss << "Simulation.threads=" << threads << " while the # of "
+               << "Simulation.seeds is " << seeds.size() << "." << std::endl
+               << "Either enter a # of seeds equal to the # of threads or no seeds at all.";
+            throw std::invalid_argument(ss.str());
+        }
+    }
+    return 0;
+}
+
+int simulation_base::output_options::validate()
+{
+    if (OutputFileBaseName.empty())
+        throw std::invalid_argument("Output.OutputFileBaseName is empty.");
+
+    if (! std::all_of(OutputFileBaseName.begin(),
+                    OutputFileBaseName.end(),
+                     [](unsigned char c){ return std::isalnum(c); }))
+    {   std::string msg = "Output.OutputFileBaseName=\"";
+        msg += OutputFileBaseName;
+        msg += "\" contains non alphanumeric characters.";
+        throw std::invalid_argument(msg);
+    }
+
+    return 0;
+}
 
 simulation_base::simulation_base() :
     source_(new ion_beam),
@@ -383,7 +427,7 @@ float simulation_base::NRT(float Ed, float T)
 int simulation_base::saveTallys()
 {
     out_file of(this);
-    std::string fname(out_opts_.outFileBaseName);
+    std::string fname(out_opts_.OutputFileBaseName);
     fname += ".h5";
     if (of.open(fname.c_str())!=0) return -1;
     of.save();
@@ -394,7 +438,7 @@ int simulation_base::saveTallys()
 std::string simulation_base::outFileName(const char* type)
 {
     std::stringstream ss;
-    ss << out_opts_.outFileBaseName << '.' << type;
+    ss << out_opts_.OutputFileBaseName << '.' << type;
     if (thread_id_) ss << thread_id_;
     return ss.str();
 }
