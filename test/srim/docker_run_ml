@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rm -rf ml/5
+
+for i in {0..9}
+do 
+    mkdir -p ml/5/$((i+1))
+    docker run -v $PWD:/opt/pysrim/ \
+           -v $PWD/ml/5/$((i+1)):/tmp/output \
+           -d costrouc/pysrim sh -c \
+           "xvfb-run -a python3.6 /opt/pysrim/XeInUO2.py 2000 3 300000 300"
+done
+

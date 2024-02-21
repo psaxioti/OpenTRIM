@@ -1,35 +1,36 @@
 {
     "Simulation" : {
         "title" : "2MeV Fe on Fe benchmark",
-        "max_no_ions" : 100,
+        "max_no_ions" : 20000,
         "simulation_type" : "FullCascade",
+        "flight_path_type" : "AtomicSpacing",
         "min_energy" : 1.0,
-        "threads" : 1,
-        "seeds" : [1]
+        "threads" : 8,
+        "seeds" : []
     },
     "IonBeam" : {
         "ion_distribution" : "SurfaceCentered",
         "ionZ" : 26,
-        "ionM" : 53.476,
-        "ionE0" : 2e6,
+        "ionM" : 55.935,
+        "ionE0" : 5e5,
         "dir" : [1,0,0]
     },
     "Target" : {
         "materials" : ["Fe"],
         "regions" : ["R1"],
         "cell_count" : [100, 1, 1],
-        "cell_size" : [12, 1200, 1200],
+        "cell_size" : [6, 1200, 1200],
         "periodic_bc" : [0, 1, 1]
     },
     "Output" : {
-        "OutputFileBaseName" : "FeFC",
-        "store_pka" : 1
+        "OutputFileBaseName" : "b2",
+        "store_pka" : 1,
+        "store_transmitted_ions" : 1
     },
     "Fe" : {
-        "name" : "Fe",
-        "density" : 7.874, // g/cm^3
+        "density" : 7.8658, // g/cm^3
         "Z" : [26],
-        "M" : [53.476],
+        "M" : [55.845],
         "X" : [1],
         "Ed" : [40],
         "El" : [3],
@@ -37,10 +38,8 @@
         "Er" : [40]
     },
     "R1" : {
-        "name" : "R1",
-        "material_id" : "Cu",
-        "extX" : [0, 1200],
-        "extY" : [0, 1200],
-        "extZ" : [0, 1200]
+        "material_id" : "Fe",
+        "min" : [0, 0, 0],
+        "max" : [1200, 1200, 1200]
     }
 }

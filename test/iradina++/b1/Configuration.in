@@ -23,7 +23,7 @@ ion_distribution=1
 ion_pos=0 0 0
 
 [Target]
-Materials = Fe
+materials = Fe
 regions = R1
 cell_count=100 1 1
 cell_size=12.0 1200 1200
@@ -42,9 +42,8 @@ ElementsReplEnergy=40
 
 [R1]
 material=Fe
-extent_x=0 1200
-extent_y=0 1200
-extent_z=0 1200
+min=0 0 0
+max=1200 1200 1200
 
 [Output]
 OutputFileBaseName=FeFC

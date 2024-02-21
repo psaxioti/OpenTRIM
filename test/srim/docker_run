@@ -1,0 +1,28 @@
+#!/bin/bash
+
+NIONS=20000
+PYSCR=("FeInFe" "FeInFe" "XeInUO2" "XeInUO2" "XeInUO2" "HinFe" "HinFe")
+ionE0=(2000000 500000 3000000 1000000 300000 3000000 1000000)
+target_thickness=(1200 600 1200 600 300 50000 10000)
+
+rm -rf qc/
+
+for i in {0..6}
+do 
+    mkdir -p qc/$((i+1))
+    docker run -v $PWD:/opt/pysrim/ \
+           -v $PWD/qc/$((i+1)):/tmp/output \
+           -d costrouc/pysrim sh -c \
+           "xvfb-run -a python3.6 /opt/pysrim/"${PYSCR[i]}".py "${NIONS}" 1 "${ionE0[i]}" "${target_thickness[i]}
+done
+
+rm -rf fc/
+
+for i in {0..6}
+do 
+    mkdir -p fc/$((i+1))
+    docker run -v $PWD:/opt/pysrim/ \
+           -v $PWD/fc/$((i+1)):/tmp/output \
+           -d costrouc/pysrim sh -c \
+           "xvfb-run -a python3.6 /opt/pysrim/"${PYSCR[i]}".py "${NIONS}" 2 "${ionE0[i]}" "${target_thickness[i]}
+done
