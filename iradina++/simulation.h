@@ -13,6 +13,7 @@
 #include <atomic>
 
 class out_file;
+class options;
 
 class simulation_base
 {
@@ -26,6 +27,7 @@ public:
         Invalid1 = 1,       // Compatibility. Iradina does not have simulation_type=1 & 2
         Invalid2 = 2,
         IonsOnly = 3, /**< Ions only. Recoils are not followed. Damage estimate by NRT */
+        Cascades = 4, /**< Cascades generated and followed */
         InvalidSimulationType = -1
     } simulation_type_t;
 
@@ -59,6 +61,7 @@ public:
         AtomicSpacing,  /**< Constant, equal to interatomic distance */
         Constant,       /**< Constant, equal to user supplied value */
         SRIMlike,        /**< Algorithm similar to SRIM */
+        MendenhallWeller,
         InvalidPath = -1
     } flight_path_type_t;
 
@@ -116,7 +119,6 @@ public:
         random_generator_t random_generator_type{MersenneTwister};
         int threads{1};
         std::vector<unsigned int> seeds;
-        int validate();
     };
 
     struct output_options {
@@ -129,7 +131,7 @@ public:
         int store_recoil_cascades{0};
         int store_path_limit_recoils{4};
         int store_pka{0};
-        int validate();
+        int store_dedx{1};
     };
 
     typedef void (*progress_callback)(const std::vector<uint>& v);
@@ -146,8 +148,9 @@ protected:
     ion_beam* source_;
     target* target_;
     tally tally_;
-    event_stream pka_stream_;
+    event_stream pka_stream_, exit_stream_;
     pka_event pka;
+    exit_event exit_ev;
 
     // ref counter
     std::shared_ptr<int> ref_count_;
@@ -182,8 +185,14 @@ public:
     { return out_opts_; }
     void setOutputOptions(const output_options& opts)
     { out_opts_ = opts; }
+    void setOutputFileBaseName(const char* n)
+    { out_opts_.OutputFileBaseName = n; }
+    void store_pka(bool on = true)
+    { out_opts_.store_pka = on; }
 
     void setMaxIons(unsigned int n) { par_.max_no_ions = n; }
+
+    void getOptions(options& opt) const;
 
     const parameters& getParameters() const { return par_; }
     const std::string& title() const { return par_.title; }
@@ -228,13 +237,8 @@ public:
 
 protected:
 
-    ion* new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
-                    const vector3& dir0, const float& mass_ratio);
-
-    void tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed);
-
-    float LSS_Tdam(int Z, float M, float T);
-    float NRT(float Ed, float Tdam);
+    void new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
+                    const vector3& dir0, const float& mass_ratio, pka_event* pka);
 
     int getDEtables(const atom* z1, const material* m,
                     const float *&dedx, const float *&de_stragg) const;
@@ -247,8 +251,7 @@ protected:
 
     std::string outFileName(const char* type);
 
-    virtual int transport(ion* i) = 0;
-    virtual int transport_recoil(ion* i, pka_event& ev) = 0;
+    virtual int transport(ion* i, pka_event* ev = nullptr) = 0;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) = 0;
     virtual int run() = 0;
@@ -275,6 +278,7 @@ private:
     URBG urbg;
     random_vars_base* rnd;
     Array2D<scatteringXSlab*> scattering_matrix_;
+    Array3Df max_impact_par_;
 
 public:
     explicit simulation(const char* t = 0);
@@ -285,10 +289,10 @@ public:
     virtual int init() override;
 
 protected:
-    virtual int transport(ion* i) override;
-    virtual int transport_recoil(ion* i, pka_event& ev) override;
+    virtual int transport(ion* i, pka_event* ev = nullptr) override;
     virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
     virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
+    void doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
     virtual int run() override;
     virtual simulation_base* clone() const override { return new _Myt(*this); }
     virtual void seed(unsigned int s) override { urbg.seed(s); }
@@ -300,10 +304,10 @@ protected:
 
 typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;
 typedef simulation<XS_corteo4bit, std::mt19937> SimCorteo4bit_MT;
-// typedef simulation<XS_corteo6bit, std::mt19937> SimCorteo6bit_MT;
+typedef simulation<XS_corteo6bit, std::mt19937> SimCorteo6bit_MT;
 
 typedef simulation<XS_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
 typedef simulation<XS_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
-// typedef simulation<XS_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
+typedef simulation<XS_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
 
 #endif // SIMULATION_H

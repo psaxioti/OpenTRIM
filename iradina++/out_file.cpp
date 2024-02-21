@@ -1,5 +1,6 @@
 #include "out_file.h"
 #include "simulation.h"
+#include "dedx.h"
 
 #include <H5Cpp.h>
 
@@ -236,11 +237,31 @@ int out_file::save()
     save_scalar(h5f, "Nrepl", t.Nrepl());
     save_scalar(h5f, "Nimpl", t.Nimpl());
     save_scalar(h5f, "Nvac", t.Nvac());
+    save_scalar(h5f, "Nexit", t.Nexit());
 
     // save grid
-    save_array<float, grid1D>(h5f, "X", sim_->grid().x());
-    save_array<float, grid1D>(h5f, "Y", sim_->grid().y());
-    save_array<float, grid1D>(h5f, "Z", sim_->grid().z());
+    auto grid = sim_->grid();
+    save_array<float, grid1D>(h5f, "X", grid.x());
+    save_array<float, grid1D>(h5f, "Y", grid.y());
+    save_array<float, grid1D>(h5f, "Z", grid.z());
+    { // save xyz of each cell center
+        int rows = grid.x().size()-1;
+        int cols = grid.y().size()-1;
+        int layers = grid.z().size()-1;
+        Array2Df buff(3,grid.ncells());
+
+        for(int i=0; i<rows; i++)
+            for(int j=0; j<cols; j++)
+                for(int k=0; k<layers; k++)
+                {
+                    int l = (i*cols+j)*layers+k;
+                    buff[0][l] = 0.5f*(grid.x()[i] + grid.x()[i+1]);
+                    buff[1][l] = 0.5f*(grid.y()[i] + grid.y()[i+1]);
+                    buff[2][l] = 0.5f*(grid.z()[i] + grid.z()[i+1]);
+                }
+
+        save_array<float, Array2Df>(h5f, "cell_xyz", buff);
+    }
 
 
     // save tallys
@@ -250,8 +271,14 @@ int out_file::save()
             save_array<unsigned int, Array2Dui>(h5f, "Implantations", t.implantations())==0 &&
             save_array<unsigned int, Array2Dui>(h5f, "Replacements", t.replacements())==0 &&
             save_array<unsigned int, Array2Dui>(h5f, "Vacancies", t.vacancies())==0 &&
+            save_array<unsigned int, Array2Dui>(h5f, "ExitedIons", t.exits())==0 &&
             save_array<double, Array2Dd>(h5f, "IonizationEnergy", t.ionization())==0 &&
-            save_array<double, Array2Dd>(h5f, "PhononEnergy", t.phonons())==0;
+            save_array<double, Array2Dd>(h5f, "PhononEnergy", t.phonons())==0 &&
+            save_array<double, Array1Dd>(h5f,"Tdam", t.Tdam())==0 &&
+            save_array<double, Array1Dd>(h5f,"Tdam_LSS", t.Tdam_LSS())==0 &&
+            save_array<double, Array1Dd>(h5f,"Vnrt", t.Vnrt())==0 &&
+            save_array<double, Array1Dd>(h5f,"Vnrt_LSS", t.Vnrt_LSS())==0;
+
 
         if (!ret) return -1;
 
@@ -261,6 +288,15 @@ int out_file::save()
 
         if (!ret) return -1;
     }
+
+    if (sim_->out_opts_.store_dedx) {
+        save_array<float, Array3Df>(h5f,"dEdx",sim_->dedx_);
+        save_array<float, Array3Df>(h5f,"dEstrag",sim_->de_strag_);
+        Array1D<float> dedx_erg(dedx_index::dim);
+        for(dedx_index i; i!=i.end(); i++) dedx_erg[i] = *i;
+        save_array<float, Array1D<float> >(h5f,"dEdx_erg",dedx_erg);
+    }
+
     return 0;
 }
 

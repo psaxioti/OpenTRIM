@@ -27,8 +27,10 @@ ion_beam::ion_beam(const ion_beam& i) :
 template<class _U>
 void ion_beam::source_ion(_U& g, const target& t, ion& i)
 {
+    i.setGrid(&(t.grid()));
+
     // beam in +x direction
-    i.dir = par_.dir;
+    i.dir() = par_.dir;
 
     const grid1D& x = t.grid().x();
     const grid1D& y = t.grid().y();
@@ -62,8 +64,9 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
         break;
     }
     i.setPos(p);
-    i.erg = par_.ionE0;
-    i.atom_ = atom_;
+    i.erg() = par_.ionE0;
+    i.myAtom() = atom_;
+
 }
 
 template void ion_beam::source_ion< URBGmt >(URBGmt& g, const target& t, ion& i);

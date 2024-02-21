@@ -3,58 +3,15 @@
 #include "elements.h"
 #include "out_file.h"
 #include "event_stream.h"
+#include "options.h"
 
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include <stdexcept>
-#include <sstream>
-#include <algorithm>
-#include <cctype>
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
                     simulation_base::straggling_model_t model, float* strag);
-
-int simulation_base::parameters::validate()
-{
-    if (max_no_ions <= 0)
-        throw std::invalid_argument("Simulation.max_no_ions must be larger than 0.");
-
-    if (flight_path_type==Constant && flight_path_const<=0.f)
-        throw std::invalid_argument("Simulation.flight_path_type is \"Constant\" but Simulation.flight_path_const is negative.");
-
-    if (threads <=0)
-        throw std::invalid_argument("Simulation.threads must be 1 or larger.");
-
-    if (!seeds.empty()) {
-        if (seeds.size()!=threads) {
-            std::stringstream ss;
-            ss << "Simulation.threads=" << threads << " while the # of "
-               << "Simulation.seeds is " << seeds.size() << "." << std::endl
-               << "Either enter a # of seeds equal to the # of threads or no seeds at all.";
-            throw std::invalid_argument(ss.str());
-        }
-    }
-    return 0;
-}
-
-int simulation_base::output_options::validate()
-{
-    if (OutputFileBaseName.empty())
-        throw std::invalid_argument("Output.OutputFileBaseName is empty.");
-
-    if (! std::all_of(OutputFileBaseName.begin(),
-                    OutputFileBaseName.end(),
-                     [](unsigned char c){ return std::isalnum(c); }))
-    {   std::string msg = "Output.OutputFileBaseName=\"";
-        msg += OutputFileBaseName;
-        msg += "\" contains non alphanumeric characters.";
-        throw std::invalid_argument(msg);
-    }
-
-    return 0;
-}
 
 simulation_base::simulation_base() :
     source_(new ion_beam),
@@ -100,6 +57,15 @@ simulation_base::~simulation_base()
     }
 }
 
+template<class CI, class array>
+float interp1d(float x, CI i, array data)
+{
+    if (i==i.rbegin()) return *i; // x out of range
+    float y1 = data[i], x1 = *i++;
+    float y2 = data[i], x2 = *i;
+    return y1 + (y2-y1)*(x-x1)/(x2-x1);
+}
+
 int simulation_base::init() {
 
     target_->init();
@@ -143,9 +109,8 @@ int simulation_base::init() {
                 const float* q = dedx(at1->Z(), at2->Z());
                 float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
                 for(dedx_index i; i!=i.end(); i++) {
-                    float erg = *i;
-                    dedx_index j = dedx_index::fromValue(erg * amuRatio);
-                    p[j] += q[j]*w;
+                    float erg = (*i) * amuRatio;
+                    p[i] += interp1d(erg,dedx_index(erg),q)*w;
                 }
 
 
@@ -263,7 +228,6 @@ int simulation_base::init() {
 int simulation_base::getDEtables(const atom* z1, const material* m,
                            const float* &dedx, const float* &de_stragg) const
 {
-    // float amuRatio = elements::mostAbundantIsotope(z1->Z())/z1->M();
     int ia = z1->id();
     int im = m->id();
     dedx = dedx_[ia][im];
@@ -352,6 +316,16 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
 
         event_stream::merge(ev, h5fname.c_str(), "pka");
     }
+    if (out_opts_.store_transmitted_ions) {
+        std::string h5fname = outFileName("exit");
+        h5fname += ".h5";
+        std::vector<event_stream *> ev(nthreads);
+
+        for(int i=0; i<nthreads; i++)
+            ev[i] = &(sims[i]->exit_stream_);
+
+        event_stream::merge(ev, h5fname.c_str(), "exit");
+    }
 
 
     // delete threads
@@ -374,54 +348,33 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     return 0;
 }
 
-void simulation_base::tallyKP(const ion* i, const float& Tdam, const float& nv, const float& Ed)
-{
-    int ic = i->cellid();
-    int ie = (Tdam < 2.5f*Ed) ? 0 : 1;
-    //KPTally(ie,ic) += Tdam;
-    //KPTally( 2,ic) += nv;
-}
-
-ion* simulation_base::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &mass_ratio)
+void simulation_base::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
+                            const vector3& dir0, const float &mass_ratio, pka_event *pka)
 {
     // clone the projectile ion
     ion* j = q_.new_ion(*proj);
-    // assert(grid().contains(j->pos()));
 
     // calc recoil direction from momentum conserv.
     float f1, f2;
-    f1 = proj->erg / recoil_erg;
+    f1 = proj->erg() / recoil_erg;
     f2 = std::sqrt(f1);
     f1 = std::sqrt(f1+1);
-    j->dir = (f1*dir0 - f2*(proj->dir))*mass_ratio;
+    j->dir() = (f1*dir0 - f2*(proj->dir()))*mass_ratio;
 
     // adjust recoil atom type and energy
-    j->atom_ = target;
-    j->erg = recoil_erg;
+    j->myAtom() = target;
+    // recoil energy is reduced by lattice binding energy
+    j->erg() = recoil_erg - target->El();
+    // add El to phonon energy
+    tally_.phonons(target->id(),j->cellid()) += target->El();
+    // add lattice energy recoil to pka Tdam
+    if (pka) pka->Tdam() += target->El();
 
-    // adjust recoil generation id and store in respective queue
-    j->recoil_id++;
-    if (j->recoil_id==1) q_.push_pka(j);
+    // adjust recoil id and store in respective queue
+    j->recoil_id()++;
+    if (j->recoil_id()==1) q_.push_pka(j);
     else q_.push_recoil(j);
 
-    return j;
-}
-
-float simulation_base::LSS_Tdam(int Z, float M, float T)
-{
-    float k_dr = 0.1334f * std::pow (1.f*Z, 2.0f / 3.0f ) / std::sqrt( M );
-    float e_d = 0.01014f * std::pow (1.f*Z, -7.0f / 3.0f) * T;
-    float g_ed = 3.4008f * std::pow (e_d, 1.0f / 6.0f) + 0.40244 * std::pow (e_d, 0.75f) + e_d;
-    return T / (1.0 + k_dr * g_ed);
-
-}
-
-float simulation_base::NRT(float Ed, float T)
-{
-    if (T<Ed) return 0.f;
-    float v = 2*T/5/Ed;
-    return (v < 1.f) ? 1.f : v;
 }
 
 int simulation_base::saveTallys()
@@ -441,6 +394,16 @@ std::string simulation_base::outFileName(const char* type)
     ss << out_opts_.OutputFileBaseName << '.' << type;
     if (thread_id_) ss << thread_id_;
     return ss.str();
+}
+
+void simulation_base::getOptions(options& opt) const
+{
+    opt.Simulation = par_;
+    opt.Output = out_opts_;
+    opt.IonBeam = source_->getParameters();
+    opt.Target = target_->getDescription();
+    target_->getMaterialDescriptions(opt.materials_desc);
+    opt.regions_desc = target_->regions();
 }
 
 

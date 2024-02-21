@@ -11,6 +11,19 @@ atom::atom(target *t, class material* m, int id) :
     id_(id), mat_(m), target_(t)
 {}
 
+float atom::LSS_Tdam(float recoilE) const
+{
+    float x = lss_Efact_ * recoilE;
+    x = x + 3.4008f * std::pow (x, 1.0f / 6.0f) + 0.40244 * std::pow (x, 0.75f);
+    return recoilE / (1.f + lss_Kd_*x);
+}
+float atom::NRT(float Tdam) const
+{
+    if (Tdam < p_.Ed) return 0.f;
+    float v = Tdam/nrt_L_;
+    return (v < 1.f) ? 1.f : v;
+}
+
 material::material(target *t, const char* name, int id) :
     id_(id), name_(name), target_(t)
 {}
@@ -72,7 +85,54 @@ void material::init()
 
     meanImpactPar_ = 1.0 / std::sqrt(M_PI*atomicDensityNM_*atomicDistance_);
 
+    // LSS & NRT
+    lss_Kd_ = 0.1334f * std::pow (1.f*meanZ_, 2.0f / 3.0f ) / std::sqrt( meanM_ );
+    lss_Efact_ = 0.01014f * std::pow (1.f*meanZ_, -7.0f / 3.0f);
+    // Ghoniem and Chou JNM1988 effective Ed
+    nrt_Ed_ = 0;
+    for(int i=0; i<atoms_.size(); i++) nrt_Ed_ += X_[i]/atoms_[i]->Ed();
+    nrt_Ed_ = 1.f/nrt_Ed_;
+    nrt_L_ = 5*nrt_Ed_/2;
+    // atoms
+    for(int i=0; i<atoms_.size(); i++) {
+        atom* a = atoms_[i];
+        a->lss_Kd_ = 0.1334f * std::pow (1.f*a->Z(), 2.0f / 3.0f ) / std::sqrt( a->M() );
+        a->lss_Efact_ = 0.01014f * std::pow (1.f*a->Z(), -7.0f / 3.0f);
+        a->nrt_L_ = 5*a->Ed()/2;
+    }
+
 }
+
+material::material_desc_t material::getDescription() const
+{
+    material_desc_t md;
+    md.density = massDensity_;
+    md.isMassDensity = true;
+    for(const atom* a : atoms_) {
+        md.Z.push_back(a->Z());
+        md.M.push_back(a->M());
+        md.Ed.push_back(a->Ed());
+        md.El.push_back(a->El());
+        md.Es.push_back(a->Es());
+        md.Er.push_back(a->Er());
+    }
+    md.X = X_;
+    return md;
+}
+
+float material::LSS_Tdam(float recoilE) const
+{
+    float x = lss_Efact_ * recoilE;
+    x = x + 3.4008f * std::pow (x, 1.0f / 6.0f) + 0.40244 * std::pow (x, 0.75f);
+    return recoilE / (1.f + lss_Kd_*x);
+}
+float material::NRT(float Tdam) const
+{
+    if (Tdam < nrt_Ed_) return 0.f;
+    float v = Tdam/nrt_L_;
+    return (v < 1.f) ? 1.f : v;
+}
+
 
 target::target()
 {
@@ -151,11 +211,46 @@ void target::fill(const box3D& box, const material* m)
     ibox1D rx = grid_.x().range(bx);
     ibox1D ry = grid_.y().range(by);
     ibox1D rz = grid_.z().range(bz);
-    for(int i=rx.min().x(); i<rx.max().x(); i++)
+    for(int i=rx.min().x(); i<=rx.max().x(); i++)
         for(int j=ry.min().x(); j<=ry.max().x(); j++)
             for(int k=rz.min().x(); k<=rz.max().x(); k++)
                 cells_[i][j][k] = m;
+
+    region_desc_t rd;
+    rd.material_id = m->name();
+    rd.min = realbox.min();
+    rd.max = realbox.max();
+    regions_.push_back( rd );
 }
+
+target::target_desc_t target::getDescription() const
+{
+    target_desc_t td;
+
+    for(const material* m : materials_)
+        td.materials.push_back(m->name());
+    int k = 1;
+    for(const region_desc_t& rd : regions_) {
+        std::string nm = "R" + std::to_string(k++);
+        td.regions.push_back(nm);
+    }
+    td.cell_count = {(int)grid_.x().size() - 1, (int)grid_.y().size() - 1, (int)grid_.z().size() - 1};
+    td.periodic_bc = {grid_.x().periodic, grid_.y().periodic, grid_.z().periodic};
+    td.cell_size = {grid_.x()[1] - grid_.x()[0],
+                    grid_.y()[1] - grid_.y()[0],
+                    grid_.z()[1] - grid_.z()[0]
+    };
+
+    return td;
+}
+
+void target::getMaterialDescriptions(std::vector< material::material_desc_t >& mds)
+{
+    for(const material* m : materials_) {
+        mds.push_back(m->getDescription());
+    }
+}
+
 
 
 
