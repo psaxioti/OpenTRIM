@@ -56,11 +56,11 @@ public:
     int rows() const { return P_->buffer.size(); }
     int size() const { return P_->buffer.size(); }
 
-    Scalar& operator()(int i) { return P_->p[i]; }
-    const Scalar& operator()(int i) const { return P_->p[i]; }
+    Scalar& operator()(int i) { return P_->buffer[i]; }
+    const Scalar& operator()(int i) const { return P_->buffer[i]; }
 
-    Scalar& operator[](int i) { return P_->p[i]; }
-    const Scalar& operator[](int i) const { return P_->p[i]; }
+    Scalar& operator[](int i) { return P_->buffer[i]; }
+    const Scalar& operator[](int i) const { return P_->buffer[i]; }
     Scalar* data() { return P_->buffer.data(); }
     const Scalar* data() const { return P_->buffer.data(); }
 
