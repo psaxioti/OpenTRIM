@@ -170,10 +170,7 @@ private:
         assert(index >= 0 && index<dim);
         ll = (index+bias) << shift;
         v = *reinterpret_cast<float*>(&ll);
-        ll = (index+bias+1) << shift;
-        v += *reinterpret_cast<float*>(&ll);
-
-        return v*0.5f;
+        return v;
     }
 
 public:
@@ -221,13 +218,25 @@ public:
      * @brief Returns an index to the start of the range, i.e. 0
      * @return A corteo_index pointing to 0
      */
-    corteo_index begin() const { return corteo_index(iT(0));   }
+    constexpr corteo_index begin() const { return corteo_index(iT(0));   }
 
     /**
      * @brief Returns an index to 1 past the end of the range, i.e. D
      * @return A corteo_index pointing to 1 past the end
      */
-    corteo_index end()   const { return corteo_index(iT(dim)); }
+    constexpr corteo_index end()   const { return corteo_index(iT(dim)); }
+
+    /**
+     * @brief Returns an index to the start of the range, i.e. 0
+     * @return A corteo_index pointing to 0
+     */
+    constexpr corteo_index rbegin() const { return corteo_index(iT(dim-1));   }
+
+    /**
+     * @brief Returns an index to 1 past the end of the range, i.e. D
+     * @return A corteo_index pointing to 1 past the end
+     */
+    constexpr corteo_index rend()   const { return corteo_index(iT(-1)); }
 
     /**
      * @brief operator * returns the corresponding float
