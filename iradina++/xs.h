@@ -5,6 +5,8 @@
 #include <vector>
 #include <array>
 
+#include <Eigen/Dense>
+
 #include "corteo.h"
 #include "corteo4bit.h"
 #include "corteo6bit.h"
@@ -96,9 +98,6 @@ struct screeningZBL
 template<class PHI = screeningZBL >
 struct XSquad
 {
-    XSquad(unsigned int nsum = 100) : NSUM(nsum)
-    {}
-
     typedef PHI screening_function;
 
     static double screeningLength(int Z1, int Z2)
@@ -115,28 +114,111 @@ struct XSquad
         return v*v;
     }
 
-    // scattering angle calculated using Gauss-Mehler quadrature
-    // (return NaN on error)
-    double theta(double e, double s) const;
+    static double F(double x, double e, double s) {
+        double sx = s/x;
+        return 1.-PHI::screeningFunction(x)/(x*e)-sx*sx;
+    }
 
-    /* returns the cross section in the center of mass frame considering a screened potential */
-    double crossSection(double E, unsigned int Z1, unsigned int Z2, double massRatio, double thetaCM) const;
-
-protected:
-    unsigned int NSUM;
+    static double H(double u, double x0, double e, double s) {
+        return std::sqrt((1-u*u)/F(x0/u,e,s));
+    }
 
     // use bisection (Newton) method to find the minimal approach distance x0
     // (return THETAERR on error)
-    static double findX0(double epsilon, double s);
-    // Following functions used to compute scattering angle following Gauss-Mehler quadrature
-    static double H(double u, double x0, double epsilon, double s);
-    // the root of this function (vs x0) is the minimal
-    // approach distance at energy epsilon and impact parameter s
-    static double funcX0(double x0, double epsilon, double s);
+    static double minApproach(double e, double s) {
+        double x2 = 1.0/(2.0*e);
+        x2 = x2+sqrt(x2+s*s); // inital guesses: Mendenhall & Weller NIMB 58(1991)11, eq. 15
+        double x1 = x2/10.;
+        double f1 = F(x1, e, s);  // should be always negative
+        double f2 = F(x2, e, s);  // should be always positive (starting ~1.0)
+
+        if(f1>=0.) {
+            // initial guess for x1 too optimistic, start with a safe value (much longer)
+            x1 = 1.e-8;
+            f1 = F(x1, e, s);  // should be always negative
+        }
+
+        assert(f1<0.0 && f2>0.0); // values should be on each side of 0
+
+        double xm = 0.5*(x1+x2);
+        double fm = F(xm, e, s);
+        do {
+            if (fm<0.) x1 = xm;
+            else x2 = xm;
+            xm = 0.5*(x1+x2);
+            fm = F(xm, e, s);
+        } while (fabs(fm) > (10*std::numeric_limits<double>::epsilon()) );
+        // 1.-XXX wont be more precise than 2^(-52)=2e-16
+        // but using 1e-10 saves time and is enough precise for float conversion later on
+
+        return xm;
+    }
+
+    // scattering angle calculated using Gauss-Mehler quadrature
+    // (return THETAERR on error)
+    static double theta(double e, double s, int nsum = 100)
+    {
+        double x0 = minApproach(e, s);
+
+        double sum(0.);
+        int m = nsum >> 1;
+        double a = M_PI/2/m;
+        double b = a/2;
+        for(unsigned int j=0; j<m; j++) {
+            double uj = cos(a*j+b);
+            sum += H(uj, x0, e, s);
+        }
+
+        return M_PI-2.0*s/x0*a*sum;
+    }
+
     // use bisection method to find the reduced
     // impact parameter s given epsilon and thetaCM
-    // (return NaN on error)
-    double finds(double epsilon, double thetaCM) const;
+    // (return THETAERR on error)
+    static double findS(double e, double thetaCM) {
+
+        // inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
+        double gamma = (M_PI-thetaCM)/M_PI;
+        double x0 = minApproach((1.0-gamma*gamma)*e, 1.e-8);
+        double x1 = 0.7*gamma*x0;
+        double x2 = 1.0/(2.0*e*tan(thetaCM/2.0));
+
+        double f1 = thetaCM-theta(e, x1);  // should be always negative
+        double f2 = thetaCM-theta(e, x2);  // should be always positive (starting ~1.0)
+
+        assert(f1<0.0 && f2>0.0);    // values should be on each side of 0
+
+        double xm = 0.5*(x1+x2);
+        double fm = thetaCM-theta(e,xm);
+        int k = 0;
+        do {
+            if (fm <0. ) x1 = xm;
+            else x2 = xm;
+            xm = 0.5*(x1+x2);
+            fm = thetaCM-theta(e,xm);
+            k++;
+        } while (fabs(fm)>1e-6 && k<100);
+
+        return xm;
+    }
+
+    /* returns the cross section in the center of mass frame considering a screened potential */
+    static double crossSection(double e, double thetaCM)
+    {
+        // find corresponfding reduced impact parameter
+        double s = findS(e, thetaCM);
+
+        // ds/dTheta using five-point stencil
+        double ds = s*0.001;
+        double dsdTheta = (12.0*ds)/(-theta(e,s+2.0*ds)
+                                         +8.0*theta(e,s+ds)
+                                         -8.0*theta(e,s-ds)
+                                         +theta(e,s-2.0*ds));
+
+        // return "non-reduced" center-of-mass cross section
+        return s/sin(thetaCM)*fabs(dsdTheta);
+    }
+
 };
 
 struct XS_zbl_magic
@@ -168,7 +250,48 @@ struct XS_zbl_magic
      * @param s is the reduced impact parameter
      * @return double cos(theta/2) of the scattering event
      */
-    static double MAGIC(const double& e, const double& s);
+    static double MAGIC(const double& e, const double& s)
+    {
+        double cost2;  /* cos(theta/2)*/
+        double RoC,Delta,R,RR,A,G,alpha,beta,gamma,V,V1,FR,FR1,Q;
+        double SQE;
+
+        /* TRIM 85:  */
+        static const double C[] = {0., 0.99229, 0.011615, 0.0071222, 14.813, 9.3066};
+
+        /* Initial guess for R: */
+        R=s;
+        RR=-2.7*log(e*s);
+        if(RR>=s){
+            /*   if(RR<B) calc potential; */
+            RR=-2.7*log(e*RR);
+            if(RR>=s){
+                R=RR;
+            }
+        }
+        /* TRIM85: 330 */
+        do{
+            /* Calculate potential and its derivative */
+            V = ZBL_and_deriv(R,&V1);
+            FR  = s * s / R + V*R/e - R;
+            FR1 = - s * s / (R * R) + (V+V1*R)/e - 1.0;
+            Q   = FR/FR1;
+            R   = R-Q;
+        } while(fabs(Q/R)>0.001);
+
+        RoC = -2.0 * (e-V)/V1;
+        SQE = sqrt(e);
+
+        alpha = 1+ C[1]/SQE;
+        beta  = (C[2]+SQE) / (C[3]+SQE);           /* TRIM85: CC */
+        gamma = (C[4]+e)/(C[5]+e);
+        A     = 2*alpha*e*pow(s,beta);
+        G     = gamma / ( sqrt((1.0+A*A))-A  );    /* TRIM85: 1/FF */
+        Delta = A * (R-s)/(1+G);
+
+        cost2=(s+RoC+Delta)/(R+RoC);
+        return cost2;
+    }
 
     /**
      * @brief ZBL potential
@@ -180,7 +303,50 @@ struct XS_zbl_magic
      * @param Vprime if a non-NULL pointer is passed, it receives the value of dV/dR
      * @return double the value of the potential
      */
-    static double ZBL_and_deri(double R, double* Vprime);
+    static double ZBL_and_deriv(double R, double* Vprime)
+    {
+        auto &C =  screening_function::C;
+        auto &A =  screening_function::A;
+
+        double EX1 = C[0]*exp(-A[0]*R);
+        double EX2 = C[1]*exp(-A[1]*R);
+        double EX3 = C[2]*exp(-A[2]*R);
+        double EX4 = C[3]*exp(-A[3]*R);
+
+        double V=(EX1+EX2+EX3+EX4)/R;
+        if (Vprime)
+            *Vprime = -(V + A[0]*EX1 + A[1]*EX2 + A[2]*EX3 + A[3]*EX4)/R;
+
+        return V;
+    }
+
+    // use bisection method to find the reduced
+    // impact parameter s given epsilon and thetaCM
+    // (return THETAERR on error)
+    static double findS(double e, double thetaCM) {
+
+        // inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
+        double gamma = (M_PI-thetaCM)/M_PI;
+        double x0 = XSquad< screeningZBL >::minApproach((1.0-gamma*gamma)*e, 1.e-8);
+        double x1 = 0.7*gamma*x0;
+        double x2 = 1.0/(2.0*e*tan(thetaCM/2.0));
+
+        double f1 = thetaCM-theta(e, x1);  // should be always negative
+        double f2 = thetaCM-theta(e, x2);  // should be always positive (starting ~1.0)
+
+        assert(f1<0.0 && f2>0.0);    // values should be on each side of 0
+
+        double xm = 0.5*(x1+x2);
+        double fm = thetaCM-theta(e,xm);
+        do {
+            if (fm <0. ) x1 = xm;
+            else x2 = xm;
+            xm = 0.5*(x1+x2);
+            fm = thetaCM-theta(e,xm);
+        } while (fabs(fm)>1e-6);
+
+        return xm;
+    }
 };
 
 struct XS_corteo4bit
@@ -280,10 +446,10 @@ public:
     void init(float Z1, float M1, float Z2, float M2) {
         P_.init<XS_zbl_magic>(Z1,M1,Z2,M2);
     }
-    void scatter(float e, float s,
+    void scatter(float E, float S,
                  float &recoil_erg, float &sintheta, float &costheta) const
     {
-        float sin2thetaby2 = XS_zbl_magic::sin2Thetaby2(e*P_.red_E_conv, s*P_.inv_screening_length);
+        float sin2thetaby2 = XS_zbl_magic::sin2Thetaby2(E*P_.red_E_conv, S*P_.inv_screening_length);
         costheta = 1.f - 2*sin2thetaby2;
         sintheta = std::sqrt(1.f-costheta*costheta);
         /* now conversion to lab frame of reference: */
@@ -291,7 +457,14 @@ public:
         /*if(isnan(theta)){theta=0;}*/
         sintheta=sin(theta);
         costheta=cos(theta);
-        recoil_erg = e*P_.kfactor_m*sin2thetaby2;
+        recoil_erg = E*P_.kfactor_m*sin2thetaby2;
+    }
+    float impactPar(float E, float T)
+    {
+        double thetaCM = T/E/P_.kfactor_m;
+        thetaCM = 2.*std::asin(std::sqrt(thetaCM));
+        return XS_zbl_magic::findS(E*P_.red_E_conv,thetaCM)*P_.screening_length;
+
     }
 };
 
@@ -343,11 +516,42 @@ public:
     void scatter(float e, float s,
                  float &recoil_erg, float &sintheta, float &costheta) const
     {
-        int k = _My_t::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
+//        int k = _My_t::table_index(e*P_.red_E_conv, s*P_.inv_screening_length);
+//        const float* p = _XS::data();
+//        recoil_erg = e*P_.kfactor_m*p[k];
+//        sintheta=sinTable[k];
+//        costheta=cosTable[k];
+
+        // bilinear interp
         const float* p = _XS::data();
-        recoil_erg = e*P_.kfactor_m*p[k];
-        sintheta=sinTable[k];
-        costheta=cosTable[k];
+        recoil_erg = e*P_.kfactor_m;
+        Eigen::Vector4f sinth, costh, sin2thetaby2;
+        e *= P_.red_E_conv;
+        s *= P_.inv_screening_length;
+        typename _My_t::e_index i1(e), i2(i1);
+        typename _My_t::s_index j1(s), j2(j1);
+        i2++; j2++;
+        int k = i1 * _My_t::cols + j1;
+        sinth[0] = sinTable[k]; costh[0] = cosTable[k]; sin2thetaby2[0] = p[k];
+        k = i2 * _My_t::cols + j1;
+        sinth[1] = sinTable[k]; costh[1] = cosTable[k]; sin2thetaby2[1] = p[k];
+        k = i2 * _My_t::cols + j2;
+        sinth[2] = sinTable[k]; costh[2] = cosTable[k]; sin2thetaby2[2] = p[k];
+        k = i1 * _My_t::cols + j2;
+        sinth[3] = sinTable[k]; costh[3] = cosTable[k]; sin2thetaby2[3] = p[k];
+        float t = (e - *i1)/(*i2 - *i1);
+        float u = (s - *j1)/(*j2 - *j1);
+        Eigen::Vector4f coeff = { (1-t)*(1-u), t*(1-u), t*u, (1-t)*u };
+        sintheta = coeff.dot(sinth);
+        costheta = coeff.dot(costh);
+        recoil_erg *= coeff.dot(sin2thetaby2);
+    }
+    float impactPar(float E, float T)
+    {
+        double thetaCM = T/E/P_.kfactor_m;
+        thetaCM = 2.*std::asin(std::sqrt(thetaCM));
+        return XSquad< screeningZBL >::findS(E*P_.red_E_conv,thetaCM)*P_.screening_length;
+
     }
 };
 
