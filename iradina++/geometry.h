@@ -19,15 +19,15 @@ struct grid1D : public std::vector<float> {
 
     typedef std::vector<float> vec_t;
 
-    float w;
+    float w, l;
     bool equispaced;
     bool periodic;
 
-    grid1D() : vec_t(), w(0),
+    grid1D() : vec_t(), w(0), l(0),
         equispaced(false), periodic(false)
     {}
     grid1D(const grid1D& g) : vec_t(g),
-        w(g.w), equispaced(g.equispaced),
+        w(g.w), l(g.l), equispaced(g.equispaced),
         periodic(g.periodic)
     {}
 
@@ -40,8 +40,8 @@ struct grid1D : public std::vector<float> {
     void set(const float& x0, const float& x1, int n) {
         resize(n+1);
         w = x1-x0;
-        float step = w/n;
-        for(int i=0; i<=n; i++) (*this)[i] = x0 + i*step;
+        l = w/n;
+        for(int i=0; i<=n; i++) (*this)[i] = x0 + i*l;
         equispaced = true;
     }
 
@@ -57,11 +57,13 @@ struct grid1D : public std::vector<float> {
         if (x<front()) {
             if (periodic) {
                 do x += w; while (x<front());
+                assert(x<back());
                 return true;
             } else return false;
         } else if (x>=back()) {
             if (periodic) {
                 do x -= w; while (x>=back());
+                assert(x>=front());
                 return true;
             } else return false;
         } else return true;
@@ -71,11 +73,38 @@ struct grid1D : public std::vector<float> {
         return (x>=at(i)) && (x<at(i+1));
     }
 
+    bool check_cell_contains(int& i, float& x, bool& cell_change) const
+    {
+        if (x<at(i)) {
+            cell_change = true;
+            while (i>0 && x<at(i)) i--;
+            if (x<at(i)) { // which means i==0
+                if (periodic) {
+                    do x += w; while (x<at(i));
+                    i = find_index(x);
+                    return false;
+                } else return true; // exit
+            } else return false;
+        } else if (x>=at(i+1)) {
+            cell_change = true;
+            while ((i<size()-2) && (x>=at(i+1))) i++;
+            if (x>=at(i+1)) { // i==size()-2
+                if (periodic) {
+                    do x -= w; while (x>=at(i+1));
+                    i = find_index(x);
+                    return false;
+                } else return true; // exit
+            } else return false;
+        }
+        else return false;
+    }
+
     // should be called only if contains==true !!
     int find_index(const float& x) const {
         if (size()==2) return 0;
-        if (equispaced)
-            return std::floor((x - front())/w*(size()-1));
+        if (equispaced) {
+            return std::floor((x - front())/l);
+        }
         else
             return std::upper_bound(begin(), end(), x) - begin() - 1;
     }
@@ -140,11 +169,11 @@ public:
         x_(g.x_), y_(g.y_), z_(g.z_), box_(g.box_)
     {}
 
-    void setX(const float& x0, const float& x1, int n, bool periodic = false)
+    void setX(const float& x0, const float& x1, int n, bool periodic)
     { x_.set(x0,x1,n); calcBox(); x_.periodic = periodic; }
-    void setY(const float& x0, const float& x1, int n, bool periodic = false)
+    void setY(const float& x0, const float& x1, int n, bool periodic)
     { y_.set(x0,x1,n); calcBox(); y_.periodic = periodic; }
-    void setZ(const float& x0, const float& x1, int n, bool periodic = false)
+    void setZ(const float& x0, const float& x1, int n, bool periodic)
     { z_.set(x0,x1,n); calcBox(); z_.periodic = periodic; }
 
     const grid1D& x() const { return x_; }
@@ -175,6 +204,13 @@ public:
             y_.cell_contains(i.y(),v.y()) &&
             z_.cell_contains(i.z(),v.z());
     }
+
+    bool check_cell_contains(ivector3& i, vector3& v, bool& cell_change) const {
+        return x_.check_cell_contains(i.x(),v.x(), cell_change) ||
+            y_.check_cell_contains(i.y(),v.y(), cell_change) ||
+            z_.check_cell_contains(i.z(),v.z(), cell_change);
+    }
+
 
     // should be called only if contains()==true
     ivector3 pos2cell(const vector3& v) const
