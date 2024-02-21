@@ -38,6 +38,15 @@ public:
             delete i;
         }
     }
+    ion_ptr_t new_ion() {
+        ion_ptr_t i;
+        if (ion_buffer_.empty()) i = new ion_t;
+        else {
+            i = ion_buffer_.front();
+            ion_buffer_.pop();
+        }
+        return i;
+    }
     ion_ptr_t new_ion(const ion_t& p) {
         ion_ptr_t i;
         if (ion_buffer_.empty()) i = new ion_t(p);
