@@ -8,6 +8,7 @@
 #include <fstream>
 
 class event_stream;
+class ion;
 
 class event
 {
@@ -48,7 +49,7 @@ public:
     const std::string& fileName() const { return fname_; }
      void close();
     void write(const event* ev);
-    static int merge(const std::vector<event_stream*> ev,
+    static int merge(const std::vector<event_stream*>& ev,
                      const char* fname, const char* ds_name);
 };
 
@@ -80,15 +81,11 @@ public:
         natoms_ = n;
         resize(event_size(n));
     }
-    void init(uint ion_id, uint atom_id, uint cell_id, float erg)
-    {
-        reset();
-        buff_[ofIonId] = ion_id;
-        buff_[ofAtomId] = atom_id;
-        buff_[ofCellId] = cell_id;
-        buff_[ofErg] = erg;
-        addVac(atom_id-1);
-    }
+    int ionid() const { return buff_[ofIonId]; }
+    int atomid() const { return buff_[ofAtomId]; }
+    int cellid() const { return buff_[ofCellId]; }
+    float recoilE() const { return buff_[ofErg]; }
+    void init(const ion* i);
     float& Tdam() { return buff_[ofTdam]; }
     const float& Tdam() const { return buff_[ofTdam]; }
     void addVac(int atom_id)
@@ -107,6 +104,32 @@ public:
         buff_[ofVac + 2*natoms_ + atom_id] += 1.f;
     }
     const float& Impl(int atom_id) const { return buff_[ofVac + 2*natoms_ + atom_id]; }
+};
+
+class exit_event : public event
+{
+
+    typedef enum {
+        ofIonId = 0,
+        ofAtomId = 1,
+        ofCellId = 2,
+        ofErg = 3,
+        ofPos = 4,
+        ofDir = 7,
+        ofS = 10,
+        ofEnd = 11
+    } offset_t;
+
+    // IonId AtomId CellId erg pos(3) dir(3) s
+
+public:
+
+    exit_event() : event()
+    {
+        resize(ofEnd);
+    }
+
+    void set(const ion* i, int cellid, float s);
 };
 
 #endif // EVENT_STREAM_H

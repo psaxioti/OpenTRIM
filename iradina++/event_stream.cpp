@@ -1,8 +1,22 @@
 #include "event_stream.h"
 
+#include "ion.h"
+#include "target.h"
+
 #include <H5Cpp.h>
 
 using namespace H5;
+
+void pka_event::init(const ion* i)
+{
+    reset();
+    buff_[ofIonId] = i->ion_id();
+    buff_[ofAtomId] = i->myAtom()->id();
+    buff_[ofCellId] = i->cellid();
+    buff_[ofErg] = i->erg() + i->myAtom()->El(); // add lattice energy to recoil E=T-El -> T=E+El
+    buff_[ofTdam] = i->myAtom()->El(); // El is damage energy
+    addVac(i->myAtom()->id()-1);
+}
 
 int event_stream::open(const char* fname, int cols)
 {
@@ -26,7 +40,7 @@ void event_stream::write(const event* ev)
     }
 }
 
-int event_stream::merge(const std::vector<event_stream *> ev, const char* fname, const char* ds_name)
+int event_stream::merge(const std::vector<event_stream *> &ev, const char* fname, const char* ds_name)
 {
     uint cols = ev[0]->cols();
     uint rows = ev[0]->rows();
@@ -103,4 +117,19 @@ int event_stream::merge(const std::vector<event_stream *> ev, const char* fname,
     }
 
     return 0;  // successfully terminated
+}
+
+void exit_event::set(const ion* i, int cellid, float s)
+{
+    buff_[ofIonId] = i->ion_id();
+    buff_[ofAtomId] = i->myAtom()->id();
+    buff_[ofCellId] = cellid;
+    buff_[ofErg]   = i->erg();
+    buff_[ofPos]   = i->pos().x();
+    buff_[ofPos+1] = i->pos().y();
+    buff_[ofPos+2] = i->pos().z();
+    buff_[ofDir]   = i->dir().x();
+    buff_[ofDir+1] = i->dir().y();
+    buff_[ofDir+2] = i->dir().z();
+    buff_[ofS] = s;
 }
