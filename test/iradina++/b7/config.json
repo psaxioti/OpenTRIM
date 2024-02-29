@@ -4,7 +4,7 @@
         "max_no_ions" : 20000,
         "simulation_type" : "FullCascade",
         "scattering_calculation" : "Corteo4bit",
-        "flight_path_type" : "AtomicSpacing",
+        "flight_path_type" : "MendenhallWeller",   // "AtomicSpacing", "MendenhallWeller",
         "min_energy" : 1.0,
         "threads" : 8,
         "seeds" : []

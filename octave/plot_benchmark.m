@@ -1,9 +1,9 @@
 clear
 
-nb = 5
+nb =6
 
 qc = srim2mat(['../test/srim/qc/' num2str(nb)]);
-fc = srim2mat(['../test/srim/fc/' num2str(nb)]);
+fc = srim2mat(['../test/srim/fc2/' num2str(nb)]);
 ml = srim2mat(['../test/srim/ml/' num2str(nb) '/1']);
 for i=2:10,
   dd = srim2mat(['../test/srim/ml/' num2str(nb) '/' num2str(i)]);
