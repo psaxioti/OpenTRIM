@@ -295,6 +295,8 @@ int out_file::save()
         Array1D<float> dedx_erg(dedx_index::dim);
         for(dedx_index i; i!=i.end(); i++) dedx_erg[i] = *i;
         save_array<float, Array1D<float> >(h5f,"dEdx_erg",dedx_erg);
+        save_array<float, Array3Df>(h5f,"maxImpactPar",sim_->max_impact_par_);
+        save_array<float, Array3Df>(h5f,"max_fp",sim_->max_fp_);
     }
 
     return 0;

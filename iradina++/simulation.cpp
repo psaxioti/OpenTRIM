@@ -6,15 +6,6 @@
 #include <iostream>
 #include <type_traits>
 
-template<class CI, class array>
-float interp1d(float x, CI i, array data)
-{
-    if (i==i.rbegin()) return *i; // x out of range
-    float y1 = data[i], x1 = *i++;
-    float y2 = data[i], x2 = *i;
-    return y1 + (y2-y1)*(x-x1)/(x2-x1);
-}
-
 float calcDE(float x, float dx, float E0, const float* dedx)
 {
     float E(E0);
@@ -24,7 +15,6 @@ float calcDE(float x, float dx, float E0, const float* dedx)
     }
     E -= dedx[dedx_index(E)]*x;
     return E0-E;
-
 }
 
 template<class _XScm, class _RNG_E>
@@ -33,11 +23,11 @@ simulation<_XScm,  _RNG_E>::simulation(const char* t) :
 {
     if (t) par_.title = t;
 
-    if (std::is_same<_XScm, XS_zbl_magic>::value)
+    if (std::is_same<_XScm, xs_zbl_magic>::value)
         par_.scattering_calculation =  ZBL_MAGICK;
-    else if (std::is_same<_XScm, XS_corteo4bit>::value)
+    else if (std::is_same<_XScm, xs_corteo4bit>::value)
         par_.scattering_calculation =  Corteo4bit;
-    else if (std::is_same<_XScm, XS_corteo6bit>::value)
+    else if (std::is_same<_XScm, xs_corteo6bit>::value)
         par_.scattering_calculation =  Corteo6bit;
 
     if (std::is_same<_RNG_E, std::mt19937>::value)
@@ -60,8 +50,7 @@ simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
     simulation_base(S), rnd(nullptr),
-    scattering_matrix_(S.scattering_matrix_),
-    max_impact_par_(S.max_impact_par_)
+    scattering_matrix_(S.scattering_matrix_)
 {
     /*
      * create random variables object
@@ -112,7 +101,7 @@ int simulation<_XScm,  _RNG_E>::init() {
     auto materials = target_->materials();
     int nmat = materials.size();
     max_impact_par_ = Array3Df(natoms, nmat, dedx_index::dim);
-    float Tmin = 0.01f; // TODO: this should be user option
+    float Tmin = 1e-4f; // TODO: this should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
@@ -141,6 +130,7 @@ template<class _XScm, class _RNG_E>
 void simulation<_XScm, _RNG_E>::createRandomVars()
 {
     if (rnd) delete rnd;
+    rnd = nullptr;
     switch (par_.random_var_type) {
     case Sampled:
         rnd = new random_vars< _RNG_E >(urbg);
@@ -148,7 +138,8 @@ void simulation<_XScm, _RNG_E>::createRandomVars()
     case Tabulated:
         rnd = new random_vars_tbl< _RNG_E >(urbg);
         break;
-
+    default:
+        break;
     }
 }
 
@@ -279,8 +270,12 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
 
         // decide flight path fp
         // sqrtfp, pmax variables depend on fp algorithm
-        float sqrtfp, pmax;
-        float fp = flightPath(i, mat, sqrtfp, pmax);
+        //float sqrtfp, pmax;
+        //float fp = flightPath(i, mat, sqrtfp, pmax);
+
+        // decide flight path fp & impact par
+        float fp, ip, sqrtfp;
+        flightPath(i, mat, fp, ip, sqrtfp);
 
         // if we are inside a material, calc stopping + straggling
         if (mat) doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
@@ -319,11 +314,10 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
         }
 
         // if mat!=0 (not vacuum) and ion E>min. energy threshold -> collision
-        if (mat && (i->erg() >= par_.min_energy)) {
+        if (mat && std::isfinite(ip) && (i->erg() >= par_.min_energy)) {
 
-            // select collision partner & calc p
+            // select collision partner
             const atom* z2 = mat->selectAtom(urbg);
-            float p = impactPar(i,mat,sqrtfp,pmax);
 
             /*
              * IRADINA
@@ -336,7 +330,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
              * This is not done for SRIM KP mode
              */
             if (par_.flight_path_type != SRIMlike &&
-                p > 2.f*mat->layerDistance()) {
+                ip > 2.f*mat->layerDistance()) {
                 // TODO: register missed collision
                 continue;
             }
@@ -345,7 +339,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
             float T; // recoil energy
             float sintheta, costheta; // scattering angle in Lab sys
             assert(i->erg() > 0);
-            xs->scatter(i->erg(), p, T, sintheta, costheta);
+            xs->scatter(i->erg(), ip, T, sintheta, costheta);
             float nx, ny; // azimuthial dir
             rnd->azimuth(nx,ny);
 
@@ -414,79 +408,85 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
     return 0;
 }
 
+/**
+ * @brief Decide ion flight-path and impact parameter
+ * @param i is the ion
+ * @param m is the material the ion is travelling in
+ * @param fp is the flight-path [nm]
+ * @param ip is the impact parameter [nm]
+ * @param sqrtfp is sqrt(fp/atomicDistance) - used for calculating straggling
+ * @return
+ */
 template<class _XScm, class _RNG_E>
-float simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, float &sqrtfp, float& pmax)
+int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
-    if (!m) return 0.3f; // Vacuum. TODO: change this! ion should go to next boundary {???}
+    if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}
+        fp = 0.3f;
+        ip = 0.f;
+        return 0;
+    }
 
-    float fp;
+    float d, ipmax;
     switch (par_.flight_path_type) {
     case Poisson:
-        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u. temp = u^(1/2)
+        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u and u^(1/2)
         fp = fp * m->atomicDistance();
+        rnd->u_sqrtu(d,ip); // get a sqrt(u), u: uniform 0..1
+        ip *= m->meanImpactPar()/sqrtfp;
         break;
     case AtomicSpacing:
         fp = m->atomicDistance();
-        sqrtfp = 1;
+        sqrtfp = 1.f;
+        ip = m->meanImpactPar()*std::sqrt(urbg.u01lopen());
         break;
     case Constant:
         fp = par_.flight_path_const;
         sqrtfp = sqrtfp_const[m->id()];
+        rnd->u_sqrtu(d,ip); // get a sqrt(u) TODO: make clear naming of rnd vars
+        ip *= m->meanImpactPar()/sqrtfp_const[m->id()];
         break;
     case SRIMlike:
-    {
-        float epsilon = i->erg() * m->meanF();
-        float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
-        float bmax = 1.f/(xsi + std::sqrt(xsi) + 0.125*std::pow(xsi,.1f));
-        pmax = bmax * m->meanA();
-        fp = 1./(M_PI * m->atomicDensity() * pmax * pmax);
-    }
-    case MendenhallWeller:
-        pmax = max_impact_par_[i->myAtom()->id()][m->id()][dedx_index(i->erg())];
-        if (pmax < m->meanImpactPar()) // TODO: check def of impact par
         {
-            static const float C0 = 1.f - std::exp(-1.f);
-            fp = M_PI*m->atomicDensity()*pmax*pmax;
-            fp = 1.f/fp;
-            pmax *= -std::log(1.f - urbg.u01open()*C0);
-        } else {
-            fp = m->atomicDistance();
-            pmax = m->meanImpactPar()*std::sqrt(urbg.u01lopen());
+            float epsilon = i->erg() * m->meanF();
+            float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
+            float bmax = 1.f/(xsi + std::sqrt(xsi) + 0.125*std::pow(xsi,.1f));
+            ipmax = bmax * m->meanA();
+            fp = 1./(M_PI * m->atomicDensity() * ipmax * ipmax);
+            sqrtfp = std::sqrt(fp/m->atomicDistance());
+            rnd->u_sqrtu(d,ip);
+            ip *= ipmax;
         }
-    break;
-    }
-    return fp;
-}
-
-template<class _XScm, class _RNG_E>
-float simulation<_XScm, _RNG_E>::impactPar(const ion* i, const material* m, const float& sqrtfp, const float& pmax)
-{
-    float p, d;
-    switch (par_.flight_path_type) {
-    case Poisson:
-    case AtomicSpacing:
-    case Constant:
-        rnd->u_sqrtu(d,p); // get a sqrt(u) TODO: make clear naming of rnd vars
-        p *= m->meanImpactPar()/sqrtfp;
-        break;
-    case SRIMlike:
-        rnd->u_sqrtu(d,p);
-        p *= pmax;
         break;
     case MendenhallWeller:
-        p = pmax; // TODO: fix flight path algorithm
+        ipmax = max_impact_par_[i->myAtom()->id()][m->id()][dedx_index(i->erg())];
+        if (ipmax < m->atomicDistance()) // TODO: check def of impact par
+        {
+            fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
+            fp *= (-std::log(urbg.u01open()));
+            sqrtfp = std::sqrt(fp/m->atomicDistance());
+            //ip = -std::log(urbg.u01open())*ipmax;
+            //if (ip > ipmax) ip = INFINITY;
+            ip = ipmax*std::sqrt(urbg.u01lopen());
+        } else { // atomic spacing
+            fp = m->atomicDistance();
+            sqrtfp = 1.f;
+            ip = m->atomicDistance()*std::sqrt(urbg.u01lopen());
+        }
+        break;
+    default:
+        fp = ip = 0.f;
     }
-    return p;
+    return 0;
 }
 
 // explicit instantiation of all variants
-template class simulation< XS_zbl_magic,   std::mt19937 >;
-template class simulation< XS_corteo4bit,  std::mt19937 >;
-// template class simulation< XS_corteo6bit,  std::mt19937 >;
+template class simulation< xs_zbl_magic,   std::mt19937 >;
+template class simulation< xs_corteo4bit,  std::mt19937 >;
+template class simulation< xs_corteo6bit,  std::mt19937 >;
 
-template class simulation< XS_zbl_magic,   std::minstd_rand >;
-template class simulation< XS_corteo4bit,  std::minstd_rand >;
-// template class simulation< XS_corteo6bit,  std::minstd_rand >;
+template class simulation< xs_zbl_magic,   std::minstd_rand >;
+template class simulation< xs_corteo4bit,  std::minstd_rand >;
+template class simulation< xs_corteo6bit,  std::minstd_rand >;
 
 simulation_base* simulation_base::fromParameters(const parameters& par)
 {
@@ -500,18 +500,21 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
         case MersenneTwister:
             S = new SimCorteo4bit_MT(par);
             break;
+        default:
+            break;
         }
         break;
     case Corteo6bit:
-//        switch (par.random_generator_type) {
-//        case MinStd:
-//            S = new SimCorteo4bit_MSRAND(par);
-//            break;
-//        case MersenneTwister:
-//            S = new SimCorteo4bit_MT(par);
-//            break;
-//        }
-//        break;
+        switch (par.random_generator_type) {
+        case MinStd:
+            S = new SimCorteo4bit_MSRAND(par);
+            break;
+        case MersenneTwister:
+            S = new SimCorteo4bit_MT(par);
+            break;
+        default:
+            break;        }
+        break;
     case ZBL_MAGICK:
         switch (par.random_generator_type) {
         case MinStd:
@@ -520,7 +523,11 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
         case MersenneTwister:
             S = new SimZBLMagic_MT(par);
             break;
+        default:
+            break;
         }
+        break;
+    default:
         break;
     }
     return S;

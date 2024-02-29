@@ -164,6 +164,9 @@ protected:
     Array3Df dedx_; // stopping data (atoms x materials x energy)
     Array2Df dedx1; // proton stopping (materials x energy)
     Array3Df de_strag_; // straggling data (atoms x materials x energy)
+    Array3Df max_fp_; // max fp for 1% dEdx (atoms x materials x energy)
+    //
+    Array3Df max_impact_par_;
 
     // timing
     double ips_; // ions/s
@@ -252,8 +255,7 @@ protected:
     std::string outFileName(const char* type);
 
     virtual int transport(ion* i, pka_event* ev = nullptr) = 0;
-    virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) = 0;
-    virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) = 0;
+    virtual int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp) = 0;
     virtual int run() = 0;
     virtual simulation_base* clone() const = 0;
     uint ions_done() { return nion_thread_.exchange(0); }
@@ -266,7 +268,7 @@ class simulation : public simulation_base
 public:
 
     typedef _XScm reducedXScm;
-    typedef XSlab<_XScm> scatteringXSlab;
+    typedef xs_lab<_XScm> scatteringXSlab;
 
     typedef _RNG_E rng_engine;
     typedef URBG_< _RNG_E > URBG;
@@ -278,7 +280,6 @@ private:
     URBG urbg;
     random_vars_base* rnd;
     Array2D<scatteringXSlab*> scattering_matrix_;
-    Array3Df max_impact_par_;
 
 public:
     explicit simulation(const char* t = 0);
@@ -290,8 +291,7 @@ public:
 
 protected:
     virtual int transport(ion* i, pka_event* ev = nullptr) override;
-    virtual float flightPath(const ion* i, const material* m, float& sqrtfp, float &pmax) override;
-    virtual float impactPar(const ion* i, const material* m, const float &sqrtfp, const float &pmax) override;
+    virtual int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp) override;
     void doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
     virtual int run() override;
     virtual simulation_base* clone() const override { return new _Myt(*this); }
@@ -302,12 +302,29 @@ protected:
 
 };
 
-typedef simulation<XS_zbl_magic,  std::mt19937> SimZBLMagic_MT;
-typedef simulation<XS_corteo4bit, std::mt19937> SimCorteo4bit_MT;
-typedef simulation<XS_corteo6bit, std::mt19937> SimCorteo6bit_MT;
+// helper 1D interpolation function
+//   CI : a corteo index
+//   array : a sequence container that can be accessed by array[i]
+// On input
+//   x : the point where we require an interpolation
+//   i : should be CI(x)
+//   data : the interpolation table
+template<class CI, class array>
+float interp1d(float x, CI i, array data)
+{
+    if (i==i.rbegin()) return data[i]; // x out of range
+    float y1 = data[i], x1 = *i++;
+    float y2 = data[i], x2 = *i;
+    return y1 + (y2-y1)*(x-x1)/(x2-x1);
+}
 
-typedef simulation<XS_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
-typedef simulation<XS_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
-typedef simulation<XS_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
+
+typedef simulation<xs_zbl_magic,  std::mt19937> SimZBLMagic_MT;
+typedef simulation<xs_corteo4bit, std::mt19937> SimCorteo4bit_MT;
+typedef simulation<xs_corteo6bit, std::mt19937> SimCorteo6bit_MT;
+
+typedef simulation<xs_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
+typedef simulation<xs_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
+typedef simulation<xs_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
 
 #endif // SIMULATION_H

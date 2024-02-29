@@ -43,7 +43,9 @@ simulation_base::simulation_base(const simulation_base &s) :
     sqrtfp_const(s.sqrtfp_const),
     dedx_(s.dedx_),
     dedx1(s.dedx1),
-    de_strag_(s.de_strag_)
+    de_strag_(s.de_strag_),
+    max_fp_(s.max_fp_),
+    max_impact_par_(s.max_impact_par_)
 {
     tally_.copy(s.tally_);
 }
@@ -55,15 +57,6 @@ simulation_base::~simulation_base()
         delete source_;
         delete target_;
     }
-}
-
-template<class CI, class array>
-float interp1d(float x, CI i, array data)
-{
-    if (i==i.rbegin()) return *i; // x out of range
-    float y1 = data[i], x1 = *i++;
-    float y2 = data[i], x2 = *i;
-    return y1 + (y2-y1)*(x-x1)/(x2-x1);
 }
 
 int simulation_base::init() {
@@ -124,6 +117,25 @@ int simulation_base::init() {
                    }
                 */
             }
+        }
+    }
+
+    /*
+     * create max_fp_ tables for all ion - material
+     * combinations, # =
+     * (all target atoms + projectile ) x (all target materials)
+     * For each combi, get a corteo dedx table
+     */
+    max_fp_ = Array3Df(natoms,nmat,nerg);
+    float dEmin = 0.01f; // TODO: this should be user option
+    for(int z1 = 0; z1<natoms; z1++)
+    {
+        for(int im=0; im<materials.size(); im++)
+        {
+            float* p = max_fp_[z1][im];
+            const float* q = dedx_[z1][im];
+            for(dedx_index ie; ie!=ie.end(); ie++)
+                p[ie] = dEmin*(*ie)/(*q++);
         }
     }
 

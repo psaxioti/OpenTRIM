@@ -35,7 +35,7 @@ const char* func6bit =
 int gencorteo4bit()
 {
     unsigned long nThetaErr = 0;
-    XSquad< screeningZBL > xs_quad_zbl;
+    xs_quad xs_quad_zbl;
     ofstream ofs("corteo4bitdata.cpp");
     int k = 0;
     int klast = corteo4bit::rows * corteo4bit::cols - 1;
@@ -84,7 +84,7 @@ int gencorteo4bit()
 int gencorteo6bit()
 {
     unsigned long nThetaErr = 0;
-    XSquad< screeningZBL > xs_quad_zbl;
+    xs_quad xs_quad_zbl;
     ofstream ofs("corteo6bitdata.cpp");
     int k = 0;
     int klast = corteo6bit::rows * corteo6bit::cols - 1;
