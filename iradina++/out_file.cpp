@@ -1,6 +1,7 @@
 #include "out_file.h"
 #include "simulation.h"
 #include "dedx.h"
+#include "options.h"
 
 #include <H5Cpp.h>
 
@@ -61,6 +62,40 @@ int save_scalar(H5File* f, const char* name, const T& data)
     }  // end of try block
 
     // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        //error.printError();
+        return -1;
+    }
+    return 0;
+}
+
+int save_string(H5File* f, const char* name, const std::string& data)
+{
+    int len = data.size();
+    if (len==0) return 0;
+
+    try
+    {
+        Exception::dontPrint();
+        hsize_t dims = 1;
+        DataSpace fspace(1,&dims); // default = scalar
+        StrType type(PredType::C_S1, len);
+        DataSet dataset = f->createDataSet( name, type, fspace );
+        dataset.write( data.c_str(), type );
+    }
     catch( FileIException error )
     {
         //error.printError();
@@ -230,6 +265,14 @@ int out_file::open(const char* fname)
 
 int out_file::save()
 {
+    // save options
+    options opt;
+    sim_->getOptions(opt);
+    std::stringstream ss;
+    opt.printJSON(ss);
+    save_string(h5f, "json_options", ss.str());
+
+
     const tally& t = sim_->getTally();
     save_scalar(h5f, "Nions", t.Nions());
     save_scalar(h5f, "Npkas", t.Npkas());
@@ -256,8 +299,8 @@ int out_file::save()
                 {
                     int l = (i*cols+j)*layers+k;
                     buff[0][l] = 0.5f*(grid.x()[i] + grid.x()[i+1]);
-                    buff[1][l] = 0.5f*(grid.y()[i] + grid.y()[i+1]);
-                    buff[2][l] = 0.5f*(grid.z()[i] + grid.z()[i+1]);
+                    buff[1][l] = 0.5f*(grid.y()[j] + grid.y()[j+1]);
+                    buff[2][l] = 0.5f*(grid.z()[k] + grid.z()[k+1]);
                 }
 
         save_array<float, Array2Df>(h5f, "cell_xyz", buff);
