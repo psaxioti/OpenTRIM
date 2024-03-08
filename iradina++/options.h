@@ -3,8 +3,6 @@
 
 #include "simulation.h"
 
-#include <map>
-
 struct options
 {
     simulation_base::parameters Simulation;
@@ -16,9 +14,6 @@ struct options
 
     int parseJSON(std::istream& js);
     void printJSON(std::ostream& os);
-
-    int parseINI(std::istream& is, bool verbose = false);
-    const char* ini_template() const;
 
     int validate();
     simulation_base* createSimulation() const;

@@ -59,7 +59,6 @@ add_executable(iradina++
     ion_queues.h
     options.h options.cpp
     parse_json.cpp
-    parse_ini.cpp
 )
 
 target_link_libraries(iradina++ "-lm"
