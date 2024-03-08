@@ -6,6 +6,10 @@
 #include <fstream>
 #include <iomanip>
 
+#include <string>
+
+std::char_traits ct;
+
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -117,31 +121,36 @@ void xs_tst()
 
 int gencorteo4bit2()
 {
-    XSquad2< screeningZBL > xs_quad_zbl;
+    xs_quad xs1;
+    xs_zbl_magic xs2;
 
-
-    cout << "Computing 4-bit corteo scattering table";
-    cout.flush();
     // compute matrix for each reduced energy, reduced impact parameter pair
 
     {
-        std::ofstream ofs("corteo4bit.dat");
+        std::ofstream ofs1("corteo4bit.dat");
+        std::ofstream ofs2("magic.dat");
         for(corteo4bit::e_index ie; ie!=ie.end(); ie++) {
             corteo4bit::s_index is;
-            double sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is++);
-            ofs << std::setprecision(9);
-            ofs << sin2ThetaBy2;
+            double sin2ThetaBy2 = xs1.sin2Thetaby2(*ie, *is);
+            ofs1 << std::setprecision(9);
+            ofs1 << sin2ThetaBy2;
+            sin2ThetaBy2 = xs2.sin2Thetaby2(*ie, *is);
+            ofs2 << std::setprecision(9);
+            ofs2 << sin2ThetaBy2;
+            is++;
             for(; is!=is.end(); is++) {
-                // calculations (summation) made using double to decrease numerical noise
-                sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is);
-                ofs << '\t' << sin2ThetaBy2;
+                sin2ThetaBy2 = xs1.sin2Thetaby2(*ie, *is);
+                ofs1 << '\t' << sin2ThetaBy2;
+                sin2ThetaBy2 = xs2.sin2Thetaby2(*ie, *is);
+                ofs2 << '\t' << sin2ThetaBy2;
             }
-            ofs << endl;
+            ofs1 << endl;
+            ofs2 << endl;
         }
     }
     {
         std::ofstream ofs("e.dat");
-         for(corteo4bit::e_index i; i!=i.end(); i++) ofs << *i << endl;
+        for(corteo4bit::e_index i; i!=i.end(); i++) ofs << *i << endl;
     }
     {
         std::ofstream ofs("s.dat");
@@ -151,3 +160,4 @@ int gencorteo4bit2()
     cout << " done.\n";
     return 0;
 }
+
