@@ -19,7 +19,7 @@ float calcDE(float x, float dx, float E0, const float* dedx)
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const char* t) :
-    simulation_base(), rnd(nullptr)
+    simulation_base(), rng()
 {
     if (t) par_.title = t;
 
@@ -39,30 +39,21 @@ simulation<_XScm,  _RNG_E>::simulation(const char* t) :
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
-    simulation_base(p), rnd(nullptr)
+    simulation_base(p), rng()
 {
-    /*
-     * create random variables object
-     */
-    createRandomVars();
 }
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
-    simulation_base(S), rnd(nullptr),
+    simulation_base(S), rng(),
     scattering_matrix_(S.scattering_matrix_)
 {
-    /*
-     * create random variables object
-     */
-    createRandomVars();
 }
 
 
 template<class _XScm, class _RNG_E>
 simulation<_XScm,  _RNG_E>::~simulation()
 {
-    if (rnd) delete rnd;
     if (ref_count_.use_count() == 1) {
         if (!scattering_matrix_.isNull()) {
             scatteringXSlab** xs = scattering_matrix_.data();
@@ -101,7 +92,7 @@ int simulation<_XScm,  _RNG_E>::init() {
     auto materials = target_->materials();
     int nmat = materials.size();
     max_impact_par_ = Array3Df(natoms, nmat, dedx_index::dim);
-    float Tmin = 1e-4f; // TODO: this should be user option
+    float Tmin = 1e-6f; // TODO: this should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
@@ -121,26 +112,7 @@ int simulation<_XScm,  _RNG_E>::init() {
         }
     }
 
-    createRandomVars();
-
     return 0;
-}
-
-template<class _XScm, class _RNG_E>
-void simulation<_XScm, _RNG_E>::createRandomVars()
-{
-    if (rnd) delete rnd;
-    rnd = nullptr;
-    switch (par_.random_var_type) {
-    case Sampled:
-        rnd = new random_vars< _RNG_E >(urbg);
-        break;
-    case Tabulated:
-        rnd = new random_vars_tbl< _RNG_E >(urbg);
-        break;
-    default:
-        break;
-    }
 }
 
 template<class _XScm, class _RNG_E>
@@ -159,7 +131,7 @@ int simulation<_XScm,  _RNG_E>::run()
         ion* i = q_.new_ion();
         i->ion_id() = ++tally_.Nions() + count_offset_;
         i->recoil_id() = 0;
-        source_->source_ion(urbg, *target_, *i);
+        source_->source_ion(rng, *target_, *i);
 
         // transport the ion
         transport(i);
@@ -216,7 +188,7 @@ void simulation<_XScm,  _RNG_E>::doDedx(ion* i, const material* m, float fp, flo
     float de_stopping = fp * interp1d(i->erg(), ie, stopping_tbl);
     if (par_.straggling_model != NoStraggling) {
 
-        float de_straggling = straggling_tbl[ie] * rnd->normal() * sqrtfp;
+        float de_straggling = straggling_tbl[ie] * rng.normal() * sqrtfp;
 
         /* IRADINA
                  * Due to gaussian distribution, the straggling can in some cases
@@ -317,7 +289,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
         if (mat && std::isfinite(ip) && (i->erg() >= par_.min_energy)) {
 
             // select collision partner
-            const atom* z2 = mat->selectAtom(urbg);
+            const atom* z2 = mat->selectAtom(rng);
 
             /*
              * IRADINA
@@ -341,7 +313,7 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
             assert(i->erg() > 0);
             xs->scatter(i->erg(), ip, T, sintheta, costheta);
             float nx, ny; // azimuthial dir
-            rnd->azimuth(nx,ny);
+            rng.azimuth(nx,ny);
 
             vector3 dir0 = i->dir(); // store initial dir
             i->deflect(
@@ -428,22 +400,15 @@ int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, floa
 
     float d, ipmax;
     switch (par_.flight_path_type) {
-    case Poisson:
-        rnd->poisson(fp,sqrtfp); // get a poisson distributed value u and u^(1/2)
-        fp = fp * m->atomicDistance();
-        rnd->u_sqrtu(d,ip); // get a sqrt(u), u: uniform 0..1
-        ip *= m->meanImpactPar()/sqrtfp;
-        break;
     case AtomicSpacing:
         fp = m->atomicDistance();
         sqrtfp = 1.f;
-        ip = m->meanImpactPar()*std::sqrt(urbg.u01lopen());
+        ip = m->meanImpactPar()*std::sqrt(rng.u01());
         break;
     case Constant:
         fp = par_.flight_path_const;
         sqrtfp = sqrtfp_const[m->id()];
-        rnd->u_sqrtu(d,ip); // get a sqrt(u) TODO: make clear naming of rnd vars
-        ip *= m->meanImpactPar()/sqrtfp_const[m->id()];
+        ip = m->meanImpactPar()/sqrtfp_const[m->id()]*std::sqrt(rng.u01());
         break;
     case SRIMlike:
         {
@@ -453,8 +418,7 @@ int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, floa
             ipmax = bmax * m->meanA();
             fp = 1./(M_PI * m->atomicDensity() * ipmax * ipmax);
             sqrtfp = std::sqrt(fp/m->atomicDistance());
-            rnd->u_sqrtu(d,ip);
-            ip *= ipmax;
+            ip = ipmax*std::sqrt(rng.u01());
         }
         break;
     case MendenhallWeller:
@@ -462,15 +426,29 @@ int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, floa
         if (ipmax < m->atomicDistance()) // TODO: check def of impact par
         {
             fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
-            fp *= (-std::log(urbg.u01open()));
             sqrtfp = std::sqrt(fp/m->atomicDistance());
-            //ip = -std::log(urbg.u01open())*ipmax;
-            //if (ip > ipmax) ip = INFINITY;
-            ip = ipmax*std::sqrt(urbg.u01lopen());
+            ip = std::sqrt(-std::log(rng.u01open()))*ipmax;
+            if (ip > ipmax) ip = INFINITY;
         } else { // atomic spacing
             fp = m->atomicDistance();
             sqrtfp = 1.f;
-            ip = m->atomicDistance()*std::sqrt(urbg.u01lopen());
+            ip = m->atomicDistance()*std::sqrt(rng.u01());
+        }
+        break;
+    case MyFFP:
+        ipmax = max_impact_par_[i->myAtom()->id()][m->id()][dedx_index(i->erg())];
+        if (ipmax < m->atomicDistance()) // TODO: check def of impact par
+        {
+            fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
+            fp *= (-std::log(rng.u01open()));
+            sqrtfp = std::sqrt(fp/m->atomicDistance());
+            //ip = -std::log(urbg.u01open())*ipmax;
+            //if (ip > ipmax) ip = INFINITY;
+            ip = ipmax*std::sqrt(rng.u01lopen());
+        } else { // atomic spacing
+            fp = m->atomicDistance();
+            sqrtfp = 1.f;
+            ip = m->atomicDistance()*std::sqrt(rng.u01lopen());
         }
         break;
     default:

@@ -354,15 +354,13 @@ int options::parseINI(std::istream &is, bool verbose)
                 read_enum_option(opts->second,"scattering_calculation", Simulation.scattering_calculation,
                                  simulation_base::Corteo4bit, simulation_base::ZBL_MAGICK);
                 read_enum_option(opts->second,"flight_length_type", Simulation.flight_path_type,
-                                 simulation_base::Poisson, simulation_base::SRIMlike);
+                                 simulation_base::AtomicSpacing, simulation_base::SRIMlike);
                 read_enum_option(opts->second,"straggling_model", Simulation.straggling_model,
                                  simulation_base::NoStraggling, simulation_base::YangStraggling);
 
                 read_option(opts->second,"flight_length_constant", Simulation.flight_path_const);
                 read_option(opts->second,"min_energy", Simulation.min_energy);
 
-                read_enum_option(opts->second,"random_var_type", Simulation.random_var_type,
-                                 simulation_base::Sampled, simulation_base::Tabulated);
                 read_enum_option(opts->second,"random_generator", Simulation.random_generator_type,
                                  simulation_base::MersenneTwister, simulation_base::MinStd);
                 read_option(opts->second,"threads", Simulation.threads);

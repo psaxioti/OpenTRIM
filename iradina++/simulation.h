@@ -57,11 +57,11 @@ public:
      * free flight path \f$\ell\f$ between collisions
      */
     typedef enum {
-        Poisson = 0,    /**< Poisson distributed \f$P(\ell) = e^{-\ell/ell_0}\f$*/
-        AtomicSpacing,  /**< Constant, equal to interatomic distance */
-        Constant,       /**< Constant, equal to user supplied value */
-        SRIMlike,        /**< Algorithm similar to SRIM */
-        MendenhallWeller,
+        AtomicSpacing = 1,  /**< Constant, equal to interatomic distance */
+        Constant = 2,       /**< Constant, equal to user supplied value */
+        SRIMlike = 3,        /**< Algorithm similar to SRIM */
+        MendenhallWeller = 4,
+        MyFFP = 5,
         InvalidPath = -1
     } flight_path_type_t;
 
@@ -75,15 +75,6 @@ public:
         YangStraggling,
         InvalidStraggling = -1
     } straggling_model_t;
-
-    /**
-     * @brief Type of random variable sampling
-     */
-    typedef enum {
-        Sampled = 0,    /**< Sampling directly from distributions */
-        Tabulated = 1,   /**< Sampling from tabulated values */
-        InvalidRandomVar = -1
-    } random_var_t;
 
     /**
      * @brief The random number generator used
@@ -111,11 +102,10 @@ public:
         simulation_type_t simulation_type{FullCascade};
         nrt_calculation_t nrt_calculation{NRT_element};
         scattering_calculation_t scattering_calculation{Corteo4bit};
-        flight_path_type_t flight_path_type{Poisson};
+        flight_path_type_t flight_path_type{AtomicSpacing};
         straggling_model_t straggling_model{YangStraggling};
         float flight_path_const{0.1};
         float min_energy{1.f};
-        random_var_t random_var_type{Sampled};
         random_generator_t random_generator_type{MersenneTwister};
         int threads{1};
         std::vector<unsigned int> seeds;
@@ -202,7 +192,6 @@ public:
     simulation_type_t simulationType() const { return par_.simulation_type; }
     flight_path_type_t flightPathType() const { return par_.flight_path_type; }
     straggling_model_t stragglingModel() const { return par_.straggling_model; }
-    random_var_t randomVarType() const { return par_.random_var_type; }
     random_generator_t rngType() const { return par_.random_generator_type; }
     int nThreads() const { return par_.threads; }
 
@@ -210,7 +199,6 @@ public:
     void setSimulationType(simulation_type_t v) { par_.simulation_type = v; }
     void setFlightPathType(flight_path_type_t v) { par_.flight_path_type = v; }
     void setStragglingModel(straggling_model_t v) { par_.straggling_model = v; }
-    void setRandomVarType(random_var_t v) { par_.random_var_type = v; }
     void setNThreads(int n) { par_.threads = n; }
     void setSeeds(const std::vector<uint>& s) { par_.seeds = s; }
 
@@ -269,16 +257,13 @@ public:
 
     typedef _XScm reducedXScm;
     typedef xs_lab<_XScm> scatteringXSlab;
-
-    typedef _RNG_E rng_engine;
-    typedef URBG_< _RNG_E > URBG;
+    typedef random_vars< _RNG_E > rng_t;
 
 private:
 
     typedef simulation< _XScm, _RNG_E > _Myt;
 
-    URBG urbg;
-    random_vars_base* rnd;
+    rng_t rng;
     Array2D<scatteringXSlab*> scattering_matrix_;
 
 public:
@@ -295,11 +280,7 @@ protected:
     void doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
     virtual int run() override;
     virtual simulation_base* clone() const override { return new _Myt(*this); }
-    virtual void seed(unsigned int s) override { urbg.seed(s); }
-
-    void createRandomVars();
-
-
+    virtual void seed(unsigned int s) override { rng.seed(s); }
 };
 
 // helper 1D interpolation function

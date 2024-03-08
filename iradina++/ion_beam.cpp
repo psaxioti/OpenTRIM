@@ -62,6 +62,8 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
         p.y() = y.front() + y.w/2;
         p.z() = z.front() + z.w/2;
         break;
+    default:
+        break;
     }
     i.setPos(p);
     i.erg() = par_.ionE0;
@@ -69,5 +71,5 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
 
 }
 
-template void ion_beam::source_ion< URBGmt >(URBGmt& g, const target& t, ion& i);
-template void ion_beam::source_ion< URBGmsrand >(URBGmsrand& g, const target& t, ion& i);
+template void ion_beam::source_ion< rng_mt >(rng_mt& g, const target& t, ion& i);
+template void ion_beam::source_ion< rng_msrand >(rng_msrand& g, const target& t, ion& i);

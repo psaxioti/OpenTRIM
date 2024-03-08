@@ -117,16 +117,16 @@ NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::nrt_calculation_t, {
 
 NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::flight_path_type_t, {
                                 {simulation_base::InvalidPath, nullptr},
-                                {simulation_base::Poisson, "Poisson"},
                                 {simulation_base::AtomicSpacing, "AtomicSpacing"},
                                 {simulation_base::Constant, "Constant"},
                                 {simulation_base::SRIMlike, "SRIMlike"},
                                 {simulation_base::MendenhallWeller, "MendenhallWeller"},
-                                {simulation_base::Poisson, 0},
+                                {simulation_base::MyFFP, "MyFFP"},
                                 {simulation_base::AtomicSpacing, 1},
                                 {simulation_base::Constant, 2},
                                 {simulation_base::SRIMlike, 3},
                                 {simulation_base::MendenhallWeller, 4},
+                                {simulation_base::MyFFP, 5}
                             })   
 
 NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::scattering_calculation_t, {
@@ -151,15 +151,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::straggling_model_t, {
                                 {simulation_base::YangStraggling, 3}
                             })                                                                                        
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::random_var_t, {
-                                {simulation_base::InvalidRandomVar, nullptr},
-                                {simulation_base::Sampled, "Sampled"},
-                                {simulation_base::Tabulated, "Tabulated"},
-                                {simulation_base::Sampled, 0},
-                                {simulation_base::Tabulated, 1}
-                            })
-
-
 NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::random_generator_t, {
                                 {simulation_base::InvalidRandomGenerator, nullptr},
                                 {simulation_base::MersenneTwister, "MersenneTwister"},
@@ -173,7 +164,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::parameters,
                                    nrt_calculation, scattering_calculation,
                                    flight_path_type, straggling_model,
                                    flight_path_const, min_energy,
-                                   random_var_type, random_generator_type,
+                                   random_generator_type,
                                    threads, seeds)
 
 
