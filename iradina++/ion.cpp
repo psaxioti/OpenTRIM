@@ -14,7 +14,7 @@ int ion::setPos(vector3 x)
 void ion::propagate(const float& s)
 {
     pos_ += s*dir_;  // advance ion position
-    if (grid_->check_pos(pos_)) { // is ion still inside the target ?
+    if (grid_->contains_with_bc(pos_)) { // is ion still inside the target ?
 
         if (!grid_->contains(icell_,pos_)) { // did the ion change cell ?
             icell_ = grid_->pos2cell(pos_); // TODO: improve algorithm (e.g. search nn cells)

@@ -235,7 +235,7 @@ target::target_desc_t target::getDescription() const
         td.regions.push_back(nm);
     }
     td.cell_count = {(int)grid_.x().size() - 1, (int)grid_.y().size() - 1, (int)grid_.z().size() - 1};
-    td.periodic_bc = {grid_.x().periodic, grid_.y().periodic, grid_.z().periodic};
+    td.periodic_bc = {grid_.x().periodic(), grid_.y().periodic(), grid_.z().periodic()};
     td.cell_size = {grid_.x()[1] - grid_.x()[0],
                     grid_.y()[1] - grid_.y()[0],
                     grid_.z()[1] - grid_.z()[0]

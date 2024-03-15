@@ -42,25 +42,25 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
     switch (par_.ion_distribution) {
     case SurfaceRandom:
         p.x() = x.front();
-        p.y() = y.front() + y.w*g.u01open();
-        p.z() = z.front() + z.w*g.u01open();
+        p.y() = y.front() + y.w()*g.u01open();
+        p.z() = z.front() + z.w()*g.u01open();
         break;
     case SurfaceCentered:
         p.x() = x.front();
-        p.y() = y.front() + y.w/2;
-        p.z() = z.front() + z.w/2;
+        p.y() = y.front() + y.w()/2;
+        p.z() = z.front() + z.w()/2;
         break;
     case FixedPos:
         p = par_.pos;
     case VolumeRandom:
-        p.x() = x.front() + x.w*g.u01open();
-        p.y() = y.front() + y.w*g.u01open();
-        p.z() = z.front() + z.w*g.u01open();
+        p.x() = x.front() + x.w()*g.u01open();
+        p.y() = y.front() + y.w()*g.u01open();
+        p.z() = z.front() + z.w()*g.u01open();
         break;
     case VolumeCentered:
-        p.x() = x.front() + x.w/2;
-        p.y() = y.front() + y.w/2;
-        p.z() = z.front() + z.w/2;
+        p.x() = x.front() + x.w()/2;
+        p.y() = y.front() + y.w()/2;
+        p.z() = z.front() + z.w()/2;
         break;
     default:
         break;
@@ -73,3 +73,4 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
 
 template void ion_beam::source_ion< rng_mt >(rng_mt& g, const target& t, ion& i);
 template void ion_beam::source_ion< rng_msrand >(rng_msrand& g, const target& t, ion& i);
+template void ion_beam::source_ion< rng_xoshiro >(rng_xoshiro& g, const target& t, ion& i);
