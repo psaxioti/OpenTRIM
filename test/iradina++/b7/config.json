@@ -1,12 +1,13 @@
 {
     "Simulation" : {
         "title" : "1 MeV H on Fe benchmark 7",
-        "max_no_ions" : 20000,
+        "max_no_ions" : 5000,
         "simulation_type" : "FullCascade",
         "scattering_calculation" : "Corteo4bit",
-        "flight_path_type" : "MendenhallWeller",   // "AtomicSpacing", "MendenhallWeller",
+        "flight_path_type" : "AtomicSpacing",   // "AtomicSpacing", "MendenhallWeller", MyFFP
         "min_energy" : 1.0,
-        "threads" : 8,
+        "random_generator_type": "MinStd", // Xoshiro128p, MersenneTwister, MinStd
+        "threads" : 1,
         "seeds" : []
     },
     "IonBeam" : {
