@@ -6,119 +6,181 @@
 
 #include <unsupported/Eigen/AlignedVector3>
 
+/**
+ * \defgroup Geometry Geometry
+ * @{
+ *
+ * The geometry is defined on a 3D rectangular grid which is
+ * represented by the class grid3D.
+ *
+ * The grid3D class offers functions to check if a particular
+ * 3D point is within the grid, to which cell it belongs,etc
+ *
+ * A grid3D comprises three objects of class grid1D representing
+ * the grid in each of the axes.
+ *
+ * @}
+ */
+
+
+/**
+ * @brief The class vector3 represents a 3D vector.
+ *
+ * It is based on Eigen::AlignedVector3 with float as the basic type,
+ * so that the code can
+ * benefit from SSE cpu instructions where possible. For example,
+ * vector addition can be performed in one cpu intstruction.
+ *
+ * @ingroup Geometry
+ */
 typedef Eigen::AlignedVector3<float> vector3;
 
+/**
+ * @brief The class ivector3 represents a 3D index vector.
+ *
+ * It is based on Eigen::AlignedVector3 with integer as the basic type.
+ * Thus, the code can
+ * benefit from SSE cpu instructions where possible. For example,
+ * vector addition can be performed in one cpu intstruction.
+ *
+ * Index vectors are used to specify a cell in the 3D rectangular grid.
+ *
+ * @ingroup Geometry
+ */
 typedef Eigen::AlignedVector3<int> ivector3;
 
+/**
+ * @brief A 1D range based on Eigen::AlignedBox1f
+ * @ingroup Geometry
+ */
 typedef Eigen::AlignedBox1f box1D;
-typedef Eigen::AlignedBox2f box2D;
-typedef Eigen::AlignedBox3f box3D;
+
+/**
+ * @brief A 1D index range based on Eigen::AlignedBox1i
+ * @ingroup Geometry
+ */
 typedef Eigen::AlignedBox1i ibox1D;
 
-struct grid1D : public std::vector<float> {
+/**
+ * @brief A rectangular 3D range based on Eigen::AlignedBox3f
+ * @ingroup Geometry
+ */
+typedef Eigen::AlignedBox3f box3D;
+
+/**
+ * @brief The grid1D class represents a 1D spatial partition
+ *
+ * It is essentially an array of \f$ N \f$ monotonically increasing
+ * points, \f$ x_0,x_1,...,x_{N-1} \f$, which divides the region
+ * between the 1st and the Nth point in \f$ N-1 \f$ cells.
+ *
+ * The cells do not have to be of equal width, however, currently only
+ * equidistant grids have been employed.
+ *
+ * @ingroup Geometry
+ *
+ */
+class grid1D : public std::vector<float> {
 
     typedef std::vector<float> vec_t;
 
-    float w, l;
-    bool equispaced;
-    bool periodic;
+    float w_;
+    bool equispaced_;
+    bool periodic_;
 
-    grid1D() : vec_t(), w(0), l(0),
-        equispaced(false), periodic(false)
+public:
+    /// Default constructor creates an empty grid
+    grid1D() : vec_t(), w_(0),
+        equispaced_(false), periodic_(false)
     {}
+    /// Copy constructor
     grid1D(const grid1D& g) : vec_t(g),
-        w(g.w), l(g.l), equispaced(g.equispaced),
-        periodic(g.periodic)
+        w_(g.w_), equispaced_(g.equispaced_),
+        periodic_(g.periodic_)
     {}
 
+    /// Returns the total width \f$ x_{N-1}-x_0 \f$
+    float w() const { return w_; }
+    /// Returns true if all cells have the same width
+    bool equispaced() const { return equispaced_; }
+    /// Returns true if the grid has periodic boundary conditions
+    bool periodic() const { return periodic_; }
+    /// Set periodic boundary conditions on or off depebing on the value of b
+    void setPeriodic(bool b) { periodic_ = b; }
+
+    /// Set the grid to the values of the array x
     void set(const vec_t& x) {
         vec_t::assign(x.begin(),x.end());
-        w = back() - front();
-        equispaced = false;
+        w_ = back() - front();
+        equispaced_ = false;
     }
-
+    /// Create an equidistant grid from x0 to x1 divided in n cells
     void set(const float& x0, const float& x1, int n) {
         resize(n+1);
-        w = x1-x0;
-        l = w/n;
-        for(int i=0; i<=n; i++) (*this)[i] = x0 + i*l;
-        equispaced = true;
+        w_ = x1-x0;
+        w_ = w_/n;
+        for(int i=0; i<=n; i++) (*this)[i] = x0 + i*w_;
+        equispaced_ = true;
     }
 
+    /// Returns true if x is within the grid region
     bool contains(const float& x) const {
         return (x>=front()) && (x<back());
     }
 
-    bool periodic_contains(const float& x) const {
-        return periodic ? 1 : (x>=front()) && (x<back());
-    }
-
-    bool check_pos(float& x) const {
+    /**
+     * @brief Returns true if x is within the grid region, anticipating periodic boundary conditions
+     *
+     * If periodic boundary conditions are on and x is outside the grid, then x will be
+     * brought within the range by adding or subtracting an integer multiple of the
+     * grid period (width). The function will return
+     * true.
+     *
+     * @param x is the posistion to check
+     * @return true if x is within the grid
+     */
+    bool contains_with_bc(float& x) const {
         if (x<front()) {
-            if (periodic) {
-                do x += w; while (x<front());
+            if (periodic_) {
+                do x += w_; while (x<front());
                 assert(x<back());
                 return true;
             } else return false;
         } else if (x>=back()) {
-            if (periodic) {
-                do x -= w; while (x>=back());
+            if (periodic_) {
+                do x -= w_; while (x>=back());
                 assert(x>=front());
                 return true;
             } else return false;
         } else return true;
     }
 
-    bool cell_contains(int i, const float& x) const {
+    /// Returns true if x is inside the i-th cell, \f$ x_i \leq x < x_{i+1} \f$
+    bool contains(int i, const float& x) const {
         return (x>=at(i)) && (x<at(i+1));
     }
 
-    bool check_cell_contains(int& i, float& x, bool& cell_change) const
-    {
-        if (x<at(i)) {
-            cell_change = true;
-            while (i>0 && x<at(i)) i--;
-            if (x<at(i)) { // which means i==0
-                if (periodic) {
-                    do x += w; while (x<at(i));
-                    i = find_index(x);
-                    return false;
-                } else return true; // exit
-            } else return false;
-        } else if (x>=at(i+1)) {
-            cell_change = true;
-            while ((i<size()-2) && (x>=at(i+1))) i++;
-            if (x>=at(i+1)) { // i==size()-2
-                if (periodic) {
-                    do x -= w; while (x>=at(i+1));
-                    i = find_index(x);
-                    return false;
-                } else return true; // exit
-            } else return false;
-        }
-        else return false;
-    }
-
-    // should be called only if contains==true !!
-    int find_index(const float& x) const {
+    /// Returns the cell index i for which \f$ x_i \leq x < x_{i+1} \f$. Should be called only if grid1D::contains(x) returns true
+    int pos2cell(const float& x) const {
+        assert(contains(x));
         if (size()==2) return 0;
-        if (equispaced) {
-            return std::floor((x - front())/l);
+        if (equispaced_) {
+            return std::floor((x - front())/w_);
         }
         else
             return std::upper_bound(begin(), end(), x) - begin() - 1;
     }
 
-    void applyBC(float& x) const
-    {
-        if (periodic) {
-            if (x < front())
-                do x += w; while( x < front() );
-            else if (x >= back())
-                do x -= w; while( x >= back() );
-        }
-    }
-
+    /**
+     * @brief Return the range of cell indexes that are within the spatial range b
+     *
+     * The function returns the range of cells that have their centers
+     * within the interval defined by b.
+     *
+     *
+     * @param b the range as a box1D
+     * @return the range of cells as an ibox1D
+     */
     ibox1D range(const box1D& b) const
     {
         int i1(0), i2(size()-2);
@@ -136,7 +198,15 @@ struct grid1D : public std::vector<float> {
 };
 
 
-
+/**
+ * @brief The grid3D class represents a 3D rectangular grid.
+ *
+ * It comprises of three grid1D objects, one for each dimension,
+ * which can be accessed by the funtions grid3D::x(), grid3D::y() and
+ * grid3D::z().
+ *
+ * @ingroup Geometry
+ */
 class grid3D
 {
     grid1D x_, y_, z_;
@@ -157,7 +227,7 @@ public:
         Z=2
     } Axis;
 
-
+    /// Default constructor creates empty grid
     grid3D()
     {
         x_.set(0.f,1.f,1);
@@ -165,61 +235,58 @@ public:
         z_.set(0.f,1.f,1);
         calcBox();
     }
+    /// Copy constructor
     grid3D(const grid3D& g) :
         x_(g.x_), y_(g.y_), z_(g.z_), box_(g.box_)
     {}
 
+    /// Set the x-axis grid to an equidistant partition of n cells
     void setX(const float& x0, const float& x1, int n, bool periodic)
-    { x_.set(x0,x1,n); calcBox(); x_.periodic = periodic; }
+    { x_.set(x0,x1,n); calcBox(); x_.setPeriodic(periodic); }
+    /// Set the y-axis grid to an equidistant partition of n cells
     void setY(const float& x0, const float& x1, int n, bool periodic)
-    { y_.set(x0,x1,n); calcBox(); y_.periodic = periodic; }
+    { y_.set(x0,x1,n); calcBox(); y_.setPeriodic(periodic); }
+    /// Set the z-axis grid to an equidistant partition of n cells
     void setZ(const float& x0, const float& x1, int n, bool periodic)
-    { z_.set(x0,x1,n); calcBox(); z_.periodic = periodic; }
+    { z_.set(x0,x1,n); calcBox(); z_.setPeriodic(periodic); }
 
+    /// Return the x-axis grid
     const grid1D& x() const { return x_; }
+    /// Return the y-axis grid
     const grid1D& y() const { return y_; }
+    /// Return the z-axis grid
     const grid1D& z() const { return z_; }
+    /// Return the rectangular box containing the whole 3D grid
     const box3D& box() const { return box_; }
 
+    /// Return true if v is within the grid
     bool contains(const vector3& v) const {
         return x_.contains(v.x()) &&
                y_.contains(v.y()) &&
                z_.contains(v.z());
     }
-
-    bool periodic_contains(const vector3& v) const {
-        return x_.periodic_contains(v.x()) &&
-               y_.periodic_contains(v.y()) &&
-               z_.periodic_contains(v.z());
+    /// Return true if v is within the grid, adjusting v for periodic boundaries
+    bool contains_with_bc(vector3& v) const {
+        return x_.contains_with_bc(v.x()) &&
+               y_.contains_with_bc(v.y()) &&
+               z_.contains_with_bc(v.z());
     }
-
-    bool check_pos(vector3& v) const {
-        return x_.check_pos(v.x()) &&
-               y_.check_pos(v.y()) &&
-               z_.check_pos(v.z());
-    }
-
+    /// Return true if v is within the cell with indexes i
     bool contains(const ivector3& i, const vector3& v) const {
-        return x_.cell_contains(i.x(),v.x()) &&
-            y_.cell_contains(i.y(),v.y()) &&
-            z_.cell_contains(i.z(),v.z());
+        return x_.contains(i.x(),v.x()) &&
+            y_.contains(i.y(),v.y()) &&
+            z_.contains(i.z(),v.z());
     }
-
-    bool check_cell_contains(ivector3& i, vector3& v, bool& cell_change) const {
-        return x_.check_cell_contains(i.x(),v.x(), cell_change) ||
-            y_.check_cell_contains(i.y(),v.y(), cell_change) ||
-            z_.check_cell_contains(i.z(),v.z(), cell_change);
-    }
-
-
-    // should be called only if contains()==true
+    /// Return the cell index for v; call only if contains()==true
     ivector3 pos2cell(const vector3& v) const
     {
-        return ivector3(x_.find_index(v.x()),
-                        y_.find_index(v.y()),
-                        z_.find_index(v.z()));
+        assert(contains(v));
+        return ivector3(x_.pos2cell(v.x()),
+                        y_.pos2cell(v.y()),
+                        z_.pos2cell(v.z()));
     }
 
+    /// Return the id of the i-th cell
     int cellid(const ivector3& i) const {
         return (i.x()*(y_.size()-1) + i.y())*(z_.size()-1) + i.z();
     }
@@ -231,21 +298,15 @@ public:
     static ivector3 nullcell() {
         return ivector3(-1,-1,-1);
     }
-
+    /// Returns the total number of cells
     int ncells() const {
         return (x_.size()-1)*
                (y_.size()-1)*
                (z_.size()-1);
     }
-
+    /// Returns the total volume
     float volume() const {
-        return x_.w * y_.w * z_.w;
-    }
-
-    void applyBC(vector3& v) const {
-        x_.applyBC(v.x());
-        y_.applyBC(v.y());
-        z_.applyBC(v.z());
+        return x_.w() * y_.w() * z_.w();
     }
 };
 

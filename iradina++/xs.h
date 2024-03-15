@@ -28,7 +28,9 @@
  * \f]
  * where \f$ \Phi \f$ is the screening function and \f$ a \f$ the screening length.
  *
- * Different types of screening functions used for ion scattering are coded, see \ref ScreeningF.
+ * Different types of screening functions are defined
+ * by the \ref screening_function templated structure with the \ref screening_function_t
+ * enum as template parameter.
  *
  * The scattering angle in the center-of-mass system can be obtained by
  * the scattering integral
@@ -45,30 +47,40 @@
  * \f$  \epsilon = E_{CM} a/Z_1 Z_2 e^2\f$ and \f$ s = p/a\f$ are the
  * reduced center-of-mass energy and impact parameter.
  *
- * The integral can be evaluated by quadrature, which is performed by the
- * \ref xs_quad class.
+ * The integral is evaluated by quadrature in the
+ * \ref xs_quad template class, where ref screening_function_t
+ * enum is again the template parameter.
  *
  * As quadrature is a costly operation, the scattering integrals are typically tabulated
  * for use in Monte-Carlo codes.
  * Here we adapt the tabulation method of the program Corteo, see \ref CorteoIdx.
+ * The two classes \ref xs_corteo4bit and \ref xs_corteo6bit provide access to
+ * pre-calculated tables of \f$ \sin^2 \theta/2 \f$ for the ZBL potential
+ * as a function of
+ * \f$  \epsilon \f$ and \f$ s \f$. The tables are compiled into dynamic libraries
+ * and can be linked for use in a simulation program.
  *
- * Alternatively, SRIM's MAGIC approximation for the scattering integrals of the ZBL potential
- * is also implemented
- * for comparison in the class \ref xs_zbl_magic.
+ * Alternatively, SRIM's MAGIC approximation for the scattering integrals of
+ * the ZBL potential is also implemented
+ * in the class \ref xs_zbl_magic for comparison.
+ *
+ * For scattering calculations in the lab system, the \ref xs_lab class template can
+ * be used with the corresponding center-of-mass reduced cross-section as
+ * template parameter.
  *
  * Ref.: Yuan et al. NIMB1993
  */
 
 /**
- * @brief Screening function types
+ * @brief Screening function type enumeration
  */
-typedef enum {
+enum screening_function_t {
     ScreeningNone,          /**< Unscreened Coulomb potential */
     ScreeningLenzJensen,    /**< Lenz-Jensen */
     ScreeningKrC,           /**< Kr-C */
     ScreeningMoliere,       /**< Moliere */
     ScreeningZBL            /**< Ziegler-Biersack-Littmark (ZBL) Universal */
-} screening_function_t;
+};
 
 /**
  * @brief Screening function definition
