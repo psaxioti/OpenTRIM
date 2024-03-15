@@ -15,6 +15,18 @@
 class out_file;
 class options;
 
+/**
+ * \defgroup MC Monte-Carlo simulation components
+ * @{
+ *
+ * @}
+ */
+
+/**
+ * @brief The simulation_base class forms the basis of all simulation classes
+ *
+ * @ingroup MC
+ */
 class simulation_base
 {
 public:
@@ -26,8 +38,8 @@ public:
         FullCascade = 0,    /**< Full Damage Cascade, follow recoils */
         Invalid1 = 1,       // Compatibility. Iradina does not have simulation_type=1 & 2
         Invalid2 = 2,
-        IonsOnly = 3, /**< Ions only. Recoils are not followed. Damage estimate by NRT */
-        Cascades = 4, /**< Cascades generated and followed */
+        IonsOnly = 3,       /**< Ions only. Recoils are not followed. Damage estimate by NRT */
+        Cascades = 4,       /**< Cascades generated and followed */
         InvalidSimulationType = -1
     } simulation_type_t;
 
@@ -82,6 +94,7 @@ public:
     typedef enum {
         MersenneTwister = 0,   /**< std::mt19937, Std 32bit RNG with good statistics */
         MinStd = 1,  /**< std::minstd_rand, Minimum standard - faster but lower statistical quality */
+        Xoshiro128p = 2,
         InvalidRandomGenerator = -1
     } random_generator_t;
 
@@ -307,5 +320,9 @@ typedef simulation<xs_corteo6bit, std::mt19937> SimCorteo6bit_MT;
 typedef simulation<xs_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
 typedef simulation<xs_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
 typedef simulation<xs_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
+
+typedef simulation<xs_zbl_magic,  Xoshiro128Plus> SimZBLMagic_Xoshiro128p;
+typedef simulation<xs_corteo4bit, Xoshiro128Plus> SimCorteo4bit_Xoshiro128p;
+typedef simulation<xs_corteo6bit, Xoshiro128Plus> SimCorteo6bit_Xoshiro128p;
 
 #endif // SIMULATION_H

@@ -34,6 +34,8 @@ simulation<_XScm,  _RNG_E>::simulation(const char* t) :
         par_.random_generator_type =  MersenneTwister;
     else if (std::is_same<_RNG_E, std::minstd_rand>::value)
         par_.random_generator_type =  MinStd;
+    else if (std::is_same<_RNG_E, Xoshiro128Plus>::value)
+        par_.random_generator_type =  Xoshiro128p;
 
 }
 
@@ -478,6 +480,9 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
         case MersenneTwister:
             S = new SimCorteo4bit_MT(par);
             break;
+        case Xoshiro128p:
+            S = new SimCorteo4bit_Xoshiro128p(par);
+            break;
         default:
             break;
         }
@@ -485,10 +490,13 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
     case Corteo6bit:
         switch (par.random_generator_type) {
         case MinStd:
-            S = new SimCorteo4bit_MSRAND(par);
+            S = new SimCorteo6bit_MSRAND(par);
             break;
         case MersenneTwister:
-            S = new SimCorteo4bit_MT(par);
+            S = new SimCorteo6bit_MT(par);
+            break;
+        case Xoshiro128p:
+            S = new SimCorteo6bit_Xoshiro128p(par);
             break;
         default:
             break;        }
@@ -500,6 +508,9 @@ simulation_base* simulation_base::fromParameters(const parameters& par)
             break;
         case MersenneTwister:
             S = new SimZBLMagic_MT(par);
+            break;
+        case Xoshiro128p:
+            S = new SimZBLMagic_Xoshiro128p(par);
             break;
         default:
             break;

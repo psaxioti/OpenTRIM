@@ -155,8 +155,10 @@ NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::random_generator_t, {
                                 {simulation_base::InvalidRandomGenerator, nullptr},
                                 {simulation_base::MersenneTwister, "MersenneTwister"},
                                 {simulation_base::MinStd, "MinStd"},
+                                {simulation_base::Xoshiro128p, "Xoshiro128p"},
                                 {simulation_base::MersenneTwister, 0},
-                                {simulation_base::MinStd, 1}
+                                {simulation_base::MinStd, 1},
+                                {simulation_base::Xoshiro128p, 2}
                             })
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::parameters,
