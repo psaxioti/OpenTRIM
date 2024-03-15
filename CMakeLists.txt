@@ -4,4 +4,4 @@ project(iradina++ C CXX)
 
 add_subdirectory(iradina)
 add_subdirectory(iradina++)
-add_subdirectory(doc)
+# add_subdirectory(doc)
