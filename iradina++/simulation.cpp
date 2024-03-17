@@ -17,8 +17,8 @@ float calcDE(float x, float dx, float E0, const float* dedx)
     return E0-E;
 }
 
-template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const char* t) :
+template<class _XScm>
+simulation<_XScm>::simulation(const char* t) :
     simulation_base(), rng()
 {
     if (t) par_.title = t;
@@ -30,31 +30,24 @@ simulation<_XScm,  _RNG_E>::simulation(const char* t) :
     else if (std::is_same<_XScm, xs_corteo6bit>::value)
         par_.scattering_calculation =  Corteo6bit;
 
-    if (std::is_same<_RNG_E, std::mt19937>::value)
-        par_.random_generator_type =  MersenneTwister;
-    else if (std::is_same<_RNG_E, std::minstd_rand>::value)
-        par_.random_generator_type =  MinStd;
-    else if (std::is_same<_RNG_E, Xoshiro128Plus>::value)
-        par_.random_generator_type =  Xoshiro128p;
-
 }
 
-template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const parameters &p) :
+template<class _XScm>
+simulation<_XScm>::simulation(const parameters &p) :
     simulation_base(p), rng()
 {
 }
 
-template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::simulation(const _Myt& S) :
+template<class _XScm>
+simulation<_XScm>::simulation(const _Myt& S) :
     simulation_base(S), rng(),
     scattering_matrix_(S.scattering_matrix_)
 {
 }
 
 
-template<class _XScm, class _RNG_E>
-simulation<_XScm,  _RNG_E>::~simulation()
+template<class _XScm>
+simulation<_XScm>::~simulation()
 {
     if (ref_count_.use_count() == 1) {
         if (!scattering_matrix_.isNull()) {
@@ -64,8 +57,8 @@ simulation<_XScm,  _RNG_E>::~simulation()
     }
 }
 
-template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::init() {
+template<class _XScm>
+int simulation<_XScm>::init() {
 
     simulation_base::init();
 
@@ -117,8 +110,8 @@ int simulation<_XScm,  _RNG_E>::init() {
     return 0;
 }
 
-template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::run()
+template<class _XScm>
+int simulation<_XScm>::run()
 {
 
     pka.setNatoms(target_->atoms().size()-1);
@@ -183,8 +176,8 @@ int simulation<_XScm,  _RNG_E>::run()
     return 0;
 }
 
-template<class _XScm, class _RNG_E>
-void simulation<_XScm,  _RNG_E>::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
+template<class _XScm>
+void simulation<_XScm>::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
     float de_stopping = fp * interp1d(i->erg(), ie, stopping_tbl);
@@ -229,8 +222,8 @@ void simulation<_XScm,  _RNG_E>::doDedx(ion* i, const material* m, float fp, flo
  * @param i ion to transport
  * @return 0 if succesfull
  */
-template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
+template<class _XScm>
+int simulation<_XScm>::transport(ion* i, pka_event *pka)
 {
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
@@ -391,8 +384,8 @@ int simulation<_XScm,  _RNG_E>::transport(ion* i, pka_event *pka)
  * @param sqrtfp is sqrt(fp/atomicDistance) - used for calculating straggling
  * @return
  */
-template<class _XScm, class _RNG_E>
-int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
+template<class _XScm>
+int simulation<_XScm>::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
     if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}
         fp = 0.3f;
@@ -460,61 +453,22 @@ int simulation<_XScm,  _RNG_E>::flightPath(const ion* i, const material* m, floa
 }
 
 // explicit instantiation of all variants
-template class simulation< xs_zbl_magic,   std::mt19937 >;
-template class simulation< xs_corteo4bit,  std::mt19937 >;
-template class simulation< xs_corteo6bit,  std::mt19937 >;
-
-template class simulation< xs_zbl_magic,   std::minstd_rand >;
-template class simulation< xs_corteo4bit,  std::minstd_rand >;
-template class simulation< xs_corteo6bit,  std::minstd_rand >;
+template class simulation< xs_zbl_magic >;
+template class simulation< xs_corteo4bit >;
+template class simulation< xs_corteo6bit >;
 
 simulation_base* simulation_base::fromParameters(const parameters& par)
 {
     simulation_base* S = nullptr;
     switch (par.scattering_calculation) {
     case Corteo4bit:
-        switch (par.random_generator_type) {
-        case MinStd:
-            S = new SimCorteo4bit_MSRAND(par);
-            break;
-        case MersenneTwister:
-            S = new SimCorteo4bit_MT(par);
-            break;
-        case Xoshiro128p:
-            S = new SimCorteo4bit_Xoshiro128p(par);
-            break;
-        default:
-            break;
-        }
+        S = new SimCorteo4bit(par);
         break;
     case Corteo6bit:
-        switch (par.random_generator_type) {
-        case MinStd:
-            S = new SimCorteo6bit_MSRAND(par);
-            break;
-        case MersenneTwister:
-            S = new SimCorteo6bit_MT(par);
-            break;
-        case Xoshiro128p:
-            S = new SimCorteo6bit_Xoshiro128p(par);
-            break;
-        default:
-            break;        }
+        S = new SimCorteo6bit(par);
         break;
     case ZBL_MAGICK:
-        switch (par.random_generator_type) {
-        case MinStd:
-            S = new SimZBLMagic_MSRAND(par);
-            break;
-        case MersenneTwister:
-            S = new SimZBLMagic_MT(par);
-            break;
-        case Xoshiro128p:
-            S = new SimZBLMagic_Xoshiro128p(par);
-            break;
-        default:
-            break;
-        }
+        S = new SimZBLMagic(par);
         break;
     default:
         break;

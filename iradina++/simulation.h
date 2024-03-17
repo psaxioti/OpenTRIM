@@ -89,16 +89,6 @@ public:
     } straggling_model_t;
 
     /**
-     * @brief The random number generator used
-     */
-    typedef enum {
-        MersenneTwister = 0,   /**< std::mt19937, Std 32bit RNG with good statistics */
-        MinStd = 1,  /**< std::minstd_rand, Minimum standard - faster but lower statistical quality */
-        Xoshiro128p = 2,
-        InvalidRandomGenerator = -1
-    } random_generator_t;
-
-    /**
      * @brief Type of simulation event
      */
     typedef enum {
@@ -119,7 +109,6 @@ public:
         straggling_model_t straggling_model{YangStraggling};
         float flight_path_const{0.1};
         float min_energy{1.f};
-        random_generator_t random_generator_type{MersenneTwister};
         int threads{1};
         std::vector<unsigned int> seeds;
     };
@@ -205,7 +194,6 @@ public:
     simulation_type_t simulationType() const { return par_.simulation_type; }
     flight_path_type_t flightPathType() const { return par_.flight_path_type; }
     straggling_model_t stragglingModel() const { return par_.straggling_model; }
-    random_generator_t rngType() const { return par_.random_generator_type; }
     int nThreads() const { return par_.threads; }
 
     void setTitle(const char* t) { par_.title = t; }
@@ -263,20 +251,19 @@ protected:
 
 };
 
-template<class _XScm, class _RNG_E>
+template<class _XScm>
 class simulation : public simulation_base
 {
 public:
 
     typedef _XScm reducedXScm;
     typedef xs_lab<_XScm> scatteringXSlab;
-    typedef random_vars< _RNG_E > rng_t;
 
 private:
 
-    typedef simulation< _XScm, _RNG_E > _Myt;
+    typedef simulation< _XScm > _Myt;
 
-    rng_t rng;
+    random_vars rng;
     Array2D<scatteringXSlab*> scattering_matrix_;
 
 public:
@@ -313,16 +300,9 @@ float interp1d(float x, CI i, array data)
 }
 
 
-typedef simulation<xs_zbl_magic,  std::mt19937> SimZBLMagic_MT;
-typedef simulation<xs_corteo4bit, std::mt19937> SimCorteo4bit_MT;
-typedef simulation<xs_corteo6bit, std::mt19937> SimCorteo6bit_MT;
+typedef simulation<xs_zbl_magic> SimZBLMagic;
+typedef simulation<xs_corteo4bit> SimCorteo4bit;
+typedef simulation<xs_corteo6bit> SimCorteo6bit;
 
-typedef simulation<xs_zbl_magic,  std::minstd_rand> SimZBLMagic_MSRAND;
-typedef simulation<xs_corteo4bit, std::minstd_rand> SimCorteo4bit_MSRAND;
-typedef simulation<xs_corteo6bit, std::minstd_rand> SimCorteo6bit_MSRAND;
-
-typedef simulation<xs_zbl_magic,  Xoshiro128Plus> SimZBLMagic_Xoshiro128p;
-typedef simulation<xs_corteo4bit, Xoshiro128Plus> SimCorteo4bit_Xoshiro128p;
-typedef simulation<xs_corteo6bit, Xoshiro128Plus> SimCorteo6bit_Xoshiro128p;
 
 #endif // SIMULATION_H

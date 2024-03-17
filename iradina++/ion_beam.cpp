@@ -24,8 +24,7 @@ ion_beam::ion_beam(const ion_beam& i) :
 
 }
 
-template<class _U>
-void ion_beam::source_ion(_U& g, const target& t, ion& i)
+void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
 {
     i.setGrid(&(t.grid()));
 
@@ -70,7 +69,3 @@ void ion_beam::source_ion(_U& g, const target& t, ion& i)
     i.myAtom() = atom_;
 
 }
-
-template void ion_beam::source_ion< rng_mt >(rng_mt& g, const target& t, ion& i);
-template void ion_beam::source_ion< rng_msrand >(rng_msrand& g, const target& t, ion& i);
-template void ion_beam::source_ion< rng_xoshiro >(rng_xoshiro& g, const target& t, ion& i);

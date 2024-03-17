@@ -6,6 +6,7 @@
 class target;
 class ion;
 class atom;
+class random_vars;
 
 /**
  * @brief The ion_beam class is used for ejecting ions into the simulation
@@ -91,8 +92,7 @@ public:
      * @param t the simulation target
      * @param i the generated ion
      */
-    template<class _U>
-    void source_ion(_U& g, const target& t, ion& i);
+    void source_ion(random_vars& g, const target& t, ion& i);
 
 };
 
