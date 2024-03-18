@@ -64,8 +64,10 @@
  * the ZBL potential is also implemented
  * in the class \ref xs_zbl_magic for comparison.
  *
- * For scattering calculations in the lab system, the \ref xs_lab class template can
- * be used with the corresponding center-of-mass reduced cross-section as
+ * For scattering calculations in the lab system, the \ref abstract_xs_lab class defines
+ * the interface for all cross-section classes.
+ * The \ref xs_lab class template provides an implementation of a lab system cross-section
+ * object. The corresponding center-of-mass reduced cross-section is defined by the
  * template parameter.
  *
  * Ref.: Yuan et al. NIMB1993
@@ -302,10 +304,16 @@ struct xs_base : public screening_function< ScreeningType >
      * \f]
      *
      * where \f$ K_1(x) \f$ is the modified Hankel function (or modified
-     * Bessel function of 2nd kind).
+     * Bessel function of the 2nd kind).
      *
-     * The above formula can be generalized for a screening functions
+     * The above formula can be generalized for a screening function
      * expressed as a sum of exponentials, i.e., for the ZBL, Kr-C & Moliere potentials.
+     * Namely, for a screening function \f$ \Phi(x) = \sum_i{C_i\, e^{-A_i x}} \f$ the scattering angle
+     * in the impulse approx. is
+     *
+     * \f[
+     * \theta_1 = \epsilon^{-1} \sum_i {C_i A_i K_1(A_i s) }
+     * \f]
      *
      * In all other cases the function returns the unscreened Coulomb
      * exact scattering angle
@@ -787,6 +795,11 @@ struct xs_corteo6bit : public screening_function< ScreeningZBL >
 };
 
 // center-of-mass to lab parameters
+/**
+ * @brief The abstract_xs_lab class defines the interface for lab system cross-section objects
+ *
+ * @ingroup XS
+ */
 class abstract_xs_lab
 {
 protected:
@@ -811,14 +824,19 @@ protected:
 public:
     virtual ~abstract_xs_lab() {}
 
+    /// Returns the screening length in nm
     float screening_length() const { return screening_length_; }
+    /// Returns the projectile to target mass ratio \f$ A = M_1 / M2 \f$
     float mass_ratio() const { return mass_ratio_; }
+    /// Returns the precomputed square root of the mass ratio
     float sqrt_mass_ratio() const { return sqrt_mass_ratio_; }
+    /// Returns \f$ \gamma = 4 A / (1 + A)^2 \f$
     float kfactor_m() const { return kfactor_m_; }
+    /// Return the reduced energy conversion factor \f$ a / (1+A)Z_1Z_2e^2  \f$
     float red_E_conv() const { return red_E_conv_; }
 
     /**
-     * @brief Initialize the cross-section for a specific projectile-target combination
+     * @brief Initialize the cross-section object for a specific projectile-target combination
      * @param Z1 the projectile atomic number
      * @param M1 the projectile mass
      * @param Z2 the target atomic number
@@ -830,8 +848,8 @@ public:
      * @brief Calculate scattering angle and target recoil energy.
      *
      * Given the initial energy E and impact parameter S of an incoming
-     * projectile, scatter calculates the target atom recoil energy and the projectile
-     * scattering angle.
+     * projectile, this function calculates the target recoil energy and the projectile
+     * scattering angle sine and cosine.
      *
      * All quantities refer to the lab system.
      *
@@ -845,7 +863,7 @@ public:
                          float &recoil_erg, float &sintheta, float &costheta) const = 0;
 
     /**
-     * @brief Calculate the impact parameter with given initial projectile energy and target recoil energy
+     * @brief Retuerns the impact parameter for given initial projectile energy and target recoil energy
      * @param E the projectile initial energy [eV]
      * @param T the target recoil energy [eV]
      * @return the corresponding impact factor [nm]
@@ -854,6 +872,11 @@ public:
 
     /**
      * @brief Differential cross-section \f$ d\sigma(E,T)/dT \f$
+     *
+     * \f[
+     *   \frac{d\sigma}{dT}  = \frac{4\pi a^2}{\gamma E} \frac{d\sigma}{d\Omega_{CM}}
+     * \f]
+     *
      * @param E projectile energy [eV]
      * @param T recoil energy [eV]
      * @return the cross-section [nm^2/eV]
