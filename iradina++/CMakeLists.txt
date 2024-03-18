@@ -56,7 +56,6 @@ add_executable(iradina++
     out_file.h out_file.cpp
     simulation_base.cpp
     tally.h
-    ion_queues.h
     options.h options.cpp
     parse_json.cpp
 )

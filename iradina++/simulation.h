@@ -4,7 +4,6 @@
 #include "target.h"
 #include "random_vars.h"
 #include "ion_beam.h"
-#include "ion_queues.h"
 #include "ion.h"
 #include "xs.h"
 #include "tally.h"
@@ -130,7 +129,7 @@ public:
 
 protected:
 
-    ion_queues< ion > q_;
+    ion_queue q_;
 
     // simulation paramenters
     parameters par_;

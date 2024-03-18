@@ -1,7 +1,7 @@
 #include "ion.h"
 
 
-int ion::setPos(vector3 x)
+int ion::setPos(const vector3 &x)
 {
     pos_ = x;
     assert(grid_->contains(x));
@@ -11,6 +11,22 @@ int ion::setPos(vector3 x)
     return 0;
 }
 
+/**
+ * @brief Propagate the ion for a distance s [nm]
+ *
+ * The function first advances the position of the ion by
+ * a distance s along its direction of motion.
+ *
+ * It then checks if the ion is still inside the simulation volume.
+ * If not, the cell id is set to -1 (invalid) and the function returns.
+ *
+ * Otherwise, the function checks if the ion is
+ * still in the same cell.
+ * If not, the new cell is found and
+ * the index vector and cell id of the ion are updated.
+ *
+ * @param s the distance to propagate the ion [nm]
+ */
 void ion::propagate(const float& s)
 {
     pos_ += s*dir_;  // advance ion position
@@ -26,13 +42,26 @@ void ion::propagate(const float& s)
     }
 }
 
-/*
- * Deflect the ion by angles theta, phi
+/**
+ * @brief Changes the direction of the ion
  *
- * n = (cos(phi)*sin(th), sin(phi)*sin(th), cos(th))
+ * The argument is a vector
+ * \f[
+ * \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta)
+ * \f]
+ * where \f$ (\theta,\phi) \f$ are the polar and azimuthal scattering
+ *  angles.
+ *
+ * The new direction is obtained by a well-known result
+ * \f{eqnarray*}{
+ * m'_x &=& m_x\, n_z + \frac{m_x\, m_z\, n_x - m_y\, n_y}{\sqrt{1-m_z^2}} \\
+ * m'_y &=& m_y\, n_z + \frac{m_y\, m_z\, n_x - m_x\, n_y}{\sqrt{1-m_z^2}}  \\
+ * m'_z &=& m_z\, n_z - n_x\, \sqrt{1-m_z^2}
+ * \f}
+ * where \f$ \mathbf{m} \f$ is the ion's vector of direction cosines.
  *
  */
-void ion::deflect(vector3 n)
+void ion::deflect(const vector3 &n)
 {
     // if the ion moves parallel to the z-axis
     // then the new direction is n

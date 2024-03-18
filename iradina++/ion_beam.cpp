@@ -26,7 +26,7 @@ ion_beam::ion_beam(const ion_beam& i) :
 
 void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
 {
-    i.setGrid(&(t.grid()));
+    i.grid_ = &t.grid();
 
     // beam in +x direction
     i.dir() = par_.dir;
