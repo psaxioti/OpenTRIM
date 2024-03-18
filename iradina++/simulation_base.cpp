@@ -11,9 +11,9 @@
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
-                    simulation_base::straggling_model_t model, float* strag);
+                    simulation::straggling_model_t model, float* strag);
 
-simulation_base::simulation_base() :
+simulation::simulation() :
     source_(new ion_beam),
     target_(new target),
     ref_count_(new int(0)),
@@ -22,7 +22,7 @@ simulation_base::simulation_base() :
 {
 }
 
-simulation_base::simulation_base(const parameters &p) :
+simulation::simulation(const parameters &p) :
     par_(p),
     source_(new ion_beam),
     target_(new target),
@@ -32,7 +32,7 @@ simulation_base::simulation_base(const parameters &p) :
 {
 }
 
-simulation_base::simulation_base(const simulation_base &s) :
+simulation::simulation(const simulation &s) :
     par_(s.par_),
     out_opts_(s.out_opts_),
     source_(s.source_),
@@ -45,21 +45,27 @@ simulation_base::simulation_base(const simulation_base &s) :
     dedx1(s.dedx1),
     de_strag_(s.de_strag_),
     max_fp_(s.max_fp_),
-    max_impact_par_(s.max_impact_par_)
+    max_impact_par_(s.max_impact_par_),
+    scattering_matrix_(s.scattering_matrix_),
+    rng()
 {
     tally_.copy(s.tally_);
 }
 
-simulation_base::~simulation_base()
+simulation::~simulation()
 {
     q_.clear();
     if (ref_count_.use_count() == 1) {
         delete source_;
         delete target_;
+        if (!scattering_matrix_.isNull()) {
+            abstract_xs_lab** xs = scattering_matrix_.data();
+            for (int i=0; i<scattering_matrix_.size(); i++) delete xs[i];
+        }
     }
 }
 
-int simulation_base::init() {
+int simulation::init() {
 
     target_->init();
 
@@ -200,6 +206,63 @@ int simulation_base::init() {
     }
 
     /*
+     * create a scattering matrix for all ion compinations
+     * # of combinations =
+     * (all target atoms + projectile ) x (all target atoms)
+     */
+    scattering_matrix_ = Array2D<abstract_xs_lab*>(natoms, natoms);
+    for(int z1 = 0; z1<natoms; z1++)
+    {
+        for(int z2 = 1; z2<natoms; z2++)
+        {
+            switch (par_.scattering_calculation) {
+            case Corteo4bit:
+                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo4bit;
+                break;
+            case Corteo6bit:
+                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo6bit;
+                break;
+            case ZBL_MAGICK:
+                scattering_matrix_[z1][z2] = new xs_lab_zbl_magic;
+                break;
+            default:
+                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo4bit;
+                break;
+            }
+
+            scattering_matrix_[z1][z2]->init(atoms[z1]->Z(), atoms[z1]->M(),
+                                             atoms[z2]->Z(), atoms[z2]->M());
+        }
+    }
+
+    /*
+     * create arrays of sig(E) - "total" cross-section vs E
+     * for each ion in each materials
+     * # of combinations =
+     * (all target atoms + projectile ) x (all materials)
+     */
+    max_impact_par_ = Array3Df(natoms, nmat, dedx_index::dim);
+    float Tmin = 1e-6f; // TODO: this should be user option
+    for(int z1 = 0; z1<natoms; z1++)
+    {
+        for(int im=0; im<materials.size(); im++)
+        {
+            const material* m = materials[im];
+            float* p = max_impact_par_[z1][im];
+            for(const atom* a : m->atoms())
+            {
+                int z2 = a->id();
+                float x=a->X();
+                for(dedx_index ie; ie!=ie.end(); ie++) {
+                    float d = scattering_matrix_[z1][z2]->impactPar(*ie, Tmin);
+                    p[ie] += x*d*d;
+                }
+            }
+            for(dedx_index ie; ie!=ie.end(); ie++) p[ie] = std::sqrt(p[ie]);
+        }
+    }
+
+    /*
      * Allocate Tally Memory
      *
      * In FullCascade we keep all info (I,V,R,Ei, Ep)
@@ -237,7 +300,7 @@ int simulation_base::init() {
  * @param de_stragg (out) pointer to Straggling dE table [eV/nm^(1/2)]
  * @return 0 on succes
  */
-int simulation_base::getDEtables(const atom* z1, const material* m,
+int simulation::getDEtables(const atom* z1, const material* m,
                            const float* &dedx, const float* &de_stragg) const
 {
     int ia = z1->id();
@@ -247,7 +310,7 @@ int simulation_base::getDEtables(const atom* z1, const material* m,
     return 0;
 }
 
-int simulation_base::exec(progress_callback cb, uint msInterval)
+int simulation::exec(progress_callback cb, uint msInterval)
 {
     using namespace std::chrono_literals;
 
@@ -259,11 +322,11 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_start);
 
     // create simulations
-    std::vector< simulation_base* > sims(nthreads);
+    std::vector< simulation* > sims(nthreads);
     sims[0] = this;
     thread_id_ = 0;
     for(int i=1; i<nthreads; i++) {
-        sims[i] = clone();
+        sims[i] = new simulation(*this);
         sims[i]->thread_id_ = i;
     }
 
@@ -293,7 +356,7 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     std::vector< std::thread* > threads;
     for(int i=0; i<nthreads; i++) {
         threads.push_back(
-            new std::thread(&simulation_base::run, sims[i])
+            new std::thread(&simulation::run, sims[i])
             );
     }
     // report progress if callback function is given
@@ -360,7 +423,7 @@ int simulation_base::exec(progress_callback cb, uint msInterval)
     return 0;
 }
 
-void simulation_base::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
+void simulation::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
                             const vector3& dir0, const float &mass_ratio, pka_event *pka)
 {
     // clone the projectile ion
@@ -389,7 +452,7 @@ void simulation_base::new_recoil(const ion* proj, const atom *target, const floa
 
 }
 
-int simulation_base::saveTallys()
+int simulation::saveTallys()
 {
     out_file of(this);
     std::string fname(out_opts_.OutputFileBaseName);
@@ -400,7 +463,7 @@ int simulation_base::saveTallys()
     return 0;
 }
 
-std::string simulation_base::outFileName(const char* type)
+std::string simulation::outFileName(const char* type)
 {
     std::stringstream ss;
     ss << out_opts_.OutputFileBaseName << '.' << type;
@@ -408,7 +471,7 @@ std::string simulation_base::outFileName(const char* type)
     return ss.str();
 }
 
-void simulation_base::getOptions(options& opt) const
+void simulation::getOptions(options& opt) const
 {
     opt.Simulation = par_;
     opt.Output = out_opts_;

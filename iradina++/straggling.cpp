@@ -132,7 +132,7 @@ static const float chu_coef[][4] = {{+0.0000f, +0.0000f, +0.0000f, +0.0000f},
  */
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
-                    simulation_base::straggling_model_t model, float* strag)
+                    simulation::straggling_model_t model, float* strag)
 {
     /*
      * Start by calculating squared Bohr straggling
@@ -203,15 +203,15 @@ void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& 
                      * but well... we'll probably use Yang's model in most cases
                      */
         switch(model) {
-        case simulation_base::NoStraggling: /* no straggling */
+        case simulation::NoStraggling: /* no straggling */
             break;
-        case simulation_base::BohrStraggling: /* Bohr */
+        case simulation::BohrStraggling: /* Bohr */
             strag[ie] += OmegaBohr2;
             break;
-        case simulation_base::ChuStraggling: /* Chu */
+        case simulation::ChuStraggling: /* Chu */
             strag[ie] += OmegaBohr2*Chu_factor;
             break;
-        case simulation_base::YangStraggling: /* Chu + Yang correction */
+        case simulation::YangStraggling: /* Chu + Yang correction */
             strag[ie] += OmegaBohr2*(chargestate2*Chu_factor+Yang);
             break;
         }

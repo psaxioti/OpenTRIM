@@ -222,7 +222,7 @@ int save_array(H5File* f, const char* name, const _ArrT& A) {
     return save_array(f, name, A.data(), dims);
 }
 
-out_file::out_file(const simulation_base *s) :
+out_file::out_file(const simulation *s) :
     sim_(s), h5f(nullptr)
 {
 
@@ -308,7 +308,7 @@ int out_file::save()
 
 
     // save tallys
-    if (sim_->simulationType() == simulation_base::FullCascade) {
+    if (sim_->simulationType() == simulation::FullCascade) {
 
         bool ret =
             save_array<unsigned int, Array2Dui>(h5f, "Implantations", t.implantations())==0 &&

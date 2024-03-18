@@ -96,62 +96,62 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ion_beam::parameters,
                                    dir, pos)
 
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::simulation_type_t, {
-                                {simulation_base::InvalidSimulationType, nullptr},
-                                {simulation_base::FullCascade, "FullCascade"},
-                                {simulation_base::IonsOnly, "IonsOnly"},
-                                {simulation_base::FullCascade, 0},
-                                {simulation_base::FullCascade, 1},
-                                {simulation_base::FullCascade, 2},
-                                {simulation_base::IonsOnly, 3}
+NLOHMANN_JSON_SERIALIZE_ENUM(simulation::simulation_type_t, {
+                                {simulation::InvalidSimulationType, nullptr},
+                                {simulation::FullCascade, "FullCascade"},
+                                {simulation::IonsOnly, "IonsOnly"},
+                                {simulation::FullCascade, 0},
+                                {simulation::FullCascade, 1},
+                                {simulation::FullCascade, 2},
+                                {simulation::IonsOnly, 3}
                             })
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::nrt_calculation_t, {
-                                {simulation_base::NRT_InvalidOption, nullptr},
-                                {simulation_base::NRT_element, "NRT_element"},
-                                {simulation_base::NRT_average, "NRT_average"},
-                                {simulation_base::NRT_element, 0},
-                                {simulation_base::NRT_average, 1}
+NLOHMANN_JSON_SERIALIZE_ENUM(simulation::nrt_calculation_t, {
+                                {simulation::NRT_InvalidOption, nullptr},
+                                {simulation::NRT_element, "NRT_element"},
+                                {simulation::NRT_average, "NRT_average"},
+                                {simulation::NRT_element, 0},
+                                {simulation::NRT_average, 1}
                             })
 
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::flight_path_type_t, {
-                                {simulation_base::InvalidPath, nullptr},
-                                {simulation_base::AtomicSpacing, "AtomicSpacing"},
-                                {simulation_base::Constant, "Constant"},
-                                {simulation_base::SRIMlike, "SRIMlike"},
-                                {simulation_base::MendenhallWeller, "MendenhallWeller"},
-                                {simulation_base::MyFFP, "MyFFP"},
-                                {simulation_base::AtomicSpacing, 1},
-                                {simulation_base::Constant, 2},
-                                {simulation_base::SRIMlike, 3},
-                                {simulation_base::MendenhallWeller, 4},
-                                {simulation_base::MyFFP, 5}
+NLOHMANN_JSON_SERIALIZE_ENUM(simulation::flight_path_type_t, {
+                                {simulation::InvalidPath, nullptr},
+                                {simulation::AtomicSpacing, "AtomicSpacing"},
+                                {simulation::Constant, "Constant"},
+                                {simulation::SRIMlike, "SRIMlike"},
+                                {simulation::MendenhallWeller, "MendenhallWeller"},
+                                {simulation::MyFFP, "MyFFP"},
+                                {simulation::AtomicSpacing, 1},
+                                {simulation::Constant, 2},
+                                {simulation::SRIMlike, 3},
+                                {simulation::MendenhallWeller, 4},
+                                {simulation::MyFFP, 5}
                             })   
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::scattering_calculation_t, {
-                                {simulation_base::InvalidScatteringOption, nullptr},
-                                {simulation_base::Corteo4bit, "Corteo4bit"},
-                                {simulation_base::Corteo6bit, "Corteo6bit"},
-                                {simulation_base::ZBL_MAGICK, "ZBL_MAGICK"},
-                                {simulation_base::Corteo4bit, 0},
-                                {simulation_base::Corteo6bit, 1},
-                                {simulation_base::ZBL_MAGICK, 2}
+NLOHMANN_JSON_SERIALIZE_ENUM(simulation::scattering_calculation_t, {
+                                {simulation::InvalidScatteringOption, nullptr},
+                                {simulation::Corteo4bit, "Corteo4bit"},
+                                {simulation::Corteo6bit, "Corteo6bit"},
+                                {simulation::ZBL_MAGICK, "ZBL_MAGICK"},
+                                {simulation::Corteo4bit, 0},
+                                {simulation::Corteo6bit, 1},
+                                {simulation::ZBL_MAGICK, 2}
                             })    
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation_base::straggling_model_t, {
-                                {simulation_base::InvalidStraggling, nullptr},
-                                {simulation_base::NoStraggling, "NoStraggling"},
-                                {simulation_base::BohrStraggling, "BohrStraggling"},
-                                {simulation_base::ChuStraggling, "ChuStraggling"},
-                                {simulation_base::YangStraggling, "YangStraggling"},
-                                {simulation_base::NoStraggling, 0},
-                                {simulation_base::BohrStraggling, 1},
-                                {simulation_base::ChuStraggling, 2},
-                                {simulation_base::YangStraggling, 3}
+NLOHMANN_JSON_SERIALIZE_ENUM(simulation::straggling_model_t, {
+                                {simulation::InvalidStraggling, nullptr},
+                                {simulation::NoStraggling, "NoStraggling"},
+                                {simulation::BohrStraggling, "BohrStraggling"},
+                                {simulation::ChuStraggling, "ChuStraggling"},
+                                {simulation::YangStraggling, "YangStraggling"},
+                                {simulation::NoStraggling, 0},
+                                {simulation::BohrStraggling, 1},
+                                {simulation::ChuStraggling, 2},
+                                {simulation::YangStraggling, 3}
                             })                                                                                        
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::parameters,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation::parameters,
                                    title, max_no_ions, simulation_type,
                                    nrt_calculation, scattering_calculation,
                                    flight_path_type, straggling_model,
@@ -159,7 +159,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::parameters,
                                    threads, seeds)
 
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation_base::output_options,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation::output_options,
                                                 OutputFileBaseName,
                                                 storage_interval,
                                                 store_transmitted_ions,
