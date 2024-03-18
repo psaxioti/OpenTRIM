@@ -5,16 +5,16 @@ namespace H5 {
 class H5File;
 };
 
-class simulation_base;
+class simulation;
 
 class out_file
 {
 
-    const simulation_base* sim_;
+    const simulation* sim_;
     H5::H5File * h5f;
 
 public:
-    out_file(const simulation_base* s);
+    out_file(const simulation* s);
     ~out_file();
 
     int open(const char* fname);

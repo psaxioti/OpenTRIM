@@ -5,8 +5,8 @@
 
 struct options
 {
-    simulation_base::parameters Simulation;
-    simulation_base::output_options Output;
+    simulation::parameters Simulation;
+    simulation::output_options Output;
     ion_beam::parameters IonBeam;
     target::target_desc_t Target;
     std::vector< material::material_desc_t > materials_desc;
@@ -16,7 +16,7 @@ struct options
     void printJSON(std::ostream& os);
 
     int validate();
-    simulation_base* createSimulation() const;
+    simulation* createSimulation() const;
 
     int regionIdx(const std::string& name) const {
         for(int i=0; i<Target.regions.size(); i++) {

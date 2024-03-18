@@ -27,7 +27,7 @@ int options::validate()
     if (Simulation.max_no_ions <= 0)
         throw std::invalid_argument("Simulation.max_no_ions must be larger than 0.");
 
-    if (Simulation.flight_path_type==simulation_base::Constant &&
+    if (Simulation.flight_path_type==simulation::Constant &&
         Simulation.flight_path_const<=0.f)
         throw std::invalid_argument("Simulation.flight_path_type is \"Constant\" but Simulation.flight_path_const is negative.");
 
@@ -137,9 +137,9 @@ int options::validate()
     return 0;
 }
 
-simulation_base* options::createSimulation() const
+simulation* options::createSimulation() const
 {
-    simulation_base* S = simulation_base::fromParameters(Simulation);
+    simulation* S = new simulation(Simulation);
     S->setOutputOptions(Output);
     S->setIonBeam(IonBeam);
 

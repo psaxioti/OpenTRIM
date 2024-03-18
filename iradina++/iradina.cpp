@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
     cout << endl << endl;
     cout << "Starting simulation ..." << endl << endl;
 
-    simulation_base* S = s.createSimulation();
+    simulation* S = s.createSimulation();
     S->init();
     S->exec(my_progress_callback);
     S->saveTallys();

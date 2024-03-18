@@ -23,11 +23,11 @@ class options;
  */
 
 /**
- * @brief The simulation_base class forms the basis of all simulation classes
+ * @brief The simulation class forms the basis of all simulation classes
  *
  * @ingroup MC
  */
-class simulation_base
+class simulation
 {
 public:
 
@@ -140,6 +140,7 @@ protected:
     ion_beam* source_;
     target* target_;
     tally tally_;
+    random_vars rng;
     event_stream pka_stream_, exit_stream_;
     pka_event pka;
     exit_event exit_ev;
@@ -152,6 +153,8 @@ protected:
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
 
+    // Scattering cross-sections
+    Array2D< abstract_xs_lab* > scattering_matrix_;
     // Stopping & Straggling Tables
     Array3Df dedx_; // stopping data (atoms x materials x energy)
     Array2Df dedx1; // proton stopping (materials x energy)
@@ -167,10 +170,10 @@ protected:
     friend class out_file;
 
 public:
-
-    virtual ~simulation_base();
-
-    static simulation_base* fromParameters(const parameters &par);
+    simulation();
+    explicit simulation(const parameters& p);
+    simulation(const simulation& S);
+    ~simulation();
 
     void setIonBeam(const ion_beam::parameters& p) {
         source_->setParameters(p);
@@ -225,7 +228,7 @@ public:
     int saveTallys();
     virtual int init();
     int exec(progress_callback cb = 0, uint msInterval = 1000);
-    virtual void seed(unsigned int s) = 0;
+    void seed(unsigned int s) { rng.seed(s); }
 
 protected:
 
@@ -235,52 +238,14 @@ protected:
     int getDEtables(const atom* z1, const material* m,
                     const float *&dedx, const float *&de_stragg) const;
 
-    // protected constructor
-    // cannot instantiate simulation base objects
-    simulation_base();
-    simulation_base(const parameters& p);
-    simulation_base(const simulation_base& s);
-
     std::string outFileName(const char* type);
 
-    virtual int transport(ion* i, pka_event* ev = nullptr) = 0;
-    virtual int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp) = 0;
-    virtual int run() = 0;
-    virtual simulation_base* clone() const = 0;
+    int transport(ion* i, pka_event* ev = nullptr);
+    int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp);
+    int run();
     uint ions_done() { return nion_thread_.exchange(0); }
-
-};
-
-template<class _XScm>
-class simulation : public simulation_base
-{
-public:
-
-    typedef _XScm reducedXScm;
-    typedef xs_lab<_XScm> scatteringXSlab;
-
-private:
-
-    typedef simulation< _XScm > _Myt;
-
-    random_vars rng;
-    Array2D<scatteringXSlab*> scattering_matrix_;
-
-public:
-    explicit simulation(const char* t = 0);
-    explicit simulation(const parameters& p);
-    simulation(const _Myt& S);
-    ~simulation();
-
-    virtual int init() override;
-
-protected:
-    virtual int transport(ion* i, pka_event* ev = nullptr) override;
-    virtual int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp) override;
     void doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
-    virtual int run() override;
-    virtual simulation_base* clone() const override { return new _Myt(*this); }
-    virtual void seed(unsigned int s) override { rng.seed(s); }
+
 };
 
 // helper 1D interpolation function
@@ -299,10 +264,6 @@ float interp1d(float x, CI i, array data)
     return y1 + (y2-y1)*(x-x1)/(x2-x1);
 }
 
-
-typedef simulation<xs_zbl_magic> SimZBLMagic;
-typedef simulation<xs_corteo4bit> SimCorteo4bit;
-typedef simulation<xs_corteo6bit> SimCorteo6bit;
 
 
 #endif // SIMULATION_H

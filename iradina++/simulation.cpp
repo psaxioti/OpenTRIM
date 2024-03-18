@@ -17,101 +17,7 @@ float calcDE(float x, float dx, float E0, const float* dedx)
     return E0-E;
 }
 
-template<class _XScm>
-simulation<_XScm>::simulation(const char* t) :
-    simulation_base(), rng()
-{
-    if (t) par_.title = t;
-
-    if (std::is_same<_XScm, xs_zbl_magic>::value)
-        par_.scattering_calculation =  ZBL_MAGICK;
-    else if (std::is_same<_XScm, xs_corteo4bit>::value)
-        par_.scattering_calculation =  Corteo4bit;
-    else if (std::is_same<_XScm, xs_corteo6bit>::value)
-        par_.scattering_calculation =  Corteo6bit;
-
-}
-
-template<class _XScm>
-simulation<_XScm>::simulation(const parameters &p) :
-    simulation_base(p), rng()
-{
-}
-
-template<class _XScm>
-simulation<_XScm>::simulation(const _Myt& S) :
-    simulation_base(S), rng(),
-    scattering_matrix_(S.scattering_matrix_)
-{
-}
-
-
-template<class _XScm>
-simulation<_XScm>::~simulation()
-{
-    if (ref_count_.use_count() == 1) {
-        if (!scattering_matrix_.isNull()) {
-            scatteringXSlab** xs = scattering_matrix_.data();
-            for (int i=0; i<scattering_matrix_.size(); i++) delete xs[i];
-        }
-    }
-}
-
-template<class _XScm>
-int simulation<_XScm>::init() {
-
-    simulation_base::init();
-
-    /*
-     * create a scattering matrix for all ion compinations
-     * # of combinations =
-     * (all target atoms + projectile ) x (all target atoms)
-     */
-    auto atoms = target_->atoms();
-    int natoms = atoms.size();
-    scattering_matrix_ = Array2D<scatteringXSlab*>(natoms, natoms);
-    for(int z1 = 0; z1<natoms; z1++)
-        for(int z2 = 1; z2<natoms; z2++)
-        {
-            scattering_matrix_[z1][z2] = new scatteringXSlab;
-            scattering_matrix_[z1][z2]->init(atoms[z1]->Z(), atoms[z1]->M(),
-                     atoms[z2]->Z(), atoms[z2]->M());
-        }
-
-    /*
-     * create arrays of sig(E) - "total" cross-section vs E
-     * for each ion in each materials
-     * # of combinations =
-     * (all target atoms + projectile ) x (all materials)
-     */
-    auto materials = target_->materials();
-    int nmat = materials.size();
-    max_impact_par_ = Array3Df(natoms, nmat, dedx_index::dim);
-    float Tmin = 1e-6f; // TODO: this should be user option
-    for(int z1 = 0; z1<natoms; z1++)
-    {
-        for(int im=0; im<materials.size(); im++)
-        {
-            const material* m = materials[im];
-            float* p = max_impact_par_[z1][im];
-            for(const atom* a : m->atoms())
-            {
-                int z2 = a->id();
-                float x=a->X();
-                for(dedx_index ie; ie!=ie.end(); ie++) {
-                    float d = scattering_matrix_[z1][z2]->impactPar(*ie, Tmin);
-                    p[ie] += x*d*d;
-                }
-            }
-            for(dedx_index ie; ie!=ie.end(); ie++) p[ie] = std::sqrt(p[ie]);
-        }
-    }
-
-    return 0;
-}
-
-template<class _XScm>
-int simulation<_XScm>::run()
+int simulation::run()
 {
 
     pka.setNatoms(target_->atoms().size()-1);
@@ -176,8 +82,7 @@ int simulation<_XScm>::run()
     return 0;
 }
 
-template<class _XScm>
-void simulation<_XScm>::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
+void simulation::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
     float de_stopping = fp * interp1d(i->erg(), ie, stopping_tbl);
@@ -222,8 +127,7 @@ void simulation<_XScm>::doDedx(ion* i, const material* m, float fp, float sqrtfp
  * @param i ion to transport
  * @return 0 if succesfull
  */
-template<class _XScm>
-int simulation<_XScm>::transport(ion* i, pka_event *pka)
+int simulation::transport(ion* i, pka_event *pka)
 {
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
@@ -321,7 +225,7 @@ int simulation<_XScm>::transport(ion* i, pka_event *pka)
             if (T >= z2->Ed()) { // displacement
 
                 // Create recoil and store in ion queue
-                new_recoil(i,z2,T,dir0,xs->sqrtMassRatio(),pka);
+                new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),pka);
 
                 /*
                      * Now check whether the projectile might replace the recoil
@@ -384,8 +288,7 @@ int simulation<_XScm>::transport(ion* i, pka_event *pka)
  * @param sqrtfp is sqrt(fp/atomicDistance) - used for calculating straggling
  * @return
  */
-template<class _XScm>
-int simulation<_XScm>::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
+int simulation::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
     if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}
         fp = 0.3f;
@@ -452,29 +355,6 @@ int simulation<_XScm>::flightPath(const ion* i, const material* m, float& fp, fl
     return 0;
 }
 
-// explicit instantiation of all variants
-template class simulation< xs_zbl_magic >;
-template class simulation< xs_corteo4bit >;
-template class simulation< xs_corteo6bit >;
-
-simulation_base* simulation_base::fromParameters(const parameters& par)
-{
-    simulation_base* S = nullptr;
-    switch (par.scattering_calculation) {
-    case Corteo4bit:
-        S = new SimCorteo4bit(par);
-        break;
-    case Corteo6bit:
-        S = new SimCorteo6bit(par);
-        break;
-    case ZBL_MAGICK:
-        S = new SimZBLMagic(par);
-        break;
-    default:
-        break;
-    }
-    return S;
-}
 
 
 

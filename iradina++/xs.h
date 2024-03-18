@@ -787,47 +787,36 @@ struct xs_corteo6bit : public screening_function< ScreeningZBL >
 };
 
 // center-of-mass to lab parameters
-struct cm_pars {
-    float screening_length;    /* screening length [nm] */
-    float mass_ratio;          /* M1/M2 */
-    float sqrt_mass_ratio;     /* we will need this occasionally */
-    float kfactor_m;           /* 4 M1 M2 / (M1 + M2)^2 */
-    float red_E_conv;          /* reduced energy conversion factor */
+class abstract_xs_lab
+{
+protected:
+
+    float screening_length_;    /* screening length [nm] */
+    float mass_ratio_;          /* M1/M2 */
+    float sqrt_mass_ratio_;     /* we will need this occasionally */
+    float kfactor_m_;           /* 4 M1 M2 / (M1 + M2)^2 */
+    float red_E_conv_;          /* reduced energy conversion factor */
 
     template<class _XScm>
-    void init(float Z1, float M1, float Z2, float M2)
+    void init_impl_(float Z1, float M1, float Z2, float M2)
     {
         /* Adapted from the corteo code */
-        screening_length     = _XScm::screeningLength(Z1,Z2);
-        mass_ratio           = M1/M2;
-        sqrt_mass_ratio      = std::sqrt(mass_ratio);
-        kfactor_m            = 4*mass_ratio / ((mass_ratio+1) * (mass_ratio+1));
-        red_E_conv           = screening_length / ((mass_ratio+1) * Z1 * Z2 * E2);
+        screening_length_     = _XScm::screeningLength(Z1,Z2);
+        mass_ratio_           = M1/M2;
+        sqrt_mass_ratio_      = std::sqrt(mass_ratio_);
+        kfactor_m_            = 4*mass_ratio_ / ((mass_ratio_+1) * (mass_ratio_+1));
+        red_E_conv_           = screening_length_ / ((mass_ratio_+1) * Z1 * Z2 * E2);
     }
-};
 
-/**
- * @brief The xs_lab class template describes a cross-section in lab system
- *
- * After initializing the class with XSlab::init for a given combination
- * of projectile and target, the function XSlab::scatter can be used to
- * calculate scattering quantities.
- *
- * @tparam
- *   xs_cm is the class of the center-of-mass cross-section
- *
- * @ingroup XS
- */
-template<class xs_cm>
-class xs_lab
-{
-    cm_pars P_;
 public:
-    xs_lab() : P_()
-    {}
-    xs_lab(const xs_lab& x) : P_(x.P_)
-    {}
-    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
+    virtual ~abstract_xs_lab() {}
+
+    float screening_length() const { return screening_length_; }
+    float mass_ratio() const { return mass_ratio_; }
+    float sqrt_mass_ratio() const { return sqrt_mass_ratio_; }
+    float kfactor_m() const { return kfactor_m_; }
+    float red_E_conv() const { return red_E_conv_; }
+
     /**
      * @brief Initialize the cross-section for a specific projectile-target combination
      * @param Z1 the projectile atomic number
@@ -835,9 +824,8 @@ public:
      * @param Z2 the target atomic number
      * @param M2 the target mass
      */
-    void init(float Z1, float M1, float Z2, float M2) {
-        P_.init<xs_cm>(Z1,M1,Z2,M2);
-    }
+    virtual void init(float Z1, float M1, float Z2, float M2) = 0;
+
     /**
      * @brief Calculate scattering angle and target recoil energy.
      *
@@ -853,66 +841,99 @@ public:
      * @param sintheta the sin of the scattering angle in the lab system
      * @param costheta the cos of the scattering angle in the lab system
      */
-    void scatter(float E, float S,
-                 float &recoil_erg, float &sintheta, float &costheta) const
-    {
-        float e = E*P_.red_E_conv;
-        float sin2thetaby2 = xs_cm::sin2Thetaby2(e, S/P_.screening_length);
-        recoil_erg = e*sin2thetaby2;
-        /* convert scattering angle to lab frame of reference: */
-        costheta = 1.f - 2*sin2thetaby2;
-        sintheta = std::sqrt(1.f-costheta*costheta);
-        float theta=atan( sintheta/(costheta+P_.mass_ratio) );
-        sintheta=sin(theta);
-        costheta=cos(theta);
-    }
+    virtual void scatter(float E, float S,
+                         float &recoil_erg, float &sintheta, float &costheta) const = 0;
+
     /**
      * @brief Calculate the impact parameter with given initial projectile energy and target recoil energy
      * @param E the projectile initial energy [eV]
      * @param T the target recoil energy [eV]
      * @return the corresponding impact factor [nm]
      */
-    float impactPar(float E, float T)
-    {
-        double thetaCM = T/E/P_.kfactor_m;
-        thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_cm::findS(E*P_.red_E_conv,thetaCM)*P_.screening_length;
-    }
+    virtual float impactPar(float E, float T) const = 0;
+
     /**
      * @brief Differential cross-section \f$ d\sigma(E,T)/dT \f$
      * @param E projectile energy [eV]
      * @param T recoil energy [eV]
      * @return the cross-section [nm^2/eV]
      */
-    float crossSection(float E, float T)
+    virtual float crossSection(float E, float T) const = 0;
+
+
+};
+
+/**
+ * @brief The xs_lab class template describes a cross-section in lab system
+ *
+ * After initializing the class with XSlab::init for a given combination
+ * of projectile and target, the function XSlab::scatter can be used to
+ * calculate scattering quantities.
+ *
+ * @tparam
+ *   xs_cm is the class of the center-of-mass cross-section
+ *
+ * @ingroup XS
+ */
+template<class xs_cm>
+class xs_lab : public abstract_xs_lab
+{
+public:
+    virtual void init(float Z1, float M1, float Z2, float M2) override
     {
-        double thetaCM = T/E/P_.kfactor_m;
+        abstract_xs_lab::init_impl_<xs_cm>(Z1,M1,Z2,M2);
+    }
+
+    virtual void scatter(float E, float S,
+                 float &recoil_erg, float &sintheta, float &costheta) const override
+    {
+        float e = E*red_E_conv_;
+        float sin2thetaby2 = xs_cm::sin2Thetaby2(e, S/screening_length_);
+        recoil_erg = e*sin2thetaby2;
+        /* convert scattering angle to lab frame of reference: */
+        costheta = 1.f - 2*sin2thetaby2;
+        sintheta = std::sqrt(1.f-costheta*costheta);
+        float theta=atan( sintheta/(costheta + mass_ratio_) );
+        sintheta=sin(theta);
+        costheta=cos(theta);
+    }
+
+    virtual float impactPar(float E, float T) const override
+    {
+        double thetaCM = T/E/kfactor_m_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_cm::crossSection(E*P_.red_E_conv,thetaCM)*4*M_PI*P_.screening_length*P_.screening_length/E/P_.kfactor_m;
+        return xs_cm::findS(E*red_E_conv_,thetaCM)*screening_length_;
+    }
+
+    virtual float crossSection(float E, float T) const override
+    {
+        double thetaCM = T/E/kfactor_m_;
+        thetaCM = 2.*std::asin(std::sqrt(thetaCM));
+        return xs_cm::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/kfactor_m_;
     }
 };
 
 
 // implementation of XSlab for corteo-tabulated center-of-mass XS
 template<class _XS>
-class xs_corteo_impl_ {
+class xs_corteo_impl_ : public abstract_xs_lab
+{
     typedef typename _XS::corteo_idx_t _My_t;
-    cm_pars P_;
     std::array<float, _My_t::rows * _My_t::cols > sinTable, cosTable;
 public:
     xs_corteo_impl_()
     {}
     xs_corteo_impl_(const xs_corteo_impl_& x) :
-        P_(x.P_),
+        abstract_xs_lab(x),
         sinTable(x.sinTable),
         cosTable(x.cosTable)
     {}
-    float sqrtMassRatio() const { return P_.sqrt_mass_ratio; }
-    void init(float Z1, float M1, float Z2, float M2) {
-        P_.init<_XS>(Z1,M1,Z2,M2);
+    virtual void init(float Z1, float M1, float Z2, float M2) override
+    {
+        abstract_xs_lab::init_impl_<_XS>(Z1,M1,Z2,M2);
         /* compute scattering angle components */
         double costhetaLab, sinthetaLab;
-        double mr = P_.mass_ratio;
+        double mr = mass_ratio_;
         for (typename _My_t::e_index ie; ie!=ie.end(); ie++)
             for (typename _My_t::s_index is; is!=is.end(); is++)
             {
@@ -939,15 +960,15 @@ public:
                 }
             }
     }
-    void scatter(float e, float s,
-                 float &recoil_erg, float &sintheta, float &costheta) const
+    virtual void scatter(float e, float s,
+                 float &recoil_erg, float &sintheta, float &costheta) const override
     {
         // bilinear interp
         const float* p = _XS::data();
-        recoil_erg = e*P_.kfactor_m;
+        recoil_erg = e*kfactor_m_;
         Eigen::Vector4f sinth, costh, sin2thetaby2;
-        e *= P_.red_E_conv;
-        s /= P_.screening_length;
+        e *= red_E_conv_;
+        s /= screening_length_;
         typename _My_t::e_index i1(e), i2(i1);
         typename _My_t::s_index j1(s), j2(j1);
         i2++; j2++;
@@ -966,39 +987,39 @@ public:
         costheta = coeff.dot(costh);
         recoil_erg *= coeff.dot(sin2thetaby2);
     }
-    float impactPar(float E, float T)
+    virtual float impactPar(float E, float T) const override
     {
-        double thetaCM = T/E/P_.kfactor_m;
+        double thetaCM = T/E/kfactor_m_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<ScreeningZBL>::findS(E*P_.red_E_conv,thetaCM)*P_.screening_length;
+        return xs_quad<ScreeningZBL>::findS(E*red_E_conv_,thetaCM)*screening_length_;
 
     }
-    float crossSection(float E, float T)
+    virtual float crossSection(float E, float T) const override
     {
-        double thetaCM = T/E/P_.kfactor_m;
+        double thetaCM = T/E/kfactor_m_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<ScreeningZBL>::crossSection(E*P_.red_E_conv,thetaCM)*4*M_PI*P_.screening_length*P_.screening_length/E/P_.kfactor_m;
+        return xs_quad<ScreeningZBL>::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/kfactor_m_;
     }
 };
 
 /**
- * @brief Explicit specialization of xs_lab class for 4-bit corteo-tabulated
- * center-of-mass cross-section
+ * @brief xs_lab implementation with ZBL potential and MAGIC formula for center-of-mass scattering angle
  *
  * @ingroup XS
  */
-template<>
-class xs_lab<xs_corteo4bit> : public xs_corteo_impl_< xs_corteo4bit >
-{};
-
+typedef xs_lab<xs_zbl_magic> xs_lab_zbl_magic;
 /**
- * @brief Explicit specialization of xs_lab class for 6-bit corteo-tabulated
- * center-of-mass cross-section
+ * @brief xs_lab implementation with ZBL potential and 4-bit corteo tabulated center-of-mass scattering angle
  *
  * @ingroup XS
  */
-template<>
-class xs_lab<xs_corteo6bit> : public xs_corteo_impl_< xs_corteo6bit >
-{};
+typedef xs_corteo_impl_< xs_corteo4bit > xs_lab_zbl_corteo4bit;
+/**
+ * @brief xs_lab implementation with ZBL potential and 6-bit corteo tabulated center-of-mass scattering angle
+ *
+ * @ingroup XS
+ */
+typedef xs_corteo_impl_< xs_corteo6bit > xs_lab_zbl_corteo6bit;
+
 
 #endif
