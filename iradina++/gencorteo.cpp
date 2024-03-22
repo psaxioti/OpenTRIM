@@ -34,8 +34,10 @@ const char* func6bit =
 
 int gencorteo4bit()
 {
+    typedef xs_corteo_index<4> corteo4bit;
+
     unsigned long nThetaErr = 0;
-    xs_quad xs_quad_zbl;
+    xs_quad<ScreeningZBL> xs_quad_zbl;
     ofstream ofs("corteo4bitdata.cpp");
     int k = 0;
     int klast = corteo4bit::rows * corteo4bit::cols - 1;
@@ -47,14 +49,14 @@ int gencorteo4bit()
 
     ofs << "static const float corteo4bitdata_[] = {\n";
 
-    for(corteo4bit::e_index ie; ie!=ie.end(); ie++) {
+    for(corteo4bit::e_index ie; ie<ie.end(); ie++) {
 
         if (ie % (corteo4bit::rows/10)==0) {
             cout << ".";
             cout.flush();
         }
 
-        for(corteo4bit::s_index is; is!=is.end(); is++) {
+        for(corteo4bit::s_index is; is<is.end(); is++) {
             // calculations (summation) made using double to decrease numerical noise
             float sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is);
             if(std::isnan(sin2ThetaBy2)) nThetaErr++;
@@ -83,6 +85,8 @@ int gencorteo4bit()
 
 int gencorteo6bit()
 {
+    typedef xs_corteo_index<6> corteo6bit;
+
     unsigned long nThetaErr = 0;
     xs_quad xs_quad_zbl;
     ofstream ofs("corteo6bitdata.cpp");
@@ -96,14 +100,14 @@ int gencorteo6bit()
 
     ofs << "static const float corteo6bitdata_[] = {\n";
 
-    for(corteo6bit::e_index ie; ie!=ie.end(); ie++) {
+    for(corteo6bit::e_index ie; ie<ie.end(); ie++) {
 
         if (ie % (corteo6bit::rows/10)==0) {
             cout << ".";
             cout.flush();
         }
 
-        for(corteo6bit::s_index is; is!=is.end(); is++) {
+        for(corteo6bit::s_index is; is<is.end(); is++) {
             // calculations (summation) made using double to decrease numerical noise
             float sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is);
             if(std::isnan(sin2ThetaBy2)) nThetaErr++;
