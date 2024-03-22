@@ -9,6 +9,22 @@
 class atom;
 
 /**
+ * \defgroup Ions Ion transport
+ *
+ * @brief Classes for simulating ion transport.
+ *
+ * @{
+ *
+ * @ingroup MC
+ *
+ * @}
+ *
+ *
+ *
+ */
+
+
+/**
  * @brief The ion class represents a moving ion in the simulation.
  *
  * The class stores the ion data, such as the position and direction
@@ -20,7 +36,7 @@ class atom;
  * \ref propagate(), which advances the position of the moving ion and
  * \ref deflect(), which changes the ion's direction after scattering.
  *
- * @ingroup MC
+ * @ingroup Ions
  */
 class ion
 {
@@ -124,7 +140,7 @@ public:
  * ion_queue by calling \ref free_ion(). The object buffer can then be used for
  * another ion history.
  *
- * @ingroup MC
+ * @ingroup Ions
  */
 class ion_queue {
 

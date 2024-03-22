@@ -10,7 +10,7 @@ struct options
     ion_beam::parameters IonBeam;
     target::target_desc_t Target;
     std::vector< material::material_desc_t > materials_desc;
-    std::vector< target::region_desc_t > regions_desc;
+    std::vector< target::region > regions_desc;
 
     int parseJSON(std::istream& js);
     void printJSON(std::ostream& os);

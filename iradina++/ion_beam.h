@@ -14,7 +14,7 @@ class random_vars;
  * The ions are generated according to the spatial, direction and energy distributions
  * specified by the class \ref parameters.
  *
- * @ingroup MC
+ * @ingroup Ions
  */
 class ion_beam
 {

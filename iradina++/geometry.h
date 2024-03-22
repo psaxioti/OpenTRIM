@@ -8,16 +8,23 @@
 
 /**
  * \defgroup Geometry Geometry
+ *
+ * \brief 3D vectors and spatial grid.
+ *
  * @{
  *
- * The geometry is defined on a 3D rectangular grid which is
+ * The geometric features of the simulation are defined on a 3D rectangular grid
  * represented by the class grid3D.
  *
- * The grid3D class offers functions to check if a particular
- * 3D point is within the grid, to which cell it belongs,etc
+ * Space is divided into rectangular cells.
  *
- * A grid3D comprises three objects of class grid1D representing
+ * The grid3D class offers functions to check if a particular
+ * 3D point is within the grid, to which cell it belongs, etc
+ *
+ * A grid3D comprises of three objects of class grid1D representing
  * the grid in each of the axes.
+ *
+ * @ingroup MC
  *
  * @}
  */

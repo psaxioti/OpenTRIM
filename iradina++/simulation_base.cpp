@@ -88,7 +88,7 @@ int simulation::init() {
     auto atoms = target_->atoms();
     int natoms = atoms.size();
     int nmat = materials.size();
-    int nerg = dedx_index::dim;
+    int nerg = dedx_index::size;
     dedx_ = Array3Df(natoms,nmat,nerg);
     for(atom* at1 : atoms) {
         float amuRatio = elements::mostAbundantIsotope(at1->Z())/at1->M();
@@ -107,9 +107,9 @@ int simulation::init() {
                  */
                 const float* q = dedx(at1->Z(), at2->Z());
                 float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-                for(dedx_index i; i!=i.end(); i++) {
+                for(dedx_index i; i<i.end(); i++) {
                     float erg = (*i) * amuRatio;
-                    p[i] += interp1d(erg,dedx_index(erg),q)*w;
+                    p[i] += interp_dedx(erg,q)*w;
                 }
 
 
@@ -160,7 +160,7 @@ int simulation::init() {
                  */
             const float* q1 = dedx(1, at2->Z());
             float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-            for(dedx_index i; i!=i.end(); i++) {
+            for(dedx_index i; i<i.end(); i++) {
                 p1[i] += q1[i]*w;
             }
 
@@ -241,7 +241,7 @@ int simulation::init() {
      * # of combinations =
      * (all target atoms + projectile ) x (all materials)
      */
-    max_impact_par_ = Array3Df(natoms, nmat, dedx_index::dim);
+    max_impact_par_ = Array3Df(natoms, nmat, dedx_index::size);
     float Tmin = 1e-6f; // TODO: this should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {

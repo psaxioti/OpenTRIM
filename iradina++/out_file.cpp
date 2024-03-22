@@ -283,7 +283,7 @@ int out_file::save()
     save_scalar(h5f, "Nexit", t.Nexit());
 
     // save grid
-    auto grid = sim_->grid();
+    auto grid = sim_->getTarget().grid();
     save_array<float, grid1D>(h5f, "X", grid.x());
     save_array<float, grid1D>(h5f, "Y", grid.y());
     save_array<float, grid1D>(h5f, "Z", grid.z());
@@ -335,8 +335,8 @@ int out_file::save()
     if (sim_->out_opts_.store_dedx) {
         save_array<float, Array3Df>(h5f,"dEdx",sim_->dedx_);
         save_array<float, Array3Df>(h5f,"dEstrag",sim_->de_strag_);
-        Array1D<float> dedx_erg(dedx_index::dim);
-        for(dedx_index i; i!=i.end(); i++) dedx_erg[i] = *i;
+        Array1D<float> dedx_erg(dedx_index::size);
+        for(dedx_index i; i<i.end(); i++) dedx_erg[i] = *i;
         save_array<float, Array1D<float> >(h5f,"dEdx_erg",dedx_erg);
         save_array<float, Array3Df>(h5f,"maxImpactPar",sim_->max_impact_par_);
         save_array<float, Array3Df>(h5f,"max_fp",sim_->max_fp_);

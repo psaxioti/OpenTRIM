@@ -68,7 +68,7 @@ int options::parseJSON(std::istream& js)
     return 0;
 }
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::region_desc_t,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::region,
                                    material_id,
                                    min, max)
 
@@ -191,7 +191,7 @@ void to_json(ojson& j, const options& p)
         j[name]=md;
     }
     for(int i=0; i<p.regions_desc.size(); i++) {
-        const target::region_desc_t& rd = p.regions_desc[i];
+        const target::region& rd = p.regions_desc[i];
         const std::string& name = p.Target.regions[i];
         j[name]=rd;
     }
@@ -236,7 +236,7 @@ void from_json(const ojson& j, options& p)
     {
         if (j.contains(r)) {
             auto jr = j[r];
-            target::region_desc_t rd = jr.template get< target::region_desc_t >();
+            target::region rd = jr.template get< target::region >();
             if (p.materialIdx(rd.material_id)<0) {
                 std::string msg;
                 msg = "In region \"";

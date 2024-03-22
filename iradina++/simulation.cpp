@@ -85,7 +85,7 @@ int simulation::run()
 void simulation::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
-    float de_stopping = fp * interp1d(i->erg(), ie, stopping_tbl);
+    float de_stopping = fp * interp_dedx(i->erg(), stopping_tbl);
     if (par_.straggling_model != NoStraggling) {
 
         float de_straggling = straggling_tbl[ie] * rng.normal() * sqrtfp;

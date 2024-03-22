@@ -1,6 +1,7 @@
 #include "target.h"
 #include "xs.h"
 #include "dedx.h"
+#include "random_vars.h"
 
 #include <sstream>
 #include <stdexcept>
@@ -8,7 +9,8 @@
 
 
 atom::atom(target *t, class material* m, int id) :
-    id_(id), mat_(m), target_(t)
+    target_item(t),
+    id_(id), mat_(m)
 {}
 
 float atom::LSS_Tdam(float recoilE) const
@@ -25,7 +27,8 @@ float atom::NRT(float Tdam) const
 }
 
 material::material(target *t, const char* name, int id) :
-    id_(id), name_(name), target_(t)
+    target_item(t),
+    id_(id), name_(name)
 {}
 
 atom* material::addAtom(const atom::parameters& p, float x)
@@ -120,6 +123,15 @@ material::material_desc_t material::getDescription() const
     return md;
 }
 
+const atom* material::selectAtom(random_vars& g) const
+{
+    if (atoms_.size()==1) return atoms_.front();
+    float u = g.u01ropen();
+    int i=0;
+    while((i < atoms_.size()-1) && (u > cumX_[i])) i++;
+    return atoms_[i];
+}
+
 float material::LSS_Tdam(float recoilE) const
 {
     float x = lss_Efact_ * recoilE;
@@ -134,42 +146,10 @@ float material::NRT(float Tdam) const
 }
 
 
-target::target()
+target::target() : target_item(this)
 {
     // create the projectile ion placehoder
     atoms_.push_back(new atom(this,0,0));
-}
-
-target::target(const target& t) :
-    grid_(t.grid_),
-    cells_(t.cells_.copy())
-{
-    // create projectile and copy from t
-    atoms_.push_back(new atom(this,0,0));
-    atoms_[0]->p_ = t.atoms_[0]->p_;
-
-    // create all materials as in t
-    if (!t.materials_.empty()) {
-        for(const material* m : t.materials_) {
-            material* m1 = addMaterial(m->name().c_str());
-            for(const atom* a : m->atoms_)
-                m1->addAtom(a->p_, a->X());
-            m1->massDensity_ = m->massDensity_;
-            m1->X_ = m->X_;
-            m1->cumX_ = m->cumX_;
-            m1->atomicDistance_ = m->atomicDistance_;
-            m1->sqrtAtomicDistance_ = m->sqrtAtomicDistance_;
-            m1->layerDistance_ = m->layerDistance_;
-            m1->atomicDensityNM_ = m->atomicDensityNM_;
-            m1->sqrtRecFlDensity_ = m->sqrtRecFlDensity_;
-            m1->meanZ_ = m->meanZ_;
-            m1->meanM_ = m->meanM_;
-            m1->meanF_ = m->meanF_;
-            m1->meanA_ = m->meanA_;
-            m1->meanMinRedTransfer_ = m->meanMinRedTransfer_;
-            m1->meanImpactPar_ = m->meanImpactPar_;
-        }
-    }
 }
 
 target::~target()
@@ -216,7 +196,7 @@ void target::fill(const box3D& box, const material* m)
             for(int k=rz.min().x(); k<=rz.max().x(); k++)
                 cells_[i][j][k] = m;
 
-    region_desc_t rd;
+    region rd;
     rd.material_id = m->name();
     rd.min = realbox.min();
     rd.max = realbox.max();
@@ -230,7 +210,7 @@ target::target_desc_t target::getDescription() const
     for(const material* m : materials_)
         td.materials.push_back(m->name());
     int k = 1;
-    for(const region_desc_t& rd : regions_) {
+    for(const region& rd : regions_) {
         std::string nm = "R" + std::to_string(k++);
         td.regions.push_back(nm);
     }

@@ -143,8 +143,10 @@ simulation* options::createSimulation() const
     S->setOutputOptions(Output);
     S->setIonBeam(IonBeam);
 
+    target& T = S->getTarget();
+
     for(int i=0; i<materials_desc.size(); i++) {
-        material* m = S->addMaterial(Target.materials[i].c_str());
+        material* m = T.addMaterial(Target.materials[i].c_str());
         const material::material_desc_t& md = materials_desc[i];
         m->setMassDensity(md.density);
         for(int i=0; i<md.Z.size(); i++)
@@ -154,7 +156,7 @@ simulation* options::createSimulation() const
                 md.X[i]);
     }
 
-    grid3D& G = S->grid();
+    grid3D& G = T.grid();
     G.setX(0, Target.cell_count.x()*Target.cell_size.x(),
            Target.cell_count.x(), Target.periodic_bc.x());
     G.setY(0, Target.cell_count.y()*Target.cell_size.y(),
@@ -162,13 +164,13 @@ simulation* options::createSimulation() const
     G.setZ(0, Target.cell_count.z()*Target.cell_size.z(),
            Target.cell_count.z(), Target.periodic_bc.z());
 
-    const std::vector<material*>& imat = S->getTarget()->materials();
-    for(const target::region_desc_t& rd : regions_desc) {
+    const std::vector<material*>& imat = T.materials();
+    for(const target::region& rd : regions_desc) {
         box3D box;
         box.min() = rd.min;
         box.max() = rd.max;
         int i = materialIdx(rd.material_id);
-        S->fill(box,imat[i]);
+        T.fill(box,imat[i]);
     }
 
     return S;

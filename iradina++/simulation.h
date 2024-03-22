@@ -8,6 +8,7 @@
 #include "xs.h"
 #include "tally.h"
 #include "event_stream.h"
+#include "dedx.h"
 
 #include <atomic>
 
@@ -15,14 +16,17 @@ class out_file;
 class options;
 
 /**
- * \defgroup MC Monte-Carlo simulation components
+ * \defgroup MC Simulation components
+ *
+ * \brief The main parts of a simulation.
+ *
  * @{
  *
  * @}
  */
 
 /**
- * @brief The simulation class forms the basis of all simulation classes
+ * @brief The simulation class is used for preparing and running an ion transport simulation.
  *
  * @ingroup MC
  */
@@ -33,63 +37,60 @@ public:
     /**
      * @brief Type of simulation
      */
-    typedef enum {
+    enum simulation_type_t {
         FullCascade = 0,    /**< Full Damage Cascade, follow recoils */
         Invalid1 = 1,       // Compatibility. Iradina does not have simulation_type=1 & 2
         Invalid2 = 2,
         IonsOnly = 3,       /**< Ions only. Recoils are not followed. Damage estimate by NRT */
         Cascades = 4,       /**< Cascades generated and followed */
         InvalidSimulationType = -1
-    } simulation_type_t;
+    };
 
     /**
-     * @brief Detail of NRT implementation
+     * @brief Detail of NRT implementation in multielement materials
      */
-    typedef enum {
+    enum nrt_calculation_t {
         NRT_element = 0, /**< NRT calculated for using Ed of struck atom (similar to SRIM) */
         NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
         NRT_InvalidOption = -1
-    } nrt_calculation_t;
+    };
 
     /**
      * @brief Determines how ion scattering is simulated
      */
-    typedef enum {
-        Corteo4bit = 0,
-        Corteo6bit = 1,
-        ZBL_MAGICK = 2,
+    enum scattering_calculation_t {
+        Corteo4bit = 0,     /**< Using 4bit corteo tabulated ZBL cross-section */
+        Corteo6bit = 1,     /**< Using 6bit corteo tabulated ZBL cross-section */
+        ZBL_MAGICK = 2,     /**< Using the MAGIC formula for the ZBL cross-section (as in SRIM) */
         InvalidScatteringOption = -1
-    } scattering_calculation_t;
+    };
 
     /**
      * @brief Flight path selection algorithm
      *
      * Determines the algorithm to select the
-     * free flight path \f$\ell\f$ between collisions
+     * free flight path \f$\ell\f$ between collisions.
      */
     typedef enum {
         AtomicSpacing = 1,  /**< Constant, equal to interatomic distance */
         Constant = 2,       /**< Constant, equal to user supplied value */
         SRIMlike = 3,        /**< Algorithm similar to SRIM */
-        MendenhallWeller = 4,
-        MyFFP = 5,
+        MendenhallWeller = 4, /**< Algorithm from Mendenhall-Weller NIMB2005*/
+        MyFFP = 5,            /**< Other algorithm */
         InvalidPath = -1
     } flight_path_type_t;
 
     /**
-     * @brief The model used to calculate ion straggling
+     * @brief The model used to calculate electronic straggling
      */
-    typedef enum {
-        NoStraggling = 0,
-        BohrStraggling,
-        ChuStraggling,
-        YangStraggling,
+    enum straggling_model_t {
+        NoStraggling = 0,       /**< No straggling calculated */
+        BohrStraggling,         /**< Bohr straggling model */
+        ChuStraggling,          /**< Chu straggling model */
+        YangStraggling,         /**< Yang straggling model */
         InvalidStraggling = -1
-    } straggling_model_t;
+    };
 
-    /**
-     * @brief Type of simulation event
-     */
     typedef enum {
         NewSourceIon = 0,
         NewRecoil,
@@ -98,17 +99,31 @@ public:
         IonStop
     } simulation_event_t;
 
+    /**
+     * @brief Simulation parameters/options
+     */
     struct parameters {
+        /// Simulation title
         std::string title;
+        /// Ions to run
         unsigned int max_no_ions{100};
+        /// Type of the simulation
         simulation_type_t simulation_type{FullCascade};
+        /// Way to calculate NRT vacancies in multielement materials
         nrt_calculation_t nrt_calculation{NRT_element};
+        /// Way to calculate nuclear scattering
         scattering_calculation_t scattering_calculation{Corteo4bit};
+        /// Free flight path selection algorithm
         flight_path_type_t flight_path_type{AtomicSpacing};
+        /// Model to use for calculating electronic straggling
         straggling_model_t straggling_model{YangStraggling};
+        /// The constant flight path (for relevant algorithm) [nm]
         float flight_path_const{0.1};
+        /// Minimum energy cutoff for ion transport [eV]
         float min_energy{1.f};
+        /// Number of threads to use
         int threads{1};
+        /// Seed for the random number generator
         std::vector<unsigned int> seeds;
     };
 
@@ -207,29 +222,20 @@ public:
 
     double ips() const { return ips_; }
 
-    // simulation setup
-    material* addMaterial(const char* name)
-    { return target_->addMaterial(name); }
-
-    //void setProjectile(int Z, float M, float E0);
-    grid3D& grid() { return target_->grid(); }
-    const grid3D& grid() const { return target_->grid(); }
-    void fill(const box3D& box, const material* m) {
-        target_->fill(box,m);
-    }
-
-    const target* getTarget() const { return target_; }
-    const ion_beam* getSource() const { return source_; }
+    target& getTarget() { return *target_; }
+    const target& getTarget() const { return *target_; }
+    ion_beam& getSource() { return *source_; }
+    const ion_beam& getSource() const { return *source_; }
     const tally& getTally() const { return tally_; }
-    void addTally(const tally& t) { tally_ += t; }
-
 
     int saveTallys();
-    virtual int init();
+    int init();
     int exec(progress_callback cb = 0, uint msInterval = 1000);
     void seed(unsigned int s) { rng.seed(s); }
 
 protected:
+
+    void addTally(const tally& t) { tally_ += t; }
 
     void new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
                     const vector3& dir0, const float& mass_ratio, pka_event* pka);
@@ -263,6 +269,22 @@ float interp1d(float x, CI i, array data)
     return y1 + (y2-y1)*(x-x1)/(x2-x1);
 }
 
+// helper 1D interpolation function for dedx
+//   CI : a corteo index
+//   array : a sequence container that can be accessed by array[i]
+// On input
+//   x : the point where we require an interpolation
+//   i : should be CI(x)
+//   data : the interpolation table
+inline float interp_dedx(float E, const float* data)
+{
+    if (E <= dedx_index::minVal) return data[0];
+    if (E >= dedx_index::maxVal) return data[dedx_index::size - 1];
+    dedx_index i(E);
+    float y1 = data[i], x1 = *i++;
+    float y2 = data[i], x2 = *i;
+    return y1 + (y2-y1)*(E-x1)/(x2-x1);
+}
 
 
 #endif // SIMULATION_H

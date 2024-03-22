@@ -6,6 +6,21 @@
 #include <cstdint>
 
 /**
+ * \defgroup RNG Random numbers
+ * @brief Classes for generating random quantities needed in the Monte-Carlo simulation.
+ *
+ * @{
+ *
+ * @ingroup MC
+ *
+ * @}
+ *
+ *
+ *
+ */
+
+
+/**
  * @brief Xoshiro128+ random number generator
  *
  * Adopted from the original by David Blackman and Sebastiano Vigna (vigna@acm.org) 2018
@@ -33,7 +48,7 @@
  *  - State: 16 bytes
  *  - Version 1.0
  *
- *  @ingroup MC
+ *  @ingroup RNG
  */
 class Xoshiro128Plus
 {
@@ -219,7 +234,7 @@ private:
  *
  * It is based on the xoshiro128+ random number generator.
  *
- * @ingroup MC
+ * @ingroup RNG
  *
  */
 class random_vars : public Xoshiro128Plus

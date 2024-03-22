@@ -10,25 +10,77 @@
 
 class target;
 class material;
+class random_vars;
 
-class atom {
+/**
+ * \defgroup TargetG Target
+ *
+ * @brief A set of classes for defining the properties, composition and
+ * spatial configuration of the target.
+ *
+ * @{
+ *
+ * The simulation volume is divided into regions, described by the \ref target::region structure.
+ * A region is a rectangular
+ * volume filled with a specific \ref material.
+ *
+ * A \ref material consists of a mixture of atomic species, described by the \ref atom
+ * class.
+ *
+ * The \ref target class keeps a track of all regions, materials and atoms in the
+ * simulation target.
+ *
+ * @ingroup MC
+ *
+ * @}
+ *
+ */
+
+class target;
+
+/**
+ * @brief target_item is the base class for all objects related to the target
+ * @ingroup TargetG
+ */
+class target_item {
+protected:
+    target* target_;
+public:
+    target_item(target* t) : target_(t)
+    {}
+};
+
+/**
+ * @brief The atom class represents an atomic species in the target or in the ion beam.
+ * @ingroup TargetG
+ */
+class atom : public target_item
+{
 
 public:
 
+    /**
+     * @brief The atom class parameters
+     */
     struct parameters {
-        int Z; // atomic number
-        float M; // mass
-        float Ed; // Displacement threshold energy (eV)
-        float El; // Lattice energy (eV)
-        float Es; // Surface binding energy (eV)
-        float Er; // Replacement threshold energy (eV)
+        /// atomic number
+        int Z;
+        /// mass of the atom
+        float M;
+        /// Displacement threshold energy (eV) of target atoms
+        float Ed;
+        /// Lattice energy (eV) of target atoms
+        float El;
+        /// Surface binding energy (eV) of target atoms
+        float Es;
+        /// Replacement threshold energy (eV) of target atoms
+        float Er;
     };
 
 private:
 
     int id_;
     material* mat_;
-    target* target_;
     parameters p_;
     float X_; // proxy concentration
 
@@ -38,23 +90,52 @@ private:
     float nrt_L_;
 
 public:
-
+    /**
+     * @brief Return the unique id of this atom
+     *
+     * As atoms are added to the target by calling material::addAtom()
+     * they are registered on a table and given a unique, sequential id number.
+     * Thus, we can distinguish
+     * between atoms of the same element but in different materials.
+     *
+     * E.g., a target may be composed of Al2O3 and ZrO layers. Oxygen atoms in
+     * Al2O3 have a different id from O's in ZrO. This allows, e.g., to assign
+     * a different displacement threshold for O in these two materials.
+     *
+     * Furthermore, most tallies have separate columns for each atom id.
+     * This way one can distinguish, e.g.,
+     * in the previous example,
+     * how much ionization energy comes by O recoils specifically from ZrO.
+     *
+     * The special id value of 0 is reserved for the atomic species of the ion beam.
+     *
+     * @return the atom's unique id number
+     */
     int id() const { return id_; }
+    /// A pointer to the target material this atom belongs to. For the beam atom nullptr is returned.
     const material* mat() const { return mat_; }
-
+    /// Returns the chemical name of the atom
     const char* name() const { return elements::name(p_.Z); }
+    /// Returns the atomic number
     int Z() const { return p_.Z; }
+    /// Returns the atomic mass
     float M() const { return p_.M; }
+    /// Returns the concentration of this atom in the target material
     float X() const { return X_; }
+    /// Returns the displacement threshold energy (eV) of target atoms
     float Ed() const { return p_.Ed; }
+    /// Returns the lattice binding energy (eV) of target atoms
     float El() const { return p_.El; }
+    /// Returns the surface binding energy (eV) of target atoms
     float Es() const { return p_.Es; }
+    /// Returns the replacement threshold energy (eV) of target atoms
     float Er() const { return p_.Er; }
-
+    /// Returns true if this atom's Z and M are equal to Z and M of other
     bool operator==(const atom& other) const
     { return (p_.Z == other.p_.Z) && (p_.M == other.p_.M); }
-
-    float LSS_Tdam(float recoilE) const;
+    /// Returns the damage energy [eV] corresponding to recoil energy T according to LSS approx.
+    float LSS_Tdam(float T) const;
+    /// Returns the number of vacancies created by a recoil of damage energy Tdam according to Norgett-Roninson-Torrens model
     float NRT(float Tdam) const;
 
 private:
@@ -65,14 +146,17 @@ private:
     friend class material;
 };
 
-
-class material {
+/**
+ * @brief The material class represents a material in the target
+ * @ingroup TargetG
+ */
+class material : public target_item
+{
 
     int id_;
     std::string name_;
     float massDensity_; // gr/cm^3
 
-    target* target_;
     std::vector<atom*> atoms_;
     std::vector<float> X_;
     std::vector<float> cumX_;
@@ -129,50 +213,100 @@ public:
      * @param v density in [g/cm^3]
      */
     void setMassDensity(float v) { massDensity_ = v; atomicDensityNM_ = -1; }
-
+    /// Returns the name of the material
     const std::string& name() const { return name_; }
+    /// Returns the atomic density \f$ N \f$ [nm^-3]
     float atomicDensity() const { return atomicDensityNM_; }
+    /// Returns the mass density [g/cm^3]
     float massDensity() const { return massDensity_; }
+    /// Returns the atomic radius \f$ (4\pi N/3)^{-1/3} \f$ [nm]
     float atomicDistance() const { return atomicDistance_; }
+    /// Returns the monolayer distance \f$ N^{-1/3} \f$ [nm]
     float layerDistance() const { return layerDistance_; }
 
+    // the following are used for SRIM ffp algorithm
     float meanF() const { return meanF_; }
     float meanA() const { return meanA_; }
     float meanMinRedTransfer() const { return meanMinRedTransfer_; }
     float meanImpactPar() const { return meanImpactPar_; }
     float sqrtRecFlDensity() const { return sqrtRecFlDensity_; }
 
+    // this is used for generating options structure
     material_desc_t getDescription() const;
 
+    /**
+     * @brief addAtom adds an atom to the material
+     * @param p atomic species parameters
+     * @param x concentration
+     * @return a pointer to the created atom object
+     */
     atom* addAtom(const atom::parameters& p, float x);
 
+    /**
+     * @brief Perform initialization of internal material parameters.
+     *
+     * This function performs necessary initialization such as calculation
+     * of average atomic number and mass, normalization of
+     * atomic species concentrations, etc.
+     *
+     */
     void init();
 
-    int id() const { return id_; }
-    const std::vector<float>& X();
-    const std::vector<atom*>& atoms() const { return atoms_; }
+    /**
+     * @brief Randomly select an atom from the material
+     *
+     * The selection is based on the relative concentrations of the
+     * costituents.
+     *
+     * @param g a random number generator
+     * @return a pointer to the selected atom object
+     */
+    const atom* selectAtom(random_vars& g) const;
 
-    template<class _U>
-    const atom* selectAtom(_U& g) const
-    {
-        if (atoms_.size()==1) return atoms_.front();
-        float u = g.u01ropen();
-        int i=0;
-        while((i < atoms_.size()-1) && (u > cumX_[i])) i++;
-        return atoms_[i];
-    }
-
+    /**
+     * @brief Returns the damage energy according to the LSS approximation
+     *
+     * This function implements the LSS approximation using the average
+     * atomic number and mass.
+     *
+     * @param recoilE the recoil energy [eV]
+     * @return the damage energy [eV]
+     */
     float LSS_Tdam(float recoilE) const;
+
+    /**
+     * @brief Returns the number of vacancies created by a recoil with damage energy Tdam according to the Norgett-Roninson-Torrens model
+     *
+     * The effective displacement threshold \f$ \bar{E}_d \f$ of the material defined by
+     * Ghoniem and Chou JNM1988 is used:
+     * \f[
+     * \bar{E}_d^{-1} = \sum_i {X_i E_{d,i}^{-1}}
+     * \f]
+     *
+     * @param Tdam the damage energy [eV]
+     * @return the number of generated vacancies
+     */
     float NRT(float Tdam) const;
+
+    int id() const { return id_; }
+
+    /// Returns a vector of atomic concentration of elements in the material
+    const std::vector<float>& X();
+    /// Returns a vector of pointers to atom objects
+    const std::vector<atom*>& atoms() const { return atoms_; }
 
 private:
     material();
-    material(class target* t, const char* name, int id);
+    material(target* t, const char* name, int id);
 
     friend class target;
 };
 
-class target
+/**
+ * @brief The target class keeps a list of atoms, materials and regions as well as the geometrical grid.
+ * @ingroup TargetG
+ */
+class target : public target_item
 {
 protected:
 
@@ -197,42 +331,78 @@ public:
         vector3 cell_size{100.f, 100.f, 100.f};
     };
 
-    struct region_desc_t {
+    /**
+     * @brief The region stucture descrines a rectangular volume within the target filled with a specific material
+     * @ingroup TargetG
+     */
+    struct region {
+        /// The id of the material that fills this region
         std::string material_id;
+        /// Position of the region's lower left corner
         vector3 min;
+        /// Position of the region's upper right corner
         vector3 max;
     };
 
 protected:
-    std::vector< region_desc_t > regions_;
+    std::vector< region > regions_;
 
 public:
+    /// Default constructor creates an empty target
     target();
-    target(const target& t);
+    /// Destructor deletes all resources
     ~target();
 
+    /// Returns a reference to the geometric 3D grid
     grid3D& grid() { return grid_; }
+    /// Returns a constant reference to the geometric 3D grid
     const grid3D& grid() const { return grid_; }
 
-    void fill(const box3D& box, const material* m);
 
-    const std::vector< region_desc_t >& regions() const { return regions_; }
+
+    /// Return a vector of the defined \ref target::region objects
+    const std::vector< region >& regions() const { return regions_; }
+    /// Returns a vector of references to all atoms defined in the target
+    const std::vector<atom*>& atoms() const { return atoms_; }
+    /// Returns a vector of references to all materials defined in the target
+    const std::vector<material*>& materials() const { return materials_; }
+
+    // Return the description to be used in options struct
     target_desc_t getDescription() const;
+    // Return materials descriptions for options struct
     void getMaterialDescriptions(std::vector< material::material_desc_t >& mds);
 
+    /// Returns a pointer to the material in cell defined by the index vector i
     const material* cell(const ivector3& i) const
     { return cells_[i.x()][i.y()][i.z()]; }
-
+    /// Returns a pointer to the material in cell index i
     const material* cell(int i) const
     { return cells_.data()[i]; }
 
+    /// Set the atomic number and mass of the projectile (atom with id==0)
     void setProjectile(int Z, float M);
+    /// Returns a pointer to the projectile's atomic species description
     const atom* projectile() const { return atoms_.front(); }
+
+    /// Add a material with given name and return a pointer to the material descriptor class
     material* addMaterial(const char* name);
+    /**
+     * @brief Fills a rectangular volume with a specific material
+     *
+     * This creates also a region.
+     *
+     * @param box the rectangular volume
+     * @param m a pointer to the material filling the volume
+     */
+    void fill(const box3D& box, const material* m);
 
-    const std::vector<atom*>& atoms() const { return atoms_; }
-    const std::vector<material*>& materials() const { return materials_; }
 
+
+    /**
+     * @brief Perform necessary initialization of all resources.
+     *
+     * Should be called before starting a simulation.
+     */
     void init();
 };
 
