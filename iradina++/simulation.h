@@ -91,14 +91,6 @@ public:
         InvalidStraggling = -1
     };
 
-    typedef enum {
-        NewSourceIon = 0,
-        NewRecoil,
-        Scattering,
-        IonExit,
-        IonStop
-    } simulation_event_t;
-
     /**
      * @brief Simulation parameters/options
      */
@@ -237,19 +229,19 @@ protected:
 
     void addTally(const tally& t) { tally_ += t; }
 
-    void new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
-                    const vector3& dir0, const float& mass_ratio, pka_event* pka);
+    ion *new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
+                    const vector3& dir0, const float& mass_ratio, tally &t, pka_event* pka);
 
     int getDEtables(const atom* z1, const material* m,
                     const float *&dedx, const float *&de_stragg) const;
 
     std::string outFileName(const char* type);
 
-    int transport(ion* i, pka_event* ev = nullptr);
+    int transport(ion* i, tally& t, pka_event* ev = nullptr);
     int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp);
     int run();
     uint ions_done() { return nion_thread_.exchange(0); }
-    void doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
+    float doDedx(const ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
 
 };
 

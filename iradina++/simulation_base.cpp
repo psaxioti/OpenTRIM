@@ -423,8 +423,8 @@ int simulation::exec(progress_callback cb, uint msInterval)
     return 0;
 }
 
-void simulation::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &mass_ratio, pka_event *pka)
+ion* simulation::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
+                            const vector3& dir0, const float &mass_ratio, tally& t, pka_event *pka)
 {
     // clone the projectile ion
     ion* j = q_.new_ion(*proj);
@@ -441,7 +441,9 @@ void simulation::new_recoil(const ion* proj, const atom *target, const float& re
     // recoil energy is reduced by lattice binding energy
     j->erg() = recoil_erg - target->El();
     // add El to phonon energy
-    tally_.phonons(target->id(),j->cellid()) += target->El();
+    float El = target->El();
+    t(Event::Phonon,*j,&El);
+
     // add lattice energy recoil to pka Tdam
     if (pka) pka->Tdam() += target->El();
 
@@ -449,6 +451,8 @@ void simulation::new_recoil(const ion* proj, const atom *target, const float& re
     j->recoil_id()++;
     if (j->recoil_id()==1) q_.push_pka(j);
     else q_.push_recoil(j);
+
+    return j;
 
 }
 

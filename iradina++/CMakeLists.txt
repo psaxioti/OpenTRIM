@@ -58,6 +58,7 @@ add_executable(iradina++
     tally.h
     options.h options.cpp
     parse_json.cpp
+    tally.cpp
 )
 
 target_link_libraries(iradina++ "-lm"

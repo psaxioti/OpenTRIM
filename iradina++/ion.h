@@ -110,6 +110,7 @@ public:
     float& erg() { return erg_; }
     int& ion_id() { return ion_id_; }
     int& recoil_id() { return recoil_id_; }
+    int& cellid() { return cellid_; }
     const atom*& myAtom() { return atom_; }
     // void setGrid(const grid3D* g) { grid_ = g; }
 

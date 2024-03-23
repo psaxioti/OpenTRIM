@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     cout << S->ips()/S->nThreads() << " (per thread)" << endl;
     cout << "Ions = " << t.Nions() << endl;
     cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
-    cout << "Recoils/PKA = " << 1.f*t.Nrecoils()/t.Npkas() << endl;
+    cout << "Recoils/PKA = " << 1.f*t.Ndisp()/t.Npkas() << endl;
 
     return 0;
 }

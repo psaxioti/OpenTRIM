@@ -2,159 +2,163 @@
 #define TALLY_H
 
 #include "arrays.h"
+#include "ion.h"
+#include "target.h"
+
+enum class Event {
+    NewSourceIon = 0,
+    NewRecoil,
+    Scattering,
+    IonExit,
+    IonStop,
+    Ioniz,
+    Phonon,
+    Replacement,
+    Vacancy,
+    NRT_LSS_damage,
+    NRT_damage
+};
 
 class tally {
 
-    std::array< unsigned int, 7 > total_counters;
-    std::array< Array2Dui, 4 > cell_counters;
-    std::array< Array2Dd, 2 > energy_counters;
-    std::array< Array1Dd, 4 > damage_par;
-
-    typedef enum {
-        Vac = 0,
-        Impl,
-        Repl,
-        Exit,
-        Rec,
-        Pka,
-        Ion
-    } counter_t;
-
-    typedef enum {
-        Ioniz = 0,
-        Phonon
-    } energy_t;
-
-    typedef enum {
-        dpTdam = 0,
-        dpTdam_LSS,
-        dpVnrt,
-        dpVnrt_LSS
-    } dmg_par_t;
 
 
+    /*
+     * Totals: 1 (N-ions,V-vacancies,I-interst/implant,R-replace,L-lost,D-displ,P-pka) 7 x 1
+     *
+     * Cell counters: 4 (V,I,R,E) atoms x cells
+     *
+     * Energy : 3 (Ioniz, Phonon, Lost) atoms x cells
+     *
+     * Damage : 4 (Tdam, Tdam_LSS, Vnrt, Vnrt_LSS) cells?? or atom x cells
+     *
+     */
+
+    std::array< ArrayNDd, 1+4+3+4 > A;
+
+    enum counter_t {
+        N = 0,
+        V = 1,
+        I = 2,
+        R = 3,
+        L = 4,
+        D = 5,
+        P= 6
+    };
+
+    enum energy_t {
+        Ioniz = 5,
+        Phonon = 6,
+        LostE = 7
+    };
+
+    enum dmg_par_t {
+        dpTdam = 8,
+        dpTdam_LSS = 9,
+        dpVnrt = 10,
+        dpVnrt_LSS = 11
+    };
 
 public:
 
-    typedef unsigned int uint;
+    static const int std_tallies = 12;
+    static const char* arrayName(int i);
 
-    uint Nions() const { return total_counters[Ion]; }
-    uint& Nions() { return total_counters[Ion]; }
-    uint Npkas() const { return total_counters[Pka]; }
-    uint& Npkas() { return total_counters[Pka]; }
-    uint Nrecoils() const { return total_counters[Rec]; }
-    uint& Nrecoils() { return total_counters[Rec]; }
-    uint Nrepl() const { return total_counters[Repl]; }
-    uint& Nrepl() { return total_counters[Repl]; }
-    uint Nimpl() const { return total_counters[Impl]; }
-    uint& Nimpl() { return total_counters[Impl]; }
-    uint Nvac() const { return total_counters[Vac]; }
-    uint& Nvac() { return total_counters[Vac]; }
-    uint Nexit() const { return total_counters[Exit]; }
-    uint& Nexit() { return total_counters[Exit]; }
+    const double& Nions() const { return A[0](N); }
+    const double& Npkas() const { return A[0](P); }
+    const double& Ndisp() const { return A[0](D); }
+    const double& Nrepl() const { return A[0](R); }
+    const double& Nimpl() const { return A[0](I); }
+    const double& Nvac()  const { return A[0](V); }
+    const double& Nlost() const { return A[0](L); }
 
-    uint& vacancies(int i, int j)
-    { return cell_counters[Vac](i,j); }
-    const uint& vacancies(int i, int j) const
-    { return cell_counters[Vac](i,j); }
-    Array2Dui vacancies() const
-    { return cell_counters[Vac]; }
+    const ArrayNDd& vacancies() const { return A[V]; }
+    const ArrayNDd& implantations() const { return A[I]; }
+    const ArrayNDd& replacements() const { return A[R]; }
+    const ArrayNDd& lost() const { return A[L]; }
 
-    uint& implantations(int i, int j)
-    { return cell_counters[Impl](i,j); }
-    const uint& implantations(int i, int j) const
-    { return cell_counters[Impl](i,j); }
-    Array2Dui implantations() const
-    { return cell_counters[Impl]; }
+    const ArrayNDd& ionization() const { return A[Ioniz]; }
+    const ArrayNDd& phonons() const { return A[Phonon]; }
+    const ArrayNDd& lostE() const { return A[LostE]; }
 
-    uint& replacements(int i, int j)
-    { return cell_counters[Repl](i,j); }
-    const uint& replacements(int i, int j) const
-    { return cell_counters[Repl](i,j); }
-    Array2Dui replacements() const
-    { return cell_counters[Repl]; }
+    const ArrayNDd& Tdam() const { return A[dpTdam]; }
+    const ArrayNDd& Tdam_LSS() const { return A[dpTdam_LSS]; }
+    const ArrayNDd& Vnrt() const { return A[dpVnrt]; }
+    const ArrayNDd& Vnrt_LSS() const { return A[dpVnrt_LSS]; }
 
-    uint& exits(int i, int j)
-    { return cell_counters[Exit](i,j); }
-    const uint& exits(int i, int j) const
-    { return cell_counters[Exit](i,j); }
-    Array2Dui exits() const
-    { return cell_counters[Exit]; }
-
-    double& ionization(int i, int j)
-    { return energy_counters[Ioniz](i,j); }
-    const double& ionization(int i, int j) const
-    { return energy_counters[Ioniz](i,j); }
-    Array2Dd ionization() const
-    { return energy_counters[Ioniz]; }
-
-    double& phonons(int i, int j)
-    { return energy_counters[Phonon](i,j); }
-    const double& phonons(int i, int j) const
-    { return energy_counters[Phonon](i,j); }
-    Array2Dd phonons() const
-    { return energy_counters[Phonon]; }
-
-    double& Tdam(int j)
-    { return damage_par[dpTdam](j); }
-    const double& Tdam(int j) const
-    { return damage_par[dpTdam](j); }
-    Array1Dd Tdam() const
-    { return damage_par[dpTdam]; }
-
-    double& Tdam_LSS(int j)
-    { return damage_par[dpTdam_LSS](j); }
-    const double& Tdam_LSS(int j) const
-    { return damage_par[dpTdam_LSS](j); }
-    Array1Dd Tdam_LSS() const
-    { return damage_par[dpTdam_LSS]; }
-
-    double& Vnrt(int j)
-    { return damage_par[dpVnrt](j); }
-    const double& Vnrt(int j) const
-    { return damage_par[dpVnrt](j); }
-    Array1Dd Vnrt() const
-    { return damage_par[dpVnrt]; }
-
-    double& Vnrt_LSS(int j)
-    { return damage_par[dpVnrt_LSS](j); }
-    const double& Vnrt_LSS(int j) const
-    { return damage_par[dpVnrt_LSS](j); }
-    Array1Dd Vnrt_LSS() const
-    { return damage_par[dpVnrt_LSS]; }
+    const ArrayNDd& at(int i) const { return A[i]; }
 
     int init(int natoms, int ncells) {
-        total_counters.fill(0);
-        for(int i=0; i<cell_counters.size(); i++)
-            cell_counters[i] = Array2Dui(natoms,ncells);
-        for(int i=0; i<energy_counters.size(); i++)
-            energy_counters[i] = Array2Dd(natoms,ncells);
-        for(int i=0; i<damage_par.size(); i++)
-            damage_par[i] = Array1Dd(ncells);
+        A[0] = ArrayNDd(7);
+        for(int i=1; i<std_tallies; i++)
+            A[i] = ArrayNDd(natoms,ncells);
         return 0;
     }
 
+    void clear() {
+        for(int i=0; i<std_tallies; i++)
+            A[i].clear();
+    }
+
     tally& operator+=(const tally& t) {
-        for(int i=0; i<total_counters.size(); i++)
-            total_counters[i] += t.total_counters[i];
-        for(int i=0; i<cell_counters.size(); i++)
-            cell_counters[i] += t.cell_counters[i];
-        for(int i=0; i<energy_counters.size(); i++)
-            energy_counters[i] += t.energy_counters[i];
-        for(int i=0; i<damage_par.size(); i++)
-            damage_par[i] += t.damage_par[i];
+        for(int i=0; i<A.size(); i++)
+            A[i] += t.A[i];
         return *this;
     }
 
     void copy(const tally& t) {
-        for(int i=0; i<total_counters.size(); i++)
-            total_counters[i] = t.total_counters[i];
-        for(int i=0; i<cell_counters.size(); i++)
-            cell_counters[i] = t.cell_counters[i].copy();
-        for(int i=0; i<energy_counters.size(); i++)
-            energy_counters[i] = t.energy_counters[i].copy();
-        for(int i=0; i<damage_par.size(); i++)
-            damage_par[i] = t.damage_par[i].copy();
+        for(int i=0; i<A.size(); i++)
+            A[i] = t.A[i].copy();
+    }
+
+    inline void operator()(Event ev, const ion& i, const float* p = 0)
+    {
+        switch (ev) {
+        case Event::NewSourceIon:
+            A[0](N)++;
+            break;
+        case Event::NewRecoil:
+            A[0](D)++;
+            A[0](P) += (i.recoil_id()==1);
+            break;
+        case Event::Replacement:
+            A[0](R)++;
+            A[R](i.myAtom()->id(),i.cellid())++;
+            A[Phonon](i.myAtom()->id(),i.cellid()) += i.erg();
+            break;
+        case Event::Vacancy:
+            A[0](V)++;
+            A[V](i.myAtom()->id(),i.cellid())++;
+            break;
+        case Event::IonStop:
+            A[0](I)++;
+            A[I](i.myAtom()->id(),i.cellid())++;
+            A[Phonon](i.myAtom()->id(),i.cellid()) += i.erg();
+            break;
+        case Event::IonExit:
+            A[0](L)++;
+            A[L](i.myAtom()->id(),i.cellid())++;
+            A[LostE](i.myAtom()->id(),i.cellid()) += i.erg();
+            break;
+        case Event::Ioniz:
+            A[Ioniz](i.myAtom()->id(),i.cellid()) += p[0];
+            break;
+        case Event::Phonon:
+            A[Phonon](i.myAtom()->id(),i.cellid()) += p[0];
+            break;
+        case Event::NRT_LSS_damage:
+            A[dpTdam_LSS](i.myAtom()->id(),i.cellid()) += p[0];
+            A[dpVnrt_LSS](i.myAtom()->id(),i.cellid()) += p[1];
+            break;
+        case Event::NRT_damage:
+            A[dpTdam](i.myAtom()->id(),i.cellid()) += p[0];
+            A[dpVnrt](i.myAtom()->id(),i.cellid()) += p[1];
+            break;
+        case Event::Scattering:
+        default:
+            break;
+        }
+
     }
 
 

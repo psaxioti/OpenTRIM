@@ -222,6 +222,13 @@ int save_array(H5File* f, const char* name, const _ArrT& A) {
     return save_array(f, name, A.data(), dims);
 }
 
+template<typename T>
+int save_array_nd(H5File* f, const char* name, const ArrayND<T>& A) {
+    std::vector<hsize_t> dims(A.ndim());
+    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
+    return save_array(f, name, A.data(), dims);
+}
+
 out_file::out_file(const simulation *s) :
     sim_(s), h5f(nullptr)
 {
@@ -276,11 +283,11 @@ int out_file::save()
     const tally& t = sim_->getTally();
     save_scalar(h5f, "Nions", t.Nions());
     save_scalar(h5f, "Npkas", t.Npkas());
-    save_scalar(h5f, "Nrecoils", t.Nrecoils());
+    save_scalar(h5f, "Ndisp", t.Ndisp());
     save_scalar(h5f, "Nrepl", t.Nrepl());
     save_scalar(h5f, "Nimpl", t.Nimpl());
     save_scalar(h5f, "Nvac", t.Nvac());
-    save_scalar(h5f, "Nexit", t.Nexit());
+    save_scalar(h5f, "Nlost", t.Nlost());
 
     // save grid
     auto grid = sim_->getTarget().grid();
@@ -291,37 +298,31 @@ int out_file::save()
         int rows = grid.x().size()-1;
         int cols = grid.y().size()-1;
         int layers = grid.z().size()-1;
-        Array2Df buff(3,grid.ncells());
+        ArrayND<double> buff(3,grid.ncells());
 
         for(int i=0; i<rows; i++)
             for(int j=0; j<cols; j++)
                 for(int k=0; k<layers; k++)
                 {
                     int l = (i*cols+j)*layers+k;
-                    buff[0][l] = 0.5f*(grid.x()[i] + grid.x()[i+1]);
-                    buff[1][l] = 0.5f*(grid.y()[j] + grid.y()[j+1]);
-                    buff[2][l] = 0.5f*(grid.z()[k] + grid.z()[k+1]);
+                    buff(0,l) = 0.5f*(grid.x()[i] + grid.x()[i+1]);
+                    buff(1,l) = 0.5f*(grid.y()[j] + grid.y()[j+1]);
+                    buff(2,l) = 0.5f*(grid.z()[k] + grid.z()[k+1]);
                 }
 
-        save_array<float, Array2Df>(h5f, "cell_xyz", buff);
+        save_array_nd(h5f, "cell_xyz", buff);
     }
 
 
     // save tallys
     if (sim_->simulationType() == simulation::FullCascade) {
 
-        bool ret =
-            save_array<unsigned int, Array2Dui>(h5f, "Implantations", t.implantations())==0 &&
-            save_array<unsigned int, Array2Dui>(h5f, "Replacements", t.replacements())==0 &&
-            save_array<unsigned int, Array2Dui>(h5f, "Vacancies", t.vacancies())==0 &&
-            save_array<unsigned int, Array2Dui>(h5f, "ExitedIons", t.exits())==0 &&
-            save_array<double, Array2Dd>(h5f, "IonizationEnergy", t.ionization())==0 &&
-            save_array<double, Array2Dd>(h5f, "PhononEnergy", t.phonons())==0 &&
-            save_array<double, Array1Dd>(h5f,"Tdam", t.Tdam())==0 &&
-            save_array<double, Array1Dd>(h5f,"Tdam_LSS", t.Tdam_LSS())==0 &&
-            save_array<double, Array1Dd>(h5f,"Vnrt", t.Vnrt())==0 &&
-            save_array<double, Array1Dd>(h5f,"Vnrt_LSS", t.Vnrt_LSS())==0;
-
+        bool ret = true;
+        int k = 0;
+        while(ret && k<tally::std_tallies) {
+            ret = ret && save_array_nd(h5f, tally::arrayName(k), t.at(k))==0;
+            k++;
+        }
 
         if (!ret) return -1;
 

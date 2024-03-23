@@ -19,6 +19,9 @@ float calcDE(float x, float dx, float E0, const float* dedx)
 
 int simulation::run()
 {
+    tally tion, tpka;
+    tion.init(target_->atoms().size(), target_->grid().ncells());
+    tpka.init(target_->atoms().size(), target_->grid().ncells());
 
     pka.setNatoms(target_->atoms().size()-1);
     if (out_opts_.store_pka)
@@ -30,20 +33,20 @@ int simulation::run()
 
         // generate ion
         ion* i = q_.new_ion();
-        i->ion_id() = ++tally_.Nions() + count_offset_;
+        tion(Event::NewSourceIon,*i);
+        i->ion_id() = ++count_offset_;
         i->recoil_id() = 0;
         source_->source_ion(rng, *target_, *i);
 
         // transport the ion
-        transport(i);
+        transport(i,tion);
 
         // transport all PKAs
         ion* j;
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
             pka.init(j);
-            tally_.Npkas()++;
-            tally_.Nrecoils()++; // a PKA is also a recoil
+            tpka(Event::NewRecoil,*j); // a PKA is also a recoil
 
             // calc LSS/NRT - QC type damage
             // based on material / average Ed, Z, M
@@ -53,28 +56,39 @@ int simulation::run()
 //            tally_.Vnrt_LSS(pka.cellid()) += mat->NRT(Tdam_LSS_);
 
             const atom* z2 = j->myAtom();
-            float Tdam_LSS_ = z2->LSS_Tdam(pka.recoilE());
-            tally_.Tdam_LSS(pka.cellid()) += Tdam_LSS_;
-            tally_.Vnrt_LSS(pka.cellid()) += z2->NRT(Tdam_LSS_);
+            float dp[2];
+            dp[0] = z2->LSS_Tdam(pka.recoilE());
+            dp[1] = z2->NRT(dp[0]);
+            tpka(Event::NRT_LSS_damage,*j,dp);
 
             // FullCascade or CascadesOnly
             if (par_.simulation_type != IonsOnly) {
-                transport(j,&pka);
+                transport(j,tpka,&pka);
                 // transport all secondary recoils
                 ion* k;
                 while ((k = q_.pop_recoil())!=nullptr) {
-                    transport(k,&pka);
-                    tally_.Nrecoils()++;
+                    tpka(Event::NewRecoil,*k);
+                    transport(k,tpka,&pka);
                 }
                 // store total Tdam & NRT vacancies
-                tally_.Tdam(pka.cellid()) += pka.Tdam();
-                //tally_.Vnrt(pka.cellid()) += mat->NRT(pka.Tdam());
-                tally_.Vnrt(pka.cellid()) += z2->NRT(pka.Tdam());
+                dp[0] = pka.Tdam();
+                dp[1] = z2->NRT(pka.Tdam());
+                tpka(Event::NRT_damage,*j,dp);
             }
             pka_stream_.write(&pka);
-        }
+
+            tion += tpka;
+            tpka.clear();
+        } // pka loop
+
+        // add this ion's tally to total score
+        tally_ += tion;
+        tion.clear();
+
+        // update thread counter
         nion_thread_++;
-    }
+
+    } // ion loop
 
     pka_stream_.close();
     exit_stream_.close();
@@ -82,7 +96,7 @@ int simulation::run()
     return 0;
 }
 
-void simulation::doDedx(ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
+float simulation::doDedx(const ion *i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
     float de_stopping = fp * interp_dedx(i->erg(), stopping_tbl);
@@ -115,11 +129,7 @@ void simulation::doDedx(ion* i, const material* m, float fp, float sqrtfp, const
     if (i->erg() < dedx_index::minVal)
         de_stopping *= i->erg()/dedx_index::minVal;
 
-    if (de_stopping != 0.f) {
-        i->erg() -= de_stopping;
-
-        tally_.ionization(i->myAtom()->id(), i->cellid()) += de_stopping;
-    }
+    return de_stopping;
 }
 
 /**
@@ -127,7 +137,7 @@ void simulation::doDedx(ion* i, const material* m, float fp, float sqrtfp, const
  * @param i ion to transport
  * @return 0 if succesfull
  */
-int simulation::transport(ion* i, pka_event *pka)
+int simulation::transport(ion* i, tally &t, pka_event *pka)
 {
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
@@ -149,7 +159,13 @@ int simulation::transport(ion* i, pka_event *pka)
         flightPath(i, mat, fp, ip, sqrtfp);
 
         // if we are inside a material, calc stopping + straggling
-        if (mat) doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+        if (mat) {
+            float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+            if (de > 0.f) {
+                i->erg() -= de;
+                t(Event::Ioniz,*i,&de);
+            }
+        }
 
         int cellid0 = i->cellid();
         i->propagate(fp); // apply any periodic boundary
@@ -158,8 +174,8 @@ int simulation::transport(ion* i, pka_event *pka)
         if (i->cellid() < 0) {
 
             // ion left the target - exit event
-            tally_.Nexit()++;
-            tally_.exits(i->myAtom()->id(), cellid0)++;
+            i->cellid() = cellid0; // put the last cellid
+            t(Event::IonExit,*i);
             if (out_opts_.store_transmitted_ions) {
                 exit_ev.set(i,cellid0,fp);
                 exit_stream_.write(&exit_ev);
@@ -225,7 +241,7 @@ int simulation::transport(ion* i, pka_event *pka)
             if (T >= z2->Ed()) { // displacement
 
                 // Create recoil and store in ion queue
-                new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),pka);
+                ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),t,pka);
 
                 /*
                      * Now check whether the projectile might replace the recoil
@@ -235,25 +251,23 @@ int simulation::transport(ion* i, pka_event *pka)
                      * This is different from Iradina, where it is required
                      * Z1==Z2 && M1==M2
                      */
-                if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
+                if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {                    
                     // Count replacement, energy goes to phonons {???}
-                    tally_.replacements(i->myAtom()->id(), i->cellid())++;
-                    tally_.Nrepl()++;
-                    tally_.phonons(i->myAtom()->id(), i->cellid()) += i->erg();
+                    t(Event::Replacement,*i);
                     if (pka) pka->Tdam() += i->erg();
                     break; // end of ion history
                 }
+
                 /*
                  * projectile and target Z not equal or E>Er =>
                  * Z2 vacancy is created
                  */
-                tally_.vacancies(z2->id(), i->cellid())++;
-                tally_.Nvac()++;
+                t(Event::Vacancy,*j);
                 if (pka) pka->addVac(z2->id()-1);
 
             } else { // E<Ed, recoil cannot be displaced
                 // energy goes to phonons
-                tally_.phonons(i->myAtom()->id(), i->cellid()) += T;
+                t(Event::Phonon,*i,&T);
                 if (pka) pka->Tdam() += T;
             }
 
@@ -261,15 +275,11 @@ int simulation::transport(ion* i, pka_event *pka)
 
         /* Check what happens to the projectile after possible collision: */
         if(i->erg() < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
-            tally_.implantations(i->myAtom()->id(), i->cellid())++;
-            tally_.Nimpl()++;
-            // energy goes to phonons
-            tally_.phonons(i->myAtom()->id(), i->cellid()) += i->erg();
+            t(Event::IonStop,*i);
             if (pka) {
                 pka->addImpl(i->myAtom()->id()-1);
                 pka->Tdam() += i->erg();
             }
-            // TODO: event: ion stops
             break; // history ends
         } /* else: continue proj transport */
     }
