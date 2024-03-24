@@ -22,13 +22,13 @@ disp(sprintf("SRIM      %.0f \t%.0f \t%.0f",...
     sum(NRT(fc.Vr*Eb + fc.EPr,Ed))*dx))
 
 ipp = load(['../test/iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
-N = double(ipp.Nions);
-Ri = double(ipp.Implantations(:,1)+ipp.Replacements(:,1))/N/dx/1e-8;
-V = double(sum(ipp.Vacancies(:,2:end),2))/N/dx;
+N =ipp.Nions;
+Ri = (ipp.Implantations(:,1)+ipp.Replacements(:,1))/N/dx/1e-8;
+V = sum(ipp.Vacancies(:,2:end),2)/N/dx;
 disp(sprintf("IRADINA++ %.0f \t%.0f \t%.0f",...
-    sum(ipp.Vnrt_LSS)/N,...
+    sum(sum(ipp.Vnrt_LSS(:,2:end),2))/N,...
     sum(V)*dx, ...
-    sum(ipp.Vnrt)/N))
+    sum(sum(ipp.Vnrt(:,2:end),2))/N))
 
 x = ipp.cell_xyz(:,1);
 
@@ -38,9 +38,9 @@ clf
 subplot(2,1,1)
 plot(x,qc.Vi+qc.Vr,...
      x,sum(fc.Vr,2),...
-     x,ipp.Vnrt_LSS'/N/dx,'--',...
-     x,double(sum(ipp.Vacancies(:,2:end),2))/N/dx,'--', ...
-     x,ipp.Vnrt'/N/dx,'--')
+     x,sum(ipp.Vnrt_LSS(:,2:end),2)/N/dx,'--',...
+     x,sum(ipp.Vacancies(:,2:end),2)/N/dx,'--', ...
+     x,sum(ipp.Vnrt(:,2:end),2)/N/dx,'--')
 title('Vacancy production')
 xlabel('nm')
 ylabel('Vacancies/ion-A')
@@ -52,12 +52,18 @@ subplot(2,1,2)
 Eb = 3;
 plot(x,qc.Vi*Eb + qc.Vr*Eb + qc.EPr, ... # YR Lin D3***
      x,fc.Vr*Eb + fc.EPr, ...  # YR Lin D3**
-     x,ipp.Tdam_LSS/N/dx,'--',...
+     x,sum(ipp.Tdam_LSS(:,2:end),2)/N/dx,'--',...
      x,sum(ipp.PhononEnergy(:,2:end),2)/N/dx,'--', ...
-     x,ipp.Tdam/N/dx,'--')
+     x,sum(ipp.Tdam(:,2:end),2)/N/dx,'--')
 title('Tdam')
 xlabel('nm')
 ylabel('eV/ion-A')
 legend('SRIM QC','SRIM FC',...
        'IRADINA++ QC','IRADINA++ FC','IRADINA++ FC-NRT')
 
+figure 2
+clf
+x = ipp.cell_xyz(:,1);
+plot(x,ipp.Tdam(:,2),x,ipp.PhononEnergy(:,2))
+legend('Tdam','Fe')
+disp(num2str([sum(ipp.Tdam(:,2)) sum(ipp.PhononEnergy(:,2))]/N))
