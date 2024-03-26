@@ -463,6 +463,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
                 exit_ev.set(i,cellid0,fp);
                 exit_stream_.write(&exit_ev);
             }
+            if (pka) pka->Tdam() += i->erg();
 
             break; // history ends!
         }

@@ -1,7 +1,7 @@
 {
     "Driver" : {        
-        "max_no_ions" : 6000,
-        "threads" : 1,
+        "max_no_ions" : 20000,
+        "threads" : 8,
         "seeds" : []
     },
     "Simulation" : {
@@ -28,7 +28,8 @@
         "title" : "1 MeV H on Fe benchmark 7",
         "OutputFileBaseName" : "b7",
         "store_pka" : 1,
-        "store_dedx" : 1
+        "store_dedx" : 1,
+        "store_transmitted_ions" : 1
     },
     "Fe" : {
         "density" : 7.8658, // g/cm^3
