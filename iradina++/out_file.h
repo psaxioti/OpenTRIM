@@ -6,6 +6,7 @@ class H5File;
 };
 
 class simulation;
+class options;
 
 class out_file
 {
@@ -19,7 +20,7 @@ public:
 
     int open(const char* fname);
 
-    int save();
+    int save(const options& opt);
 
     void close();
 };

@@ -94,11 +94,7 @@ public:
     /**
      * @brief Simulation parameters/options
      */
-    struct parameters {
-        /// Simulation title
-        std::string title;
-        /// Ions to run
-        unsigned int max_no_ions{100};
+    struct parameters {        
         /// Type of the simulation
         simulation_type_t simulation_type{FullCascade};
         /// Way to calculate NRT vacancies in multielement materials
@@ -113,26 +109,9 @@ public:
         float flight_path_const{0.1};
         /// Minimum energy cutoff for ion transport [eV]
         float min_energy{1.f};
-        /// Number of threads to use
-        int threads{1};
-        /// Seed for the random number generator
-        std::vector<unsigned int> seeds;
     };
 
-    struct output_options {
-        std::string OutputFileBaseName{"iradina++"};
-        int storage_interval{1000};
-        int store_transmitted_ions{0};
-        int store_range_3d{0};
-        int store_ion_paths{0};
-        int store_path_limit{100};
-        int store_recoil_cascades{0};
-        int store_path_limit_recoils{4};
-        int store_pka{0};
-        int store_dedx{1};
-    };
 
-    typedef void (*progress_callback)(const std::vector<uint>& v);
 
 protected:
 
@@ -140,12 +119,11 @@ protected:
 
     // simulation paramenters
     parameters par_;
-    output_options out_opts_;
 
     // components
     ion_beam* source_;
     target* target_;
-    tally tally_;
+    tally tally_, dtally_, tion_;
     random_vars rng;
     event_stream pka_stream_, exit_stream_;
     pka_event pka;
@@ -155,6 +133,7 @@ protected:
     std::shared_ptr<int> ref_count_;
     int thread_id_;
     uint count_offset_;
+    uint max_no_ions_;
 
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
@@ -169,11 +148,11 @@ protected:
     //
     Array3Df max_impact_par_;
 
-    // timing
-    double ips_; // ions/s
+
     std::atomic_uint nion_thread_; // thread safe simulated ion counter
 
     friend class out_file;
+    friend class mcdriver;
 
 public:
     simulation();
@@ -185,34 +164,14 @@ public:
         source_->setParameters(p);
     }
 
-    const output_options& outputOptions(const output_options& opts) const
-    { return out_opts_; }
-    void setOutputOptions(const output_options& opts)
-    { out_opts_ = opts; }
-    void setOutputFileBaseName(const char* n)
-    { out_opts_.OutputFileBaseName = n; }
-    void store_pka(bool on = true)
-    { out_opts_.store_pka = on; }
 
-    void setMaxIons(unsigned int n) { par_.max_no_ions = n; }
 
-    void getOptions(options& opt) const;
+    void setMaxIons(unsigned int n) { max_no_ions_ = n; }
+
+
 
     const parameters& getParameters() const { return par_; }
-    const std::string& title() const { return par_.title; }
-    simulation_type_t simulationType() const { return par_.simulation_type; }
-    flight_path_type_t flightPathType() const { return par_.flight_path_type; }
-    straggling_model_t stragglingModel() const { return par_.straggling_model; }
-    int nThreads() const { return par_.threads; }
 
-    void setTitle(const char* t) { par_.title = t; }
-    void setSimulationType(simulation_type_t v) { par_.simulation_type = v; }
-    void setFlightPathType(flight_path_type_t v) { par_.flight_path_type = v; }
-    void setStragglingModel(straggling_model_t v) { par_.straggling_model = v; }
-    void setNThreads(int n) { par_.threads = n; }
-    void setSeeds(const std::vector<uint>& s) { par_.seeds = s; }
-
-    double ips() const { return ips_; }
 
     target& getTarget() { return *target_; }
     const target& getTarget() const { return *target_; }
@@ -220,9 +179,8 @@ public:
     const ion_beam& getSource() const { return *source_; }
     const tally& getTally() const { return tally_; }
 
-    int saveTallys();
     int init();
-    int exec(progress_callback cb = 0, uint msInterval = 1000);
+
     void seed(unsigned int s) { rng.seed(s); }
 
 protected:
@@ -235,7 +193,7 @@ protected:
     int getDEtables(const atom* z1, const material* m,
                     const float *&dedx, const float *&de_stragg) const;
 
-    std::string outFileName(const char* type);
+
 
     int transport(ion* i, tally& t, pka_event* ev = nullptr);
     int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp);
@@ -243,23 +201,10 @@ protected:
     uint ions_done() { return nion_thread_.exchange(0); }
     float doDedx(const ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
 
+    static float interp_dedx(float E, const float* data);
+
 };
 
-// helper 1D interpolation function
-//   CI : a corteo index
-//   array : a sequence container that can be accessed by array[i]
-// On input
-//   x : the point where we require an interpolation
-//   i : should be CI(x)
-//   data : the interpolation table
-template<class CI, class array>
-float interp1d(float x, CI i, array data)
-{
-    if (i==i.rbegin()) return data[i]; // x out of range
-    float y1 = data[i], x1 = *i++;
-    float y2 = data[i], x2 = *i;
-    return y1 + (y2-y1)*(x-x1)/(x2-x1);
-}
 
 // helper 1D interpolation function for dedx
 //   CI : a corteo index
@@ -268,7 +213,7 @@ float interp1d(float x, CI i, array data)
 //   x : the point where we require an interpolation
 //   i : should be CI(x)
 //   data : the interpolation table
-inline float interp_dedx(float E, const float* data)
+inline float simulation::interp_dedx(float E, const float* data)
 {
     if (E <= dedx_index::minVal) return data[0];
     if (E >= dedx_index::maxVal) return data[dedx_index::size - 1];
@@ -277,6 +222,32 @@ inline float interp_dedx(float E, const float* data)
     float y2 = data[i], x2 = *i;
     return y1 + (y2-y1)*(E-x1)/(x2-x1);
 }
+
+/**
+ * @brief Get stopping & straggling energy change
+ *
+ * Returns the energy change from electronic stopping & straggling
+ * of an ion Z1 traveling in material m with energy erg.
+ *
+ * The values are returned [eV/nm] (stopping) and [eV/nm^(1/2)] from precalculated tables
+ *
+ * @param z1 Pointer to atom struct describing Z1
+ * @param m Pointer to material struct
+ * @param dedx (out) pointer to stopping power dE/dx table [eV/nm]
+ * @param de_stragg (out) pointer to Straggling dE table [eV/nm^(1/2)]
+ * @return 0 on succes
+ */
+inline int simulation::getDEtables(const atom* z1, const material* m,
+                            const float* &dedx, const float* &de_stragg) const
+{
+    int ia = z1->id();
+    int im = m->id();
+    dedx = dedx_[ia][im];
+    de_stragg = de_strag_[ia][im];
+    return 0;
+}
+
+
 
 
 #endif // SIMULATION_H

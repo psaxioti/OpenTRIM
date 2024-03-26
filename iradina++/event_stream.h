@@ -47,10 +47,11 @@ public:
     uint rows() const { return rows_; }
     uint cols() const { return cols_; }
     const std::string& fileName() const { return fname_; }
-     void close();
+    void close();
     void write(const event* ev);
     static int merge(const std::vector<event_stream*>& ev,
                      const char* fname, const char* ds_name);
+    bool is_open() const { return fs_.is_open(); }
 };
 
 class pka_event_recorder;
@@ -59,14 +60,14 @@ class pka_event : public event
 {
     int natoms_;
 
-    typedef enum {
+    enum offset_t {
         ofIonId = 0,
         ofAtomId = 1,
         ofCellId = 2,
         ofErg = 3,
         ofTdam = 4,
         ofVac = 5
-    } offset_t;
+    };
 
 public:
 
@@ -109,7 +110,7 @@ public:
 class exit_event : public event
 {
 
-    typedef enum {
+    enum offset_t {
         ofIonId = 0,
         ofAtomId = 1,
         ofCellId = 2,
@@ -118,7 +119,7 @@ class exit_event : public event
         ofDir = 7,
         ofS = 10,
         ofEnd = 11
-    } offset_t;
+    };
 
     // IonId AtomId CellId erg pos(3) dir(3) s
 

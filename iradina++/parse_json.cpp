@@ -1,4 +1,4 @@
-#include "options.h"
+#include "mcdriver.h"
 
 #include <fstream>
 #include <iostream>
@@ -152,14 +152,18 @@ NLOHMANN_JSON_SERIALIZE_ENUM(simulation::straggling_model_t, {
                             })                                                                                        
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation::parameters,
-                                   title, max_no_ions, simulation_type,
+                                   simulation_type,
                                    nrt_calculation, scattering_calculation,
                                    flight_path_type, straggling_model,
-                                   flight_path_const, min_energy,
-                                   threads, seeds)
+                                   flight_path_const, min_energy)
+
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
+                                          max_no_ions,
+                                          threads, seeds)
 
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation::output_options,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::output_options,
+                                                title,
                                                 OutputFileBaseName,
                                                 storage_interval,
                                                 store_transmitted_ions,
@@ -185,6 +189,7 @@ void to_json(ojson& j, const options& p)
     j["IonBeam"] = p.IonBeam;
     j["Target"] = p.Target;
     j["Output"] = p.Output;
+    j["Driver"] = p.Driver;
     for(int i=0; i<p.materials_desc.size(); i++) {
         const material::material_desc_t& md = p.materials_desc[i];
         const std::string& name = p.Target.materials[i];
@@ -206,6 +211,8 @@ void from_json(const ojson& j, options& p)
         p.Output = j["Output"];
     if (j.contains(("IonBeam")))
         p.IonBeam = j["IonBeam"];
+    if (j.contains(("Driver")))
+        p.Driver = j["Driver"];
     if (!j.contains("Target")) {
         throw std::invalid_argument("Required section \"Target\" not found.");
     }
@@ -257,7 +264,7 @@ void from_json(const ojson& j, options& p)
     }
 }
 
-void options::printJSON(std::ostream& os)
+void options::printJSON(std::ostream& os) const
 {
     ojson j(*this);
     os << j.dump(4) << endl;

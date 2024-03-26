@@ -1,7 +1,7 @@
 #include "out_file.h"
 #include "simulation.h"
 #include "dedx.h"
-#include "options.h"
+#include "mcdriver.h"
 
 #include <H5Cpp.h>
 
@@ -270,11 +270,9 @@ int out_file::open(const char* fname)
 
 }
 
-int out_file::save()
+int out_file::save(const options &opt)
 {
     // save options
-    options opt;
-    sim_->getOptions(opt);
     std::stringstream ss;
     opt.printJSON(ss);
     save_string(h5f, "json_options", ss.str());
@@ -315,7 +313,7 @@ int out_file::save()
 
 
     // save tallys
-    if (sim_->simulationType() == simulation::FullCascade) {
+    if (sim_->par_.simulation_type == simulation::FullCascade) {
 
         bool ret = true;
         int k = 0;
@@ -333,7 +331,7 @@ int out_file::save()
         if (!ret) return -1;
     }
 
-    if (sim_->out_opts_.store_dedx) {
+    if (opt.Output.store_dedx) {
         save_array<float, Array3Df>(h5f,"dEdx",sim_->dedx_);
         save_array<float, Array3Df>(h5f,"dEstrag",sim_->de_strag_);
         Array1D<float> dedx_erg(dedx_index::size);

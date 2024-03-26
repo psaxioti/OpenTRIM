@@ -54,11 +54,11 @@ add_executable(iradina++
     arrays.h
     event_stream.h event_stream.cpp
     out_file.h out_file.cpp
-    simulation_base.cpp
     tally.h
-    options.h options.cpp
     parse_json.cpp
     tally.cpp
+    mcdriver.cpp
+    mcdriver.h
 )
 
 target_link_libraries(iradina++ "-lm"
