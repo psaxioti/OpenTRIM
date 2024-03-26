@@ -178,7 +178,7 @@ material* target::addMaterial(const char* name)
 void target::fill(const box3D& box, const material* m)
 {
     if (cells_.isNull() || cells_.size()!=grid_.ncells())
-        cells_ = Array3D<const material*>(grid_.x().size()-1, grid_.y().size()-1, grid_.z().size()-1);
+        cells_ = ArrayND<const material*>(grid_.x().size()-1, grid_.y().size()-1, grid_.z().size()-1);
 
     box3D realbox = grid_.box().intersection(box);
     box1D bx, by, bz;
@@ -194,7 +194,7 @@ void target::fill(const box3D& box, const material* m)
     for(int i=rx.min().x(); i<=rx.max().x(); i++)
         for(int j=ry.min().x(); j<=ry.max().x(); j++)
             for(int k=rz.min().x(); k<=rz.max().x(); k++)
-                cells_[i][j][k] = m;
+                cells_(i,j,k) = m;
 
     region rd;
     rd.material_id = m->name();

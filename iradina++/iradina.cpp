@@ -24,11 +24,11 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    cout << "Parsing json config ... " << endl;
+    cout << "Parsing json config ... ";
     options s;
     if (s.parseJSON(cin)!=0) return -1;
 
-    cout << endl << endl;
+    cout << "OK." << endl;
     cout << "Starting simulation ..." << endl << endl;
 
     mcdriver D;

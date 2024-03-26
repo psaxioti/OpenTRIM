@@ -8,9 +8,9 @@
 
 void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
                     int Z2, const float& Ns,
-                    simulation::straggling_model_t model, float* strag);
+                    mccore::straggling_model_t model, float* strag);
 
-simulation::simulation() :
+mccore::mccore() :
     source_(new ion_beam),
     target_(new target),
     ref_count_(new int(0)),
@@ -19,7 +19,7 @@ simulation::simulation() :
 {
 }
 
-simulation::simulation(const parameters &p) :
+mccore::mccore(const parameters &p) :
     par_(p),
     source_(new ion_beam),
     target_(new target),
@@ -29,7 +29,7 @@ simulation::simulation(const parameters &p) :
 {
 }
 
-simulation::simulation(const simulation &s) :
+mccore::mccore(const mccore &s) :
     par_(s.par_),
     source_(s.source_),
     target_(s.target_),
@@ -54,7 +54,7 @@ simulation::simulation(const simulation &s) :
     tion_.clear();
 }
 
-simulation::~simulation()
+mccore::~mccore()
 {
     q_.clear();
     if (ref_count_.use_count() == 1) {
@@ -67,7 +67,7 @@ simulation::~simulation()
     }
 }
 
-int simulation::init() {
+int mccore::init() {
 
     target_->init();
 
@@ -91,14 +91,14 @@ int simulation::init() {
     int natoms = atoms.size();
     int nmat = materials.size();
     int nerg = dedx_index::size;
-    dedx_ = Array3Df(natoms,nmat,nerg);
+    dedx_ = ArrayNDf(natoms,nmat,nerg);
     for(atom* at1 : atoms) {
         float amuRatio = elements::mostAbundantIsotope(at1->Z())/at1->M();
         int iat1 = at1->id();
         for(const material* mat : materials)
         {
             int im = mat->id();
-            float* p = dedx_[iat1][im];
+            float* p = &dedx_(iat1,im,0);
             for(atom* at2 : mat->atoms())
             {
                 /*
@@ -107,7 +107,7 @@ int simulation::init() {
                  * factor 0.1 needed so that resulting dedx
                  * unit is eV/nm
                  */
-                const float* q = dedx(at1->Z(), at2->Z());
+                const float* q = ::dedx(at1->Z(), at2->Z());
                 float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
                 for(dedx_index i; i<i.end(); i++) {
                     float erg = (*i) * amuRatio;
@@ -134,24 +134,24 @@ int simulation::init() {
      * (all target atoms + projectile ) x (all target materials)
      * For each combi, get a corteo dedx table
      */
-    max_fp_ = Array3Df(natoms,nmat,nerg);
-    float dEmin = 0.01f; // TODO: this should be user option
+    max_fp_ = ArrayNDf(natoms,nmat,nerg);
+    float dEmin = 0.01f; /// @TODO: dEmin should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
         {
-            float* p = max_fp_[z1][im];
-            const float* q = dedx_[z1][im];
+            float* p = &max_fp_(z1,im,0);
+            const float* q = &dedx_(z1,im,0);
             for(dedx_index ie; ie!=ie.end(); ie++)
                 p[ie] = dEmin*(*ie)/(*q++);
         }
     }
 
-    dedx1 = Array2Df(nmat,nerg);
+    dedx1 = ArrayNDf(nmat,nerg);
     for(const material* mat : materials)
     {
         int im = mat->id();
-        float* p1 = dedx1[im];
+        float* p1 = &dedx1(im,0);
         for(atom* at2 : mat->atoms())
         {
             /*
@@ -160,7 +160,7 @@ int simulation::init() {
                  * factor 0.1 needed so that resulting dedx
                  * unit is eV/nm
                  */
-            const float* q1 = dedx(1, at2->Z());
+            const float* q1 = ::dedx(1, at2->Z());
             float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
             for(dedx_index i; i<i.end(); i++) {
                 p1[i] += q1[i]*w;
@@ -187,16 +187,16 @@ int simulation::init() {
      *
      *
      */
-    de_strag_ = Array3Df(natoms,nmat,nerg);
+    de_strag_ = ArrayNDf(natoms,nmat,nerg);
     for(int z1 = 0; z1<natoms; z1++) {
         int Z1 = atoms[z1]->Z();
         float M1 = atoms[z1]->M();
         for(const material* mat : materials)
         {
             int im = mat->id();
-            const float* dedx = dedx_[z1][im];
-            const float* dedxH = dedx1[im];
-            float* p = de_strag_[z1][im];
+            const float* dedx = &dedx_(z1,im,0);
+            const float* dedxH = &dedx1(im,0);
+            float* p = &de_strag_(z1,im,0);
             float Nl0 = mat->atomicDensity()*mat->atomicDistance(); // at/nm^2
             for(const atom* z2 : mat->atoms())
                 calcStraggling(dedx,dedxH,Z1,M1,z2->Z(),
@@ -212,28 +212,28 @@ int simulation::init() {
      * # of combinations =
      * (all target atoms + projectile ) x (all target atoms)
      */
-    scattering_matrix_ = Array2D<abstract_xs_lab*>(natoms, natoms);
+    scattering_matrix_ = ArrayND<abstract_xs_lab*>(natoms, natoms);
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int z2 = 1; z2<natoms; z2++)
         {
             switch (par_.scattering_calculation) {
             case Corteo4bit:
-                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo4bit;
+                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo4bit;
                 break;
             case Corteo6bit:
-                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo6bit;
+                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo6bit;
                 break;
             case ZBL_MAGICK:
-                scattering_matrix_[z1][z2] = new xs_lab_zbl_magic;
+                scattering_matrix_(z1,z2) = new xs_lab_zbl_magic;
                 break;
             default:
-                scattering_matrix_[z1][z2] = new xs_lab_zbl_corteo4bit;
+                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo4bit;
                 break;
             }
 
-            scattering_matrix_[z1][z2]->init(atoms[z1]->Z(), atoms[z1]->M(),
-                                             atoms[z2]->Z(), atoms[z2]->M());
+            scattering_matrix_(z1,z2)->init(atoms[z1]->Z(), atoms[z1]->M(),
+                                            atoms[z2]->Z(), atoms[z2]->M());
         }
     }
 
@@ -243,20 +243,20 @@ int simulation::init() {
      * # of combinations =
      * (all target atoms + projectile ) x (all materials)
      */
-    max_impact_par_ = Array3Df(natoms, nmat, dedx_index::size);
+    max_impact_par_ = ArrayNDf(natoms, nmat, dedx_index::size);
     float Tmin = 1e-6f; // TODO: this should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
         {
             const material* m = materials[im];
-            float* p = max_impact_par_[z1][im];
+            float* p = &max_impact_par_(z1,im,0);
             for(const atom* a : m->atoms())
             {
                 int z2 = a->id();
                 float x=a->X();
                 for(dedx_index ie; ie!=ie.end(); ie++) {
-                    float d = scattering_matrix_[z1][z2]->impactPar(*ie, Tmin);
+                    float d = scattering_matrix_(z1,z2)->impactPar(*ie, Tmin);
                     p[ie] += x*d*d;
                 }
             }
@@ -279,7 +279,7 @@ int simulation::init() {
 
 
 
-ion* simulation::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
+ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
                             const vector3& dir0, const float &mass_ratio, tally& t, pka_event *pka)
 {
     // clone the projectile ion
@@ -312,7 +312,7 @@ ion* simulation::new_recoil(const ion* proj, const atom *target, const float& re
 
 }
 
-int simulation::run()
+int mccore::run()
 {
 
     for(int k=0; k<max_no_ions_; k++) {
@@ -379,7 +379,7 @@ int simulation::run()
     return 0;
 }
 
-float simulation::doDedx(const ion *i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
+float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
     float de_stopping = fp * interp_dedx(i->erg(), stopping_tbl);
@@ -420,7 +420,7 @@ float simulation::doDedx(const ion *i, const material* m, float fp, float sqrtfp
  * @param i ion to transport
  * @return 0 if succesfull
  */
-int simulation::transport(ion* i, tally &t, pka_event *pka)
+int mccore::transport(ion* i, tally &t, pka_event *pka)
 {
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
@@ -505,7 +505,7 @@ int simulation::transport(ion* i, tally &t, pka_event *pka)
                 continue;
             }
 
-            auto xs = scattering_matrix_[i->myAtom()->id()][z2->id()];
+            auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
             float T; // recoil energy
             float sintheta, costheta; // scattering angle in Lab sys
             assert(i->erg() > 0);
@@ -581,7 +581,7 @@ int simulation::transport(ion* i, tally &t, pka_event *pka)
  * @param sqrtfp is sqrt(fp/atomicDistance) - used for calculating straggling
  * @return
  */
-int simulation::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
+int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
     if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}
         fp = 0.3f;
@@ -613,7 +613,7 @@ int simulation::flightPath(const ion* i, const material* m, float& fp, float& ip
         }
         break;
     case MendenhallWeller:
-        ipmax = max_impact_par_[i->myAtom()->id()][m->id()][dedx_index(i->erg())];
+        ipmax = max_impact_par_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         if (ipmax < m->atomicDistance()) // TODO: check def of impact par
         {
             fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
@@ -627,7 +627,7 @@ int simulation::flightPath(const ion* i, const material* m, float& fp, float& ip
         }
         break;
     case MyFFP:
-        ipmax = max_impact_par_[i->myAtom()->id()][m->id()][dedx_index(i->erg())];
+        ipmax = max_impact_par_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         if (ipmax < m->atomicDistance()) // TODO: check def of impact par
         {
             fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
@@ -646,6 +646,20 @@ int simulation::flightPath(const ion* i, const material* m, float& fp, float& ip
         fp = ip = 0.f;
     }
     return 0;
+}
+
+void mccore::merge(const mccore& other)
+{
+    tally_ += other.tally_;
+    dtally_ += other.dtally_;
+    pka_stream_.merge(other.pka_stream_);
+    exit_stream_.merge(other.exit_stream_);
+}
+
+void mccore::remove_stream_files()
+{
+    pka_stream_.remove();
+    exit_stream_.remove();
 }
 
 

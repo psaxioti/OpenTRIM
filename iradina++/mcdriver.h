@@ -46,7 +46,7 @@ protected:
     parameters par_;
     output_options out_opts_;
 
-    simulation* s_;
+    mccore* s_;
 
     std::string outFileName(const char* type, int thread_id);
 
@@ -66,7 +66,7 @@ public:
     void setOutputOptions(const output_options& opts)
     { out_opts_ = opts; }
 
-    const simulation* getSim() { return s_; }
+    const mccore* getSim() { return s_; }
 
     double ips() const { return ips_; }
     int nThreads() const { return par_.threads; }
@@ -84,7 +84,7 @@ struct options
 {
     mcdriver::parameters Driver;
     mcdriver::output_options Output;
-    simulation::parameters Simulation;
+    mccore::parameters Simulation;
     ion_beam::parameters IonBeam;
     target::target_desc_t Target;
     std::vector< material::material_desc_t > materials_desc;
@@ -94,7 +94,7 @@ struct options
     void printJSON(std::ostream& os) const;
 
     int validate();
-    simulation* createSimulation() const;
+    mccore* createSimulation() const;
 
     int regionIdx(const std::string& name) const {
         for(int i=0; i<Target.regions.size(); i++) {

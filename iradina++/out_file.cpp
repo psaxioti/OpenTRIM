@@ -176,36 +176,7 @@ int save_array(H5File* f, const char* name,
 
 template <typename T, class _A> struct array_traits;
 
-template <typename T>
-struct array_traits<T, Array1D<T> > {
-    static std::vector<hsize_t> dims(const Array1D<T>& A) {
-        std::vector<hsize_t> d(1);
-        d[0] = A.rows();
-        return d;
-    }
-    typedef h5traits<T> scalar_traits;
-};
-template <typename T>
-struct array_traits<T, Array2D<T> > {
-    static std::vector<hsize_t> dims(const Array2D<T>& A) {
-        std::vector<hsize_t> d(2);
-        d[0] = A.rows();
-        d[1] = A.cols();
-        return d;
-    }
-    typedef h5traits<T> scalar_traits;
-};
-template <typename T>
-struct array_traits<T, Array3D<T> > {
-    static std::vector<hsize_t> dims(const Array3D<T>& A) {
-        std::vector<hsize_t> d(3);
-        d[0] = A.rows();
-        d[1] = A.cols();
-        d[2] = A.layers();
-        return d;
-    }
-    typedef h5traits<T> scalar_traits;
-};
+
 template <>
 struct array_traits<float, grid1D > {
     static std::vector<hsize_t> dims(const grid1D& A) {
@@ -214,6 +185,26 @@ struct array_traits<float, grid1D > {
         return d;
     }
     typedef h5traits<float> scalar_traits;
+};
+
+template <>
+struct array_traits<float, ArrayND<float> > {
+    static std::vector<hsize_t> dims(const ArrayND<float>& A) {
+        std::vector<hsize_t> d(A.ndim());
+        for(int i=0; i<d.size(); i++) d[i] = A.dim()[i];
+        return d;
+    }
+    typedef h5traits<float> scalar_traits;
+};
+
+template <>
+struct array_traits<double, ArrayND<double> > {
+    static std::vector<hsize_t> dims(const ArrayND<double>& A) {
+        std::vector<hsize_t> d(A.ndim());
+        for(int i=0; i<d.size(); i++) d[i] = A.dim()[i];
+        return d;
+    }
+    typedef h5traits<double> scalar_traits;
 };
 
 template<typename T, class _ArrT>
@@ -229,7 +220,7 @@ int save_array_nd(H5File* f, const char* name, const ArrayND<T>& A) {
     return save_array(f, name, A.data(), dims);
 }
 
-out_file::out_file(const simulation *s) :
+out_file::out_file(const mccore *s) :
     sim_(s), h5f(nullptr)
 {
 
@@ -313,7 +304,7 @@ int out_file::save(const options &opt)
 
 
     // save tallys
-    if (sim_->par_.simulation_type == simulation::FullCascade) {
+    if (opt.Simulation.simulation_type == mccore::FullCascade) {
 
         bool ret = true;
         int k = 0;
@@ -332,13 +323,13 @@ int out_file::save(const options &opt)
     }
 
     if (opt.Output.store_dedx) {
-        save_array<float, Array3Df>(h5f,"dEdx",sim_->dedx_);
-        save_array<float, Array3Df>(h5f,"dEstrag",sim_->de_strag_);
-        Array1D<float> dedx_erg(dedx_index::size);
-        for(dedx_index i; i<i.end(); i++) dedx_erg[i] = *i;
-        save_array<float, Array1D<float> >(h5f,"dEdx_erg",dedx_erg);
-        save_array<float, Array3Df>(h5f,"maxImpactPar",sim_->max_impact_par_);
-        save_array<float, Array3Df>(h5f,"max_fp",sim_->max_fp_);
+        save_array_nd(h5f,"dEdx",sim_->dedx());
+        save_array_nd(h5f,"dEstrag",sim_->de_strag());
+        ArrayND<float> dedx_erg(dedx_index::size);
+        for(dedx_index i; i<i.end(); i++) dedx_erg(i) = *i;
+        save_array_nd(h5f,"dEdx_erg",dedx_erg);
+        save_array_nd(h5f,"maxImpactPar",sim_->max_impact_par());
+        save_array_nd(h5f,"max_fp",sim_->max_fp());
     }
 
     return 0;

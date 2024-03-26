@@ -96,62 +96,62 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ion_beam::parameters,
                                    dir, pos)
 
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation::simulation_type_t, {
-                                {simulation::InvalidSimulationType, nullptr},
-                                {simulation::FullCascade, "FullCascade"},
-                                {simulation::IonsOnly, "IonsOnly"},
-                                {simulation::FullCascade, 0},
-                                {simulation::FullCascade, 1},
-                                {simulation::FullCascade, 2},
-                                {simulation::IonsOnly, 3}
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::simulation_type_t, {
+                                {mccore::InvalidSimulationType, nullptr},
+                                {mccore::FullCascade, "FullCascade"},
+                                {mccore::IonsOnly, "IonsOnly"},
+                                {mccore::FullCascade, 0},
+                                {mccore::FullCascade, 1},
+                                {mccore::FullCascade, 2},
+                                {mccore::IonsOnly, 3}
                             })
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation::nrt_calculation_t, {
-                                {simulation::NRT_InvalidOption, nullptr},
-                                {simulation::NRT_element, "NRT_element"},
-                                {simulation::NRT_average, "NRT_average"},
-                                {simulation::NRT_element, 0},
-                                {simulation::NRT_average, 1}
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::nrt_calculation_t, {
+                                {mccore::NRT_InvalidOption, nullptr},
+                                {mccore::NRT_element, "NRT_element"},
+                                {mccore::NRT_average, "NRT_average"},
+                                {mccore::NRT_element, 0},
+                                {mccore::NRT_average, 1}
                             })
 
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation::flight_path_type_t, {
-                                {simulation::InvalidPath, nullptr},
-                                {simulation::AtomicSpacing, "AtomicSpacing"},
-                                {simulation::Constant, "Constant"},
-                                {simulation::SRIMlike, "SRIMlike"},
-                                {simulation::MendenhallWeller, "MendenhallWeller"},
-                                {simulation::MyFFP, "MyFFP"},
-                                {simulation::AtomicSpacing, 1},
-                                {simulation::Constant, 2},
-                                {simulation::SRIMlike, 3},
-                                {simulation::MendenhallWeller, 4},
-                                {simulation::MyFFP, 5}
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
+                                {mccore::InvalidPath, nullptr},
+                                {mccore::AtomicSpacing, "AtomicSpacing"},
+                                {mccore::Constant, "Constant"},
+                                {mccore::SRIMlike, "SRIMlike"},
+                                {mccore::MendenhallWeller, "MendenhallWeller"},
+                                {mccore::MyFFP, "MyFFP"},
+                                {mccore::AtomicSpacing, 1},
+                                {mccore::Constant, 2},
+                                {mccore::SRIMlike, 3},
+                                {mccore::MendenhallWeller, 4},
+                                {mccore::MyFFP, 5}
                             })   
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation::scattering_calculation_t, {
-                                {simulation::InvalidScatteringOption, nullptr},
-                                {simulation::Corteo4bit, "Corteo4bit"},
-                                {simulation::Corteo6bit, "Corteo6bit"},
-                                {simulation::ZBL_MAGICK, "ZBL_MAGICK"},
-                                {simulation::Corteo4bit, 0},
-                                {simulation::Corteo6bit, 1},
-                                {simulation::ZBL_MAGICK, 2}
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {
+                                {mccore::InvalidScatteringOption, nullptr},
+                                {mccore::Corteo4bit, "Corteo4bit"},
+                                {mccore::Corteo6bit, "Corteo6bit"},
+                                {mccore::ZBL_MAGICK, "ZBL_MAGICK"},
+                                {mccore::Corteo4bit, 0},
+                                {mccore::Corteo6bit, 1},
+                                {mccore::ZBL_MAGICK, 2}
                             })    
 
-NLOHMANN_JSON_SERIALIZE_ENUM(simulation::straggling_model_t, {
-                                {simulation::InvalidStraggling, nullptr},
-                                {simulation::NoStraggling, "NoStraggling"},
-                                {simulation::BohrStraggling, "BohrStraggling"},
-                                {simulation::ChuStraggling, "ChuStraggling"},
-                                {simulation::YangStraggling, "YangStraggling"},
-                                {simulation::NoStraggling, 0},
-                                {simulation::BohrStraggling, 1},
-                                {simulation::ChuStraggling, 2},
-                                {simulation::YangStraggling, 3}
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::straggling_model_t, {
+                                {mccore::InvalidStraggling, nullptr},
+                                {mccore::NoStraggling, "NoStraggling"},
+                                {mccore::BohrStraggling, "BohrStraggling"},
+                                {mccore::ChuStraggling, "ChuStraggling"},
+                                {mccore::YangStraggling, "YangStraggling"},
+                                {mccore::NoStraggling, 0},
+                                {mccore::BohrStraggling, 1},
+                                {mccore::ChuStraggling, 2},
+                                {mccore::YangStraggling, 3}
                             })                                                                                        
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(simulation::parameters,
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
                                    simulation_type,
                                    nrt_calculation, scattering_calculation,
                                    flight_path_type, straggling_model,

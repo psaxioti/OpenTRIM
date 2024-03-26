@@ -317,7 +317,7 @@ protected:
     grid3D grid_;
 
     // cells
-    Array3D<const material*> cells_;
+    ArrayND<const material*> cells_;
 
     friend class material;
 
@@ -374,7 +374,7 @@ public:
 
     /// Returns a pointer to the material in cell defined by the index vector i
     const material* cell(const ivector3& i) const
-    { return cells_[i.x()][i.y()][i.z()]; }
+    { return cells_(i.x(),i.y(),i.z()); }
     /// Returns a pointer to the material in cell index i
     const material* cell(int i) const
     { return cells_.data()[i]; }

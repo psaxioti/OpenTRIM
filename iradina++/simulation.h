@@ -26,11 +26,21 @@ class options;
  */
 
 /**
- * @brief The simulation class is used for preparing and running an ion transport simulation.
+ * \defgroup Core Core of the Monte-Carlo ion transport simulation
+ *
+ * \brief The core of the Monte-Carlo ion transport simulation
+ *
+ * @{
+ *
+ * @}
+ */
+
+/**
+ * @brief The mccore class defines the core Monte-Carlo ion transport simulation algorithms.
  *
  * @ingroup MC
  */
-class simulation
+class mccore
 {
 public:
 
@@ -131,47 +141,36 @@ protected:
 
     // ref counter
     std::shared_ptr<int> ref_count_;
-    int thread_id_;
-    uint count_offset_;
+
+    // ion counters
     uint max_no_ions_;
+    uint count_offset_;
+    std::atomic_uint nion_thread_; // thread safe simulated ion counter
 
     // helper variable for flight path calc
     std::vector<float> sqrtfp_const;
 
     // Scattering cross-sections
-    Array2D< abstract_xs_lab* > scattering_matrix_;
+    ArrayND< abstract_xs_lab* > scattering_matrix_;
     // Stopping & Straggling Tables
-    Array3Df dedx_; // stopping data (atoms x materials x energy)
-    Array2Df dedx1; // proton stopping (materials x energy)
-    Array3Df de_strag_; // straggling data (atoms x materials x energy)
-    Array3Df max_fp_; // max fp for 1% dEdx (atoms x materials x energy)
+    ArrayNDf dedx_; // stopping data (atoms x materials x energy)
+    ArrayNDf dedx1; // proton stopping (materials x energy)
+    ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
+    ArrayNDf max_fp_; // max fp for 1% dEdx (atoms x materials x energy)
     //
-    Array3Df max_impact_par_;
-
-
-    std::atomic_uint nion_thread_; // thread safe simulated ion counter
-
-    friend class out_file;
-    friend class mcdriver;
+    ArrayNDf max_impact_par_;
 
 public:
-    simulation();
-    explicit simulation(const parameters& p);
-    simulation(const simulation& S);
-    ~simulation();
-
-    void setIonBeam(const ion_beam::parameters& p) {
-        source_->setParameters(p);
-    }
-
-
+    mccore();
+    explicit mccore(const parameters& p);
+    mccore(const mccore& S);
+    ~mccore();
 
     void setMaxIons(unsigned int n) { max_no_ions_ = n; }
-
-
+    void setCountOffset(uint n) { count_offset_ = n; }
+    uint ions_done() { return nion_thread_.exchange(0); }
 
     const parameters& getParameters() const { return par_; }
-
 
     target& getTarget() { return *target_; }
     const target& getTarget() const { return *target_; }
@@ -179,13 +178,32 @@ public:
     const ion_beam& getSource() const { return *source_; }
     const tally& getTally() const { return tally_; }
 
+    int open_pka_stream(const char* fname) {
+        return pka_stream_.open(fname, pka.size());
+    }
+    const event_stream& pka_stream() { return pka_stream_; }
+    int open_exit_stream(const char* fname) {
+        return exit_stream_.open(fname, exit_ev.size());
+    }
+    const event_stream& exit_stream() { return exit_stream_; }
+    void remove_stream_files();
+
+    ArrayNDf dedx() const { return dedx_; }
+    ArrayNDf de_strag() const { return de_strag_; }
+    ArrayNDf max_impact_par() const { return max_impact_par_; }
+    ArrayNDf max_fp() const { return max_fp_; }
+
     int init();
 
     void seed(unsigned int s) { rng.seed(s); }
 
+    void merge(const mccore& other);
+
+    int run();
+
 protected:
 
-    void addTally(const tally& t) { tally_ += t; }
+
 
     ion *new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
                     const vector3& dir0, const float& mass_ratio, tally &t, pka_event* pka);
@@ -197,8 +215,8 @@ protected:
 
     int transport(ion* i, tally& t, pka_event* ev = nullptr);
     int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp);
-    int run();
-    uint ions_done() { return nion_thread_.exchange(0); }
+
+
     float doDedx(const ion* i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl);
 
     static float interp_dedx(float E, const float* data);
@@ -213,7 +231,7 @@ protected:
 //   x : the point where we require an interpolation
 //   i : should be CI(x)
 //   data : the interpolation table
-inline float simulation::interp_dedx(float E, const float* data)
+inline float mccore::interp_dedx(float E, const float* data)
 {
     if (E <= dedx_index::minVal) return data[0];
     if (E >= dedx_index::maxVal) return data[dedx_index::size - 1];
@@ -237,13 +255,13 @@ inline float simulation::interp_dedx(float E, const float* data)
  * @param de_stragg (out) pointer to Straggling dE table [eV/nm^(1/2)]
  * @return 0 on succes
  */
-inline int simulation::getDEtables(const atom* z1, const material* m,
+inline int mccore::getDEtables(const atom* z1, const material* m,
                             const float* &dedx, const float* &de_stragg) const
 {
     int ia = z1->id();
     int im = m->id();
-    dedx = dedx_[ia][im];
-    de_stragg = de_strag_[ia][im];
+    dedx = &dedx_(ia,im,0);
+    de_stragg = &de_strag_(ia,im,0);
     return 0;
 }
 

@@ -119,6 +119,120 @@ int event_stream::merge(const std::vector<event_stream *> &ev, const char* fname
     return 0;  // successfully terminated
 }
 
+void event_stream::remove()
+{
+    if (!fname_.empty() && !is_open()) {
+        std::remove(fileName().c_str());
+        rows_ = 0;
+    }
+}
+
+int event_stream::merge(const event_stream& ev)
+{
+    if ((ev.cols() != cols()) ||
+        is_open() || ev.is_open()) return -1;
+
+    if (ev.rows()==0) return 0;
+
+    std::ifstream ifs(ev.fileName(), std::ios::binary);
+    fs_.open(fname_, std::ios::out | std::ios::binary | std::ios::app );
+
+    // mem buffer ~1MB
+    uint n = (1 << 10);
+    std::vector<float> buff(n*cols());
+
+    // copy data in chunks
+    uint nrows = ev.rows(); // total rows to copy
+    while (nrows) {
+        uint n1 = std::min(nrows,n); // # of rows to copy in this iter
+        nrows -= n1;
+        rows_ += n1;
+        uint nbytes = n1*cols()*sizeof(float);
+
+        // read from raw buffer
+        ifs.read((char*)buff.data(), nbytes);
+
+        // write to file
+        fs_.write((char*)buff.data(), nbytes);
+    }
+
+    ifs.close();
+    fs_.close();
+
+    return 0;  // successfully terminated
+}
+
+int event_stream::saveH5(const char* fname, const char* ds_name) const
+{
+    if (is_open()) return -1;
+
+    // Try block to detect exceptions raised by any of the calls inside it
+    try
+    {
+        //Exception::dontPrint();
+        // Open the file and dataset.
+        H5File f(fname, H5F_ACC_TRUNC);
+
+        // create dataspace
+        hsize_t dims[2];
+        dims[0] = rows_;
+        dims[1] = cols_;
+        DataSpace filespace(2,dims);
+
+        // Create the dataset.
+        DataSet dataset = f.createDataSet(ds_name, PredType::NATIVE_FLOAT, filespace);
+
+        // mem buffer ~1MB
+        dims[0] = (1 << 10);
+        std::vector<float> buff(dims[0]*cols_);
+
+        hsize_t offset[2] = {0, 0};
+        hsize_t dims1[2];
+        dims1[1] = cols_;
+
+        std::ifstream ifs(fileName(), std::ios::binary);
+
+        // copy data in chunks
+        hsize_t nrows = rows_; // total rows to copy
+        while (nrows) {
+            dims1[0] = std::min(nrows,dims[0]); // # of rows to copy in this iter
+            nrows -= dims1[0];
+
+            // read from raw buffer
+            ifs.read((char*)buff.data(), dims1[0]*cols_*sizeof(float));
+
+            // write to file
+            DataSpace memspace(2, dims1);
+            // Select a hyperslab in dataset.
+            filespace.selectHyperslab(H5S_SELECT_SET, dims1, offset);
+            dataset.write(buff.data(), PredType::NATIVE_FLOAT, memspace, filespace);
+            offset[0] += dims1[0];
+        }
+
+        ifs.close();
+    }  // end of try block
+
+    // catch failure caused by the H5File operations
+    catch (FileIException error) {
+        error.printErrorStack();
+        return -1;
+    }
+
+    // catch failure caused by the DataSet operations
+    catch (DataSetIException error) {
+        error.printErrorStack();
+        return -1;
+    }
+
+    // catch failure caused by the DataSpace operations
+    catch (DataSpaceIException error) {
+        error.printErrorStack();
+        return -1;
+    }
+
+    return 0;  // successfully terminated
+}
+
 void exit_event::set(const ion* i, int cellid, float s)
 {
     buff_[ofIonId] = i->ion_id();

@@ -48,9 +48,12 @@ public:
     uint cols() const { return cols_; }
     const std::string& fileName() const { return fname_; }
     void close();
+    void remove();
     void write(const event* ev);
     static int merge(const std::vector<event_stream*>& ev,
                      const char* fname, const char* ds_name);
+    int merge(const event_stream& ev);
+    int saveH5(const char* fname, const char* ds_name) const;
     bool is_open() const { return fs_.is_open(); }
 };
 

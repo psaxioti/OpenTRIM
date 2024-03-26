@@ -89,26 +89,18 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     struct timespec t_start, t_end;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_start);
 
-    // create simulations
-    std::vector< simulation* > sims(nthreads);
+    // create simulation clones
+    std::vector< mccore* > sims(nthreads);
     sims[0] = s_;
-    sims[0]->thread_id_ = 0;
-    for(int i=1; i<nthreads; i++) {
-        sims[i] = new simulation(*s_);
-        sims[i]->thread_id_ = i;
-    }
+    for(int i=1; i<nthreads; i++) sims[i] = new mccore(*s_);
+
 
     // open streams
     for(int i=0; i<nthreads; i++) {
         if (out_opts_.store_pka)
-            sims[i]->pka_stream_.open(
-                outFileName("pka",i).c_str(),
-                sims[i]->pka.size());
+            sims[i]->open_pka_stream(outFileName("pka",i).c_str());
         if (out_opts_.store_transmitted_ions)
-            sims[i]->exit_stream_.open(
-                outFileName("exit",i).c_str(),
-                sims[i]->exit_ev.size());
-
+            sims[i]->open_exit_stream(outFileName("exit",i).c_str());
     }
 
     // if no seeds given, generate random seeds
@@ -128,7 +120,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     for(int i=0; i<nthreads; i++) {
         uint n = i==nthreads-1 ? N : Nth;
         sims[i]->setMaxIons(n);
-        sims[i]->count_offset_ = offset;
+        sims[i]->setCountOffset(offset);
         offset += n;
         N -= n;
         sims[i]->seed(myseeds[i]);
@@ -138,7 +130,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     std::vector< std::thread* > threads;
     for(int i=0; i<nthreads; i++) {
         threads.push_back(
-            new std::thread(&simulation::run, sims[i])
+            new std::thread(&mccore::run, sims[i])
             );
     }
 
@@ -163,28 +155,19 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
 
     // consolidate results
     for(int i=1; i<nthreads; i++)
-        sims[0]->addTally(sims[i]->getTally());
+        sims[0]->merge(*(sims[i]));
 
     if (out_opts_.store_pka) {
         std::string h5fname = outFileName("pka", 0);
         h5fname += ".h5";
-        std::vector<event_stream *> ev(nthreads);
-
-        for(int i=0; i<nthreads; i++)
-            ev[i] = &(sims[i]->pka_stream_);
-
-        event_stream::merge(ev, h5fname.c_str(), "pka");
+        sims[0]->pka_stream().saveH5(h5fname.c_str(), "pka");
     }
     if (out_opts_.store_transmitted_ions) {
         std::string h5fname = outFileName("exit", 0);
         h5fname += ".h5";
-        std::vector<event_stream *> ev(nthreads);
-
-        for(int i=0; i<nthreads; i++)
-            ev[i] = &(sims[i]->exit_stream_);
-
-        event_stream::merge(ev, h5fname.c_str(), "exit");
+        sims[0]->exit_stream().saveH5(h5fname.c_str(), "exit");
     }
+    for(int i=0; i<nthreads; i++) sims[i]->remove_stream_files();
 
 
     // delete threads
@@ -200,7 +183,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_end); // POSIX
     double t_secs = 1. * (t_end.tv_sec - t_start.tv_sec) / nthreads;
     t_secs += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec) / nthreads;
-    ips_ = s_->tally_.Nions()/t_secs;
+    ips_ = s_->getTally().Nions()/t_secs;
 
     return 0;
 }
@@ -248,7 +231,7 @@ int options::validate()
     }
 
     // Simulation
-    if (Simulation.flight_path_type==simulation::Constant &&
+    if (Simulation.flight_path_type==mccore::Constant &&
         Simulation.flight_path_const<=0.f)
         throw std::invalid_argument("Simulation.flight_path_type is \"Constant\" but Simulation.flight_path_const is negative.");
 
@@ -343,11 +326,11 @@ int options::validate()
     return 0;
 }
 
-simulation* options::createSimulation() const
+mccore* options::createSimulation() const
 {
-    simulation* S = new simulation(Simulation);
+    mccore* S = new mccore(Simulation);
     //S->setOutputOptions(Output);
-    S->setIonBeam(IonBeam);
+    S->getSource().setParameters(IonBeam);
 
     target& T = S->getTarget();
 
