@@ -62,8 +62,6 @@ void mcdriver::getOptions(options& opt) const
     opt.Simulation = s_->getParameters();
     opt.IonBeam = s_->getSource().getParameters();
     opt.Target = s_->getTarget().getDescription();
-    s_->getTarget().getMaterialDescriptions(opt.materials_desc);
-    opt.regions_desc = s_->getTarget().regions();
 }
 
 void mcdriver::setOptions(const options& o)
@@ -278,51 +276,89 @@ int options::validate()
         throw std::invalid_argument(msg.str());
     }
 
-    if (Target.materials.size()!=materials_desc.size())
-        throw std::invalid_argument("The # of Target.materials is not equal to "
-                                    "the # of material descriptors.");
-    if (Target.regions.size()!=regions_desc.size())
-        throw std::invalid_argument("The # of Target.regions is not equal to "
-                                    "the # of region descriptors.");
-
-    // Material descriptors
-    int k = 0;
-    for(auto m : materials_desc) {
-        auto mname = Target.materials[k++];
-        if (m.density <= 0.f) {
+    // Check Material descriptors
+    for(auto p : Target.materials) {
+        auto md = p.second;
+        auto mname = p.first;
+        if (md.density <= 0.f) {
             std::stringstream msg;
             msg << "Zero or negative density in material";
             msg << mname;
             throw std::invalid_argument(msg.str());
         }
-        CHECK_EMPTY_VEC(m,Z,mname)
-        CHECK_EMPTY_VEC(m,M,mname)
-        CHECK_EMPTY_VEC(m,X,mname)
-        CHECK_EMPTY_VEC(m,Ed,mname)
-        CHECK_EMPTY_VEC(m,El,mname)
-        CHECK_EMPTY_VEC(m,Es,mname)
-        CHECK_EMPTY_VEC(m,Er,mname)
+        CHECK_EMPTY_VEC(md,Z,mname)
+        CHECK_EMPTY_VEC(md,M,mname)
+        CHECK_EMPTY_VEC(md,X,mname)
+        CHECK_EMPTY_VEC(md,Ed,mname)
+        CHECK_EMPTY_VEC(md,El,mname)
+        CHECK_EMPTY_VEC(md,Es,mname)
+        CHECK_EMPTY_VEC(md,Er,mname)
 
-        int natoms = m.Z.size();
-        if (std::any_of(m.Z.begin(),
-                        m.Z.end(),
+        int natoms = md.Z.size();
+        if (std::any_of(md.Z.begin(),
+                        md.Z.end(),
                         [](int z){ return (z < 1) || (z > elements::max_atomic_num);}))
+        {
+            throw std::invalid_argument("Invalid Z number in material" + mname);
+        }
 
-        throw std::invalid_argument("Invalid Z number in material" + mname);
-
-        CHECK_VEC_SIZE(m,M,natoms,mname)
-        CHECK_VEC_SIZE(m,X,natoms,mname)
-        CHECK_VEC_SIZE(m,Ed,natoms,mname)
-        CHECK_VEC_SIZE(m,El,natoms,mname)
-        CHECK_VEC_SIZE(m,Es,natoms,mname)
-        CHECK_VEC_SIZE(m,Er,natoms,mname)
-        CHECK_VEC_ZEROorNEG(m,M,mname)
-        CHECK_VEC_ZEROorNEG(m,X,mname)
-        CHECK_VEC_ZEROorNEG(m,Ed,mname)
-        CHECK_VEC_ZEROorNEG(m,El,mname)
-        CHECK_VEC_ZEROorNEG(m,Es,mname)
-        CHECK_VEC_ZEROorNEG(m,Er,mname)
+        CHECK_VEC_SIZE(md,M,natoms,mname)
+        CHECK_VEC_SIZE(md,X,natoms,mname)
+        CHECK_VEC_SIZE(md,Ed,natoms,mname)
+        CHECK_VEC_SIZE(md,El,natoms,mname)
+        CHECK_VEC_SIZE(md,Es,natoms,mname)
+        CHECK_VEC_SIZE(md,Er,natoms,mname)
+        CHECK_VEC_ZEROorNEG(md,M,mname)
+        CHECK_VEC_ZEROorNEG(md,X,mname)
+        CHECK_VEC_ZEROorNEG(md,Ed,mname)
+        CHECK_VEC_ZEROorNEG(md,El,mname)
+        CHECK_VEC_ZEROorNEG(md,Es,mname)
+        CHECK_VEC_ZEROorNEG(md,Er,mname)
     }
+
+    // Check Region descriptors
+    for(auto p : Target.regions) {
+        auto rd = p.second;
+        auto rname = p.first;
+
+        // check valid material
+        if (Target.materials.find(rd.material_id)==Target.materials.end()) {
+            std::stringstream msg;
+            msg << "Region " << rname << " has invalid material_id: ";
+            msg << rd.material_id;
+            throw std::invalid_argument(msg.str());
+        }
+
+        // check max > min
+        for (int i=0; i<3; i++) {
+            if (rd.min[i] >= rd.max[i]) {
+                static char axis[] = { 'x', 'y', 'z' };
+                std::stringstream msg;
+                msg << "Region " << rname << " has invalid axis limits: ";
+                msg << axis[i] << "_min(" << rd.min[i] << ") >= ";
+                msg << axis[i] << "_max(" << rd.max[i] << ")";
+                throw std::invalid_argument(msg.str());
+            }
+        }
+
+        // check that the region is within the simulation volume
+        box3D rbox, // region box
+            sbox; // simulation box
+        rbox.min() = rd.min;
+        rbox.max() = rd.max;
+        sbox.min() = vector3(0,0,0);
+        sbox.max() = vector3(Target.cell_count(0)*Target.cell_size(0),
+                             Target.cell_count(1)*Target.cell_size(1),
+                             Target.cell_count(2)*Target.cell_size(2));
+        rbox = sbox.intersection(rbox);
+        if (rbox.isEmpty()) {
+            std::stringstream msg;
+            msg << "Region " << rname << " does not intersect ";
+            msg << "the simulation volume.";
+            throw std::invalid_argument(msg.str());
+        }
+    }
+
     return 0;
 }
 
@@ -334,9 +370,12 @@ mccore* options::createSimulation() const
 
     target& T = S->getTarget();
 
-    for(int i=0; i<materials_desc.size(); i++) {
-        material* m = T.addMaterial(Target.materials[i].c_str());
-        const material::material_desc_t& md = materials_desc[i];
+    std::unordered_map<std::string, material*> materials_map;
+
+    for(auto p : Target.materials) {
+        material* m = T.addMaterial(p.first.c_str());
+        materials_map[p.first] = m;
+        const material::material_desc_t& md = p.second;
         m->setMassDensity(md.density);
         for(int i=0; i<md.Z.size(); i++)
             m->addAtom(
@@ -353,13 +392,12 @@ mccore* options::createSimulation() const
     G.setZ(0, Target.cell_count.z()*Target.cell_size.z(),
            Target.cell_count.z(), Target.periodic_bc.z());
 
-    const std::vector<material*>& imat = T.materials();
-    for(const target::region& rd : regions_desc) {
+    for(auto p : Target.regions) {
+        const target::region& rd = p.second;
         box3D box;
         box.min() = rd.min;
         box.max() = rd.max;
-        int i = materialIdx(rd.material_id);
-        T.fill(box,imat[i]);
+        T.fill(box,materials_map[rd.material_id]);
     }
 
     return S;

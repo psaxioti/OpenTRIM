@@ -20,12 +20,21 @@ class random_vars;
  *
  * @{
  *
- * The simulation volume is divided into regions, described by the \ref target::region structure.
- * A region is a rectangular
- * volume filled with a specific \ref material.
+ * The simulation volume is a rectangular 3D box.
  *
- * A \ref material consists of a mixture of atomic species, described by the \ref atom
- * class.
+ * A 3D grid divides the volume into rectangular cells. The grid is described by
+ * a \ref grid3D object, which can be accesed with the target::grid() function.
+ *
+ * Each cell can be filled with a material, which is random mixture of atoms
+ * at specific density. A cell can also be empty.
+ *
+ * Materials and atoms are described by the corresponding classes \ref material
+ * and \ref atom, respectively.
+ *
+ * In order to create a specific target configuration, we fill
+ * rectangular regions of the simulation volume with a specific material.
+ * Such regions are described with the \ref target::region structure.
+ *
  *
  * The \ref target class keeps a track of all regions, materials and atoms in the
  * simulation target.
@@ -306,30 +315,9 @@ private:
  * @brief The target class keeps a list of atoms, materials and regions as well as the geometrical grid.
  * @ingroup TargetG
  */
-class target : public target_item
+class target
 {
-protected:
-
-    std::vector<atom*> atoms_;
-    std::vector<material*> materials_;
-
-    // grid points
-    grid3D grid_;
-
-    // cells
-    ArrayND<const material*> cells_;
-
-    friend class material;
-
 public:
-
-    struct target_desc_t {
-        std::vector< std::string > materials;
-        std::vector< std::string > regions;
-        ivector3 cell_count{1, 1, 1};
-        ivector3 periodic_bc{0, 1, 1};
-        vector3 cell_size{100.f, 100.f, 100.f};
-    };
 
     /**
      * @brief The region stucture descrines a rectangular volume within the target filled with a specific material
@@ -344,8 +332,30 @@ public:
         vector3 max;
     };
 
+    /**
+     * @brief The target_desc_t class contains all information for the target
+     */
+    struct target_desc_t {
+        std::unordered_map<std::string, material::material_desc_t> materials;
+        std::unordered_map<std::string, region> regions;
+        ivector3 cell_count{1, 1, 1};
+        vector3 cell_size{100.f, 100.f, 100.f};
+        ivector3 periodic_bc{0, 1, 1};
+    };
+
 protected:
+
+    std::vector<atom*> atoms_;
+    std::vector<material*> materials_;   
     std::vector< region > regions_;
+
+    // grid points
+    grid3D grid_;
+
+    // cells
+    ArrayND<const material*> cells_;
+
+    friend class material;
 
 public:
     /// Default constructor creates an empty target
@@ -358,8 +368,6 @@ public:
     /// Returns a constant reference to the geometric 3D grid
     const grid3D& grid() const { return grid_; }
 
-
-
     /// Return a vector of the defined \ref target::region objects
     const std::vector< region >& regions() const { return regions_; }
     /// Returns a vector of references to all atoms defined in the target
@@ -367,29 +375,28 @@ public:
     /// Returns a vector of references to all materials defined in the target
     const std::vector<material*>& materials() const { return materials_; }
 
-    // Return the description to be used in options struct
+    /// Return a target_desc_t with all info on the target
     target_desc_t getDescription() const;
-    // Return materials descriptions for options struct
-    void getMaterialDescriptions(std::vector< material::material_desc_t >& mds);
 
-    /// Returns a pointer to the material in cell defined by the index vector i
+    /// Returns a pointer to the material in cell at index vector \p i
     const material* cell(const ivector3& i) const
     { return cells_(i.x(),i.y(),i.z()); }
-    /// Returns a pointer to the material in cell index i
+    /// Returns a pointer to the material in cell index \p i
     const material* cell(int i) const
     { return cells_.data()[i]; }
 
-    /// Set the atomic number and mass of the projectile (atom with id==0)
+    /// Set the atomic number and mass of the projectile
     void setProjectile(int Z, float M);
     /// Returns a pointer to the projectile's atomic species description
     const atom* projectile() const { return atoms_.front(); }
 
-    /// Add a material with given name and return a pointer to the material descriptor class
+    /// Add a material with given name and return a pointer to the \ref material class
     material* addMaterial(const char* name);
+
     /**
      * @brief Fills a rectangular volume with a specific material
      *
-     * This creates also a region.
+     * This creates also a \ref target::region.
      *
      * @param box the rectangular volume
      * @param m a pointer to the material filling the volume
@@ -399,7 +406,9 @@ public:
 
 
     /**
-     * @brief Perform necessary initialization of all resources.
+     * @brief Perform necessary initialization of all target objects.
+     *
+     * Calls material::init() on all materials in the target.
      *
      * Should be called before starting a simulation.
      */

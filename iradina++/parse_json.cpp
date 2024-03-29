@@ -183,6 +183,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::target_desc_t,
                                                 periodic_bc,
                                                 cell_size)
 
+
 void to_json(ojson& j, const options& p)
 {
     j["Simulation"] = p.Simulation;
@@ -190,16 +191,6 @@ void to_json(ojson& j, const options& p)
     j["Target"] = p.Target;
     j["Output"] = p.Output;
     j["Driver"] = p.Driver;
-    for(int i=0; i<p.materials_desc.size(); i++) {
-        const material::material_desc_t& md = p.materials_desc[i];
-        const std::string& name = p.Target.materials[i];
-        j[name]=md;
-    }
-    for(int i=0; i<p.regions_desc.size(); i++) {
-        const target::region& rd = p.regions_desc[i];
-        const std::string& name = p.Target.regions[i];
-        j[name]=rd;
-    }
 }
 void from_json(const ojson& j, options& p)
 {
@@ -217,51 +208,6 @@ void from_json(const ojson& j, options& p)
         throw std::invalid_argument("Required section \"Target\" not found.");
     }
     p.Target = j["Target"];
-
-    if (p.Target.materials.empty()) {
-        throw std::invalid_argument("No materials specified in \"Target\".");
-    }
-    if (p.Target.regions.empty()) {
-        throw std::invalid_argument("No regions specified in \"Target\".");
-    }
-
-    for(const std::string& m : p.Target.materials)
-    {
-        if (j.contains(m)) {
-            auto jm = j[m];
-            material::material_desc_t md = jm.template get< material::material_desc_t >();
-            p.materials_desc.push_back(md);
-        } else {
-            std::string msg;
-            msg = "Definition of material \"";
-            msg += m;
-            msg += "\" not found";
-            throw std::invalid_argument(msg);
-        }
-    }
-    for(const std::string& r : p.Target.regions)
-    {
-        if (j.contains(r)) {
-            auto jr = j[r];
-            target::region rd = jr.template get< target::region >();
-            if (p.materialIdx(rd.material_id)<0) {
-                std::string msg;
-                msg = "In region \"";
-                msg += r;
-                msg += "\" the specified material_id=\"";
-                msg += rd.material_id;
-                msg += "\" is not among the target materials.";
-                throw std::invalid_argument(msg);
-            }
-            p.regions_desc.push_back(rd);
-        } else {
-            std::string msg;
-            msg = "Definition of region \"";
-            msg += r;
-            msg += "\" not found";
-            throw std::invalid_argument(msg);
-        }
-    }
 }
 
 void options::printJSON(std::ostream& os) const

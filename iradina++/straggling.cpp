@@ -1,5 +1,5 @@
 #include "dedx.h"
-#include "simulation.h"
+#include "mccore.h"
 #include "xs.h"
 
 #include <cmath>

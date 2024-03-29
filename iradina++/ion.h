@@ -9,9 +9,9 @@
 class atom;
 
 /**
- * \defgroup Ions Ion transport
+ * \defgroup Ions Ion generation & transport
  *
- * @brief Classes for simulating ion transport.
+ * @brief Classes for performing ion transport and injecting new ions into the simulation.
  *
  * @{
  *
@@ -65,6 +65,7 @@ public:
         ion_id_(0), recoil_id_(0),
         atom_(nullptr), grid_(nullptr)
     {}
+
     /// Copy constructor
     ion(const ion& i) :
         pos_(i.pos_), dir_(i.dir_), erg_(i.erg_),
@@ -72,6 +73,7 @@ public:
         ion_id_(i.ion_id_), recoil_id_(i.recoil_id_),
         atom_(i.atom_), grid_(i.grid_)
     {}
+
     /// Assignement operator
     ion& operator=(const ion& i) {
         pos_ = i.pos_; dir_ = i.dir_; erg_ = i.erg_;
@@ -80,19 +82,28 @@ public:
         atom_ = i.atom_; grid_ = i.grid_;
         return *this;
     }
+
     /// Returns the ion's position vector [nm]
     const vector3& pos() const { return pos_; }
+
     /// Returns the vector of the ion's direction cosines
     const vector3& dir() const { return dir_; }
+
     /// Returns the ion's kinetic energy
     float erg() const { return erg_; }
+
+    /// Return reference to the ion's energy
+    float& erg() { return erg_; }
+
     /// Returns the index vector of the cell the ion is currently in
     const ivector3& icell() const { return icell_; }
+
     /// Returns the id of the cell the ion is currently in
     int cellid() const { return cellid_; }
+
     /// Returns the source ion history id that the current ion belongs to
     int ion_id() const { return ion_id_; }
-    // Returns the recoil generation id of the current ion
+
     /**
      * @brief Returns the recoil generation id of the current ion
      *
@@ -101,18 +112,17 @@ public:
      * @return The current ion's recoil_id
      */
     int recoil_id() const { return recoil_id_; }
-    /// Returns a pointer to the \ref atom class of the current ion
+
+    /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
     const atom* myAtom() const { return atom_; }
 
     /// Return reference to the vector of direction cosines
-    vector3& dir() { return dir_; }
-    /// Return reference to the ion's energy
-    float& erg() { return erg_; }
+    vector3& dir() { return dir_; }   
+
     int& ion_id() { return ion_id_; }
     int& recoil_id() { return recoil_id_; }
     int& cellid() { return cellid_; }
     const atom*& myAtom() { return atom_; }
-    // void setGrid(const grid3D* g) { grid_ = g; }
 
     void deflect(const vector3& n);
     float distance2boundary(const box3D& b);

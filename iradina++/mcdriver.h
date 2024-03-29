@@ -1,8 +1,27 @@
 #ifndef MCDRIVER_H
 #define MCDRIVER_H
 
-#include "simulation.h"
+#include "mccore.h"
 
+/**
+ * \defgroup Driver Driver
+ *
+ * \brief The core of the Monte-Carlo BCA ion transport simulation
+ *
+ * @{
+ *
+ * @ingroup MC
+ *
+ * @}
+ *
+ *
+ */
+
+/**
+ * @brief The mcdriver class facilitates the setup and running of a simulation.
+ *
+ * @ingroup Driver
+ */
 class mcdriver
 {
 public:
@@ -87,31 +106,12 @@ struct options
     mccore::parameters Simulation;
     ion_beam::parameters IonBeam;
     target::target_desc_t Target;
-    std::vector< material::material_desc_t > materials_desc;
-    std::vector< target::region > regions_desc;
 
     int parseJSON(std::istream& js);
     void printJSON(std::ostream& os) const;
 
     int validate();
     mccore* createSimulation() const;
-
-    int regionIdx(const std::string& name) const {
-        for(int i=0; i<Target.regions.size(); i++) {
-            if (Target.regions[i] == name) {
-                return i;
-            }
-        }
-        return -1;
-    }
-    int materialIdx(const std::string& name) const {
-        for(int i=0; i<Target.materials.size(); i++) {
-            if (Target.materials[i] == name) {
-                return i;
-            }
-        }
-        return -1;
-    }
 
 };
 

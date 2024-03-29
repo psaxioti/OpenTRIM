@@ -1,4 +1,4 @@
-﻿#include "simulation.h"
+﻿#include "mccore.h"
 #include "random_vars.h"
 #include "dedx.h"
 #include "event_stream.h"
@@ -38,7 +38,6 @@ mccore::mccore(const mccore &s) :
     count_offset_(0),
     sqrtfp_const(s.sqrtfp_const),
     dedx_(s.dedx_),
-    dedx1(s.dedx1),
     de_strag_(s.de_strag_),
     max_fp_(s.max_fp_),
     max_impact_par_(s.max_impact_par_),
@@ -147,7 +146,7 @@ int mccore::init() {
         }
     }
 
-    dedx1 = ArrayNDf(nmat,nerg);
+    ArrayNDf dedx1(nmat,nerg); // proton stopping (materials x energy)
     for(const material* mat : materials)
     {
         int im = mat->id();
@@ -275,9 +274,6 @@ int mccore::init() {
 
     return 0;
 }
-
-
-
 
 ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
                             const vector3& dir0, const float &mass_ratio, tally& t, pka_event *pka)
@@ -415,11 +411,6 @@ float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, co
     return de_stopping;
 }
 
-/**
- * @brief Transport an ion through the target
- * @param i ion to transport
- * @return 0 if succesfull
- */
 int mccore::transport(ion* i, tally &t, pka_event *pka)
 {
     // get the material at the ion's position
@@ -573,15 +564,6 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
     return 0;
 }
 
-/**
- * @brief Decide ion flight-path and impact parameter
- * @param i is the ion
- * @param m is the material the ion is travelling in
- * @param fp is the flight-path [nm]
- * @param ip is the impact parameter [nm]
- * @param sqrtfp is sqrt(fp/atomicDistance) - used for calculating straggling
- * @return
- */
 int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
     if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}

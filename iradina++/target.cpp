@@ -146,7 +146,7 @@ float material::NRT(float Tdam) const
 }
 
 
-target::target() : target_item(this)
+target::target()
 {
     // create the projectile ion placehoder
     atoms_.push_back(new atom(this,0,0));
@@ -208,30 +208,30 @@ target::target_desc_t target::getDescription() const
     target_desc_t td;
 
     for(const material* m : materials_)
-        td.materials.push_back(m->name());
+        td.materials[m->name()] = m->getDescription();
+
     int k = 1;
     for(const region& rd : regions_) {
         std::string nm = "R" + std::to_string(k++);
-        td.regions.push_back(nm);
+        //td.regions.push_back(nm);
+        td.regions[nm] = rd;
     }
-    td.cell_count = {(int)grid_.x().size() - 1, (int)grid_.y().size() - 1, (int)grid_.z().size() - 1};
-    td.periodic_bc = {grid_.x().periodic(), grid_.y().periodic(), grid_.z().periodic()};
+
+    td.cell_count = {(int)grid_.x().size() - 1,
+                     (int)grid_.y().size() - 1,
+                     (int)grid_.z().size() - 1};
+
     td.cell_size = {grid_.x()[1] - grid_.x()[0],
                     grid_.y()[1] - grid_.y()[0],
                     grid_.z()[1] - grid_.z()[0]
     };
 
+    td.periodic_bc = {grid_.x().periodic(),
+                      grid_.y().periodic(),
+                      grid_.z().periodic()};
+
+
     return td;
 }
-
-void target::getMaterialDescriptions(std::vector< material::material_desc_t >& mds)
-{
-    for(const material* m : materials_) {
-        mds.push_back(m->getDescription());
-    }
-}
-
-
-
 
 

@@ -1,12 +1,14 @@
 {
-    "Simulation" : {
-        "title" : "3MeV Xe on UO2 benchmark",
+    "Driver" : {        
         "max_no_ions" : 20000,
-        "simulation_type" : "FullCascade",
-        "flight_path_type" : "AtomicSpacing",
-        "min_energy" : 1.0,
         "threads" : 8,
         "seeds" : []
+    },
+    "Simulation" : {
+        "simulation_type" : "FullCascade",
+        "scattering_calculation" : "Corteo4bit",
+        "flight_path_type" : "AtomicSpacing",
+        "min_energy" : 1.0
     },
     "IonBeam" : {
         "ion_distribution" : "SurfaceCentered",
@@ -16,30 +18,34 @@
         "dir" : [1,0,0]
     },
     "Target" : {
-        "materials" : ["UO2"],
-        "regions" : ["R1"],
+        "materials" : {
+            "UO2" : {
+                "density" : 10.97, // g/cm^3
+                "Z" : [92, 8],
+                "M" : [238.029, 15.9994],
+                "X" : [1, 2],
+                "Ed" : [40, 20],
+                "El" : [4, 2],
+                "Es" : [40, 20],
+                "Er" : [40, 20]
+            }
+        },
+        "regions" : {
+            "R1" : {
+                "material_id" : "UO2",
+                "min" : [0, 0, 0],
+                "max" : [1200, 1200, 1200]
+            }
+        },
         "cell_count" : [100, 1, 1],
         "cell_size" : [6, 1200, 1200],
         "periodic_bc" : [0, 1, 1]
     },
     "Output" : {
+        "title" : "3MeV Xe on UO2 benchmark",
         "OutputFileBaseName" : "b4",
         "store_pka" : 1,
+        "store_dedx" : 1,
         "store_transmitted_ions" : 1
-    },
-    "UO2" : {
-        "density" : 10.97, // g/cm^3
-        "Z" : [92, 8],
-        "M" : [238.029, 15.9994],
-        "X" : [1, 2],
-        "Ed" : [40, 20],
-        "El" : [4, 2],
-        "Es" : [40, 20],
-        "Er" : [40, 20]
-    },
-    "R1" : {
-        "material_id" : "UO2",
-        "min" : [0, 0, 0],
-        "max" : [1200, 1200, 1200]
     }
 }

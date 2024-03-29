@@ -47,7 +47,7 @@ add_executable(iradina++
     ion.h ion.cpp
     random_vars.h
     target.h target.cpp
-    simulation.h simulation.cpp
+    mccore.h mccore.cpp
     geometry.h
     ion_beam.h ion_beam.cpp
     straggling.cpp

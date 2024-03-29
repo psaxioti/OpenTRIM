@@ -1,5 +1,5 @@
 #include "out_file.h"
-#include "simulation.h"
+#include "mccore.h"
 #include "dedx.h"
 #include "mcdriver.h"
 
