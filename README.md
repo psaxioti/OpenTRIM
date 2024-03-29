@@ -1,93 +1,132 @@
 # Iradina++
 
+A C++ BCA Monte-Carlo code for performing SRIM-like simulations of ion
+transport in materials.
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/ir2-lab/iradinapp.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/ir2-lab/iradinapp/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+The emphasis is on calculation of target damage.
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Iradina++ is a command line program and can be invoked by 
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```
+> iradina++ [options] [ < [config_file.json]]
+```
+The program accepts a JSON-formatted configuration either
+directly from stdin or from a file `[config_file.json]` by redirection
+as shown above.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Currently the only option that can be given is 
+```
+  -h : print a short help message and exit.
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+The program first checks and validates the input. If something is wrong
+it stops and indicates the error.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+It then runs the simulation and saves the results into HDF5 files.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Input configuration
 
-## License
-For open source projects, say how it is licensed.
+The JSON configuration input has the following self-explanatory structure:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```json
+{
+    "Simulation": {
+        "simulation_type": "FullCascade",       // FullCascade|IonsOnly|CascadesOnly
+        "nrt_calculation": "NRT_element",       // NRT_element|NRT_average
+        "scattering_calculation": "Corteo4bit", // Corteo4bit|Corteo6bit|ZBL_MAGICK
+        "flight_path_type": "AtomicSpacing",    // AtomicSpacing|Constant|MendenhallWeller
+        "straggling_model": "YangStraggling",   // NoStraggling|BohrStraggling|ChuStraggling|YangStraggling
+        "flight_path_const": 0.1,   // [nm], used if "flight_path_type"=Constant
+        "min_energy": 1.0           // [eV], min cutoff ion energy 
+    },
+    "IonBeam": {
+        "ion_distribution": "SurfaceCentered", // SurfaceCentered|SurfaceCentered|FixedPos|VolumeCentered|VolumeRandom
+        "ionZ": 1,          // ion atomic number
+        "ionM": 1.00784,    // ion mass
+        "ionE0": 1e+06,     // ion energy [eV] 
+        "dir": [1.0,0.0,0.0], // direction vector
+        "pos": [0.0,0.0,0.0]  // [nm], used if "ion_distribution"=Fixed
+    },
+    "Target": {
+        "materials": { 
+            "Fe Layer": { // example material definition
+                "density": 7.8658, // [g/cm^3]
+                "Z": [26],      // atomic numbers
+                "M": [55.845],  // atomic mass
+                "X": [1.0],     // atomic concentration (normalized by the program)
+                "Ed": [40.0],   // displacement threshold [eV]
+                "El": [3.0],    // Lattice binding [eV] 
+                "Es": [3.0],    // Surface binding [eV]
+                "Er": [40.0]    // Replacement threshold [eV]
+            } // more materials can be added here
+        },
+        "regions": { // rectangular regions filled with a material
+            "R1": { // example region definition
+                "material_id": "Fe Layer", // material must be defined above
+                "min": [0.0,0.0,0.0],      // [nm] lower left corner 
+                "max": [10000.0,10000.0,10000.0] // [nm] upper right corner
+            }
+        },
+        "cell_count": [100,1,1], // # of cells in x,y,z-axis  
+        "cell_size": [100.0,10000.0,10000.0], // cell width [nm] in x,y,z
+        "periodic_bc": [0,1,1] // periodic boundary conditions in x,y,z
+    },
+    "Output": {
+        "title": "Ion Simulation", // title written in output file
+        "OutputFileBaseName": "iradina++", // base name for output files
+        "store_transmitted_ions": 1, // store all ions that exit the simulation
+        "store_pka": 1, // store all PKA events
+        "store_dedx": 1 // store the electronic energy loss tables
+    },
+    "Driver": {
+        "max_no_ions": 20000, // ion histories to run
+        "threads": 8, // threads to use
+        "seeds": [] // array of seeds, one per thread. If empty, random seeds are used
+    }
+}
+```
+
+> Typically comments are not allowed in JSON but for iradina++ it is ok. 
+
+Copy/paste and edit the above to create a new input file.
+Most of the options shown here are default values and can be omitted.
+The target materials and regions must always be given.
+
+## Output files
+
+The simulation produces a main file with the standard tally output and a number of
+ optional files. All output files will be named according to the config option Output/OutputFileBaseName.
+
+ A brief description is given here. Detail information can be found within the files 
+
+- `[basename].h5` is the main output file that contains:
+  - The input configuration
+  - Cell coordinates
+  - Tally data for generated vacancies, implanted ions, interstitials, replacements, lost ions 
+  - Tally data for energy deposition in electronic ionization, the lattice and lost due to ions leaving the simulation
+  - Tally data for PKA damage energy and NRT estimated vacancy generation
+  - [optional] Tables of electronic energy loss and straggling
+- `[basename].pka.h5` [optional] contains a table with all PKA event
+- `[basename].exit.h5` [optional] contains a table with all ions that left the simulation volume
+
+## Documentation
+
+Doxygen documentation can be found here: https://fusion.ipta.demokritos.gr/iradina++/
+
+## Credits
+
+Iradina++ draws heavily on the following similar open-source projects:
+
+- The program [iradina](https://sourceforge.net/projects/iradina/) written by Ch. Borschel & C. Ronning and extended by J.P. Crocombette & Ch. Van Wambeke.
+- The program [Corteo](http://www.lps.umontreal.ca/%7Eschiette/index.php?n=Recherche.Corteo) by F. Schiettekatte.
+
+Electronic energy loss data has been obtained from the [SRIM-2013](http://www.srim.org/) distribution by  [J.F. Ziegler](ziegler[at]srim.org) using the provided utility `SRmodule.exe`
+
+The [Xoshiro128+](https://prng.di.unimi.it/) algorithm by D. Blackman and [S. Vigna](vigna@acm.org) is used for random number generation.
+
+[JSON for Modern C++](https://github.com/nlohmann/json) by N. Lohmann is used for encoding/decoding program options to/from json.
+
+The [HDF5 library](https://github.com/HDFGroup/hdf5) is used for saving
+results to HDF5 files.
