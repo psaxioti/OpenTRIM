@@ -32,6 +32,8 @@ class options;
  *
  * @{
  *
+ * @todo Implement different screening functions
+ *
  * @ingroup MC
  *
  * @}
@@ -61,21 +63,13 @@ public:
     };
 
     /**
-     * @brief Detail of NRT implementation in multielement materials
-     */
-    enum nrt_calculation_t {
-        NRT_element = 0, /**< NRT calculated for using Ed of struck atom (similar to SRIM) */
-        NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
-        NRT_InvalidOption = -1
-    };
-
-    /**
      * @brief Determines how ion scattering is simulated
      */
     enum scattering_calculation_t {
-        Corteo4bit = 0,     /**< Using 4bit corteo tabulated ZBL cross-section */
-        Corteo6bit = 1,     /**< Using 6bit corteo tabulated ZBL cross-section */
-        ZBL_MAGICK = 2,     /**< Using the MAGIC formula for the ZBL cross-section (as in SRIM) */
+        Corteo4bitTable = 0,     /**< Using 4bit corteo-tabulated scattering integrals */
+        Corteo6bitTable = 1,     /**< Using 6bit corteo-tabulated scattering integrals */
+        ZBL_MAGICK = 2,     /**< Using the MAGIC formula for the scattering integrals (as in SRIM) */
+        GCQuad,  /**< Using Gauss-Chebyshev quadrature to calculate the scattering integrals */
         InvalidScatteringOption = -1
     };
 
@@ -106,19 +100,30 @@ public:
     };
 
     /**
+     * @brief Detail of NRT implementation in multielement materials
+     */
+    enum nrt_calculation_t {
+        NRT_element = 0, /**< NRT calculated for using Ed of struck atom (similar to SRIM) */
+        NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
+        NRT_InvalidOption = -1
+    };
+
+    /**
      * @brief Simulation parameters/options
      */
     struct parameters {        
         /// Type of the simulation
         simulation_type_t simulation_type{FullCascade};
-        /// Way to calculate NRT vacancies in multielement materials
-        nrt_calculation_t nrt_calculation{NRT_element};
+        /// screeninig
+        Screening screening_type{Screening::ZBL};
         /// Way to calculate nuclear scattering
-        scattering_calculation_t scattering_calculation{Corteo4bit};
+        scattering_calculation_t scattering_calculation{Corteo4bitTable};
         /// Free flight path selection algorithm
         flight_path_type_t flight_path_type{AtomicSpacing};
         /// Model to use for calculating electronic straggling
         straggling_model_t straggling_model{YangStraggling};
+        /// Way to calculate NRT vacancies in multielement materials
+        nrt_calculation_t nrt_calculation{NRT_element};
         /// The constant flight path (for algorithm flight_path_type_t=Constant) [nm]
         float flight_path_const{0.1};
         /// Minimum energy cutoff for ion transport [eV]
@@ -188,6 +193,8 @@ public:
     const ion_beam& getSource() const { return *source_; }
     /// Return a const reference to the tally object
     const tally& getTally() const { return tally_; }
+    /// Return a const reference to the tally object
+    const tally& getTallyVar() const { return dtally_; }
     /// Open file stream to store \ref pka_event data
     int open_pka_stream(const char* fname) {
         return pka_stream_.open(fname, pka.size());

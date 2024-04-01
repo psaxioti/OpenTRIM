@@ -131,13 +131,28 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
 
 NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {
                                 {mccore::InvalidScatteringOption, nullptr},
-                                {mccore::Corteo4bit, "Corteo4bit"},
-                                {mccore::Corteo6bit, "Corteo6bit"},
+                                {mccore::Corteo4bitTable, "Corteo4bitTable"},
+                                {mccore::Corteo6bitTable, "Corteo6bitTable"},
                                 {mccore::ZBL_MAGICK, "ZBL_MAGICK"},
-                                {mccore::Corteo4bit, 0},
-                                {mccore::Corteo6bit, 1},
-                                {mccore::ZBL_MAGICK, 2}
-                            })    
+                                {mccore::GCQuad, "GCQuad"},
+                                {mccore::Corteo4bitTable, 0},
+                                {mccore::Corteo6bitTable, 1},
+                                {mccore::ZBL_MAGICK, 2},
+                                {mccore::GCQuad, 3}
+                            })
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Screening, {
+                                {Screening::None, "None"},
+                                {Screening::LenzJensen, "LenzJensen"},
+                                {Screening::KrC, "KrC"},
+                                {Screening::Moliere, "Moliere"},
+                                {Screening::ZBL, "ZBL"},
+                                {Screening::None, 0},
+                                {Screening::LenzJensen, 1},
+                                {Screening::KrC, 2},
+                                {Screening::Moliere, 3},
+                                {Screening::ZBL, 4}
+                            })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(mccore::straggling_model_t, {
                                 {mccore::InvalidStraggling, nullptr},
@@ -152,9 +167,10 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::straggling_model_t, {
                             })                                                                                        
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
-                                   simulation_type,
-                                   nrt_calculation, scattering_calculation,
+                                   simulation_type, screening_type,
+                                   scattering_calculation,
                                    flight_path_type, straggling_model,
+                                   nrt_calculation,
                                    flight_path_const, min_energy)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,

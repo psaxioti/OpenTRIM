@@ -37,7 +37,7 @@ int gencorteo4bit()
     typedef xs_corteo_index<4> corteo4bit;
 
     unsigned long nThetaErr = 0;
-    xs_quad<ScreeningZBL> xs_quad_zbl;
+    xs_quad xs_quad_zbl;
     ofstream ofs("corteo4bitdata.cpp");
     int k = 0;
     int klast = corteo4bit::rows * corteo4bit::cols - 1;

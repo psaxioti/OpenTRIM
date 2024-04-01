@@ -217,10 +217,10 @@ int mccore::init() {
         for(int z2 = 1; z2<natoms; z2++)
         {
             switch (par_.scattering_calculation) {
-            case Corteo4bit:
+            case Corteo4bitTable:
                 scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo4bit;
                 break;
-            case Corteo6bit:
+            case Corteo6bitTable:
                 scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo6bit;
                 break;
             case ZBL_MAGICK:
@@ -362,6 +362,7 @@ int mccore::run()
 
         // add this ion's tally to total score
         tally_ += tion_;
+        dtally_.addSquared(tion_);
         tion_.clear();
 
         // update thread counter

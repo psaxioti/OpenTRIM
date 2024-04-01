@@ -80,12 +80,12 @@
 /**
  * @brief Screening function type enumeration
  */
-enum screening_function_t {
-    ScreeningNone,          /**< Unscreened Coulomb potential */
-    ScreeningLenzJensen,    /**< Lenz-Jensen */
-    ScreeningKrC,           /**< Kr-C */
-    ScreeningMoliere,       /**< Moliere */
-    ScreeningZBL            /**< Ziegler-Biersack-Littmark (ZBL) Universal */
+enum class Screening {
+    None,          /**< Unscreened Coulomb potential */
+    LenzJensen,    /**< Lenz-Jensen */
+    KrC,           /**< Kr-C */
+    Moliere,       /**< Moliere */
+    ZBL            /**< Ziegler-Biersack-Littmark (ZBL) Universal */
 };
 
 /**
@@ -99,7 +99,7 @@ enum screening_function_t {
  *
  * @tparam ScreeningType (screening_function_t) the type of screening function
  */
-template<screening_function_t ScreeningType>
+template<Screening ScreeningType>
 struct screening_function
 {
     /**
@@ -121,23 +121,23 @@ struct screening_function
     static const char* screeningName();
 
     /// The type of screening as a screening_function_t enum
-    static screening_function_t screeningType() { return ScreeningType; }
+    static Screening screeningType() { return ScreeningType; }
 };
 
 /**@}*/  // XS
 
 // Explicit specialization for the unscreened Coulomb interaction
 template<>
-struct screening_function< ScreeningNone >
+struct screening_function< Screening::None >
 {
     static double screeningLength(int Z1, int Z2) { return BOHR_RADIUS; } // Bohr radius in nm
     double operator()(const double& x) const { return 1.; }
     static const char* screeningName() { return "Unscreened Coulomb"; }
-    static screening_function_t screeningType() { return ScreeningNone; }
+    static Screening screeningType() { return Screening::None; }
 };
 // Explicit specialization for the Lenz-Jensen potential
 template<>
-struct screening_function< ScreeningLenzJensen >
+struct screening_function< Screening::LenzJensen >
 {
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/std::sqrt(std::pow(Z1,2./3)+std::pow(Z2, 2./3));
@@ -147,13 +147,13 @@ struct screening_function< ScreeningLenzJensen >
         return exp(-y)*(1.+y*(1.+y*(0.3344+y*(0.0485+2.647e-3*y))));
     }
     static const char* screeningName() { return "Lenz-Jensen"; }
-    static screening_function_t screeningType() { return ScreeningLenzJensen; }
+    static Screening screeningType() { return Screening::LenzJensen; }
 };
 // Explicit specialization for the Kr-C potential
 template<>
-struct screening_function< ScreeningKrC >
+struct screening_function< Screening::KrC >
 {
-    static screening_function_t screeningType() { return ScreeningKrC; }
+    static Screening screeningType() { return Screening::KrC; }
     static const char* screeningName() { return "Kr-C"; }
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -172,9 +172,9 @@ struct screening_function< ScreeningKrC >
 };
 // Explicit specialization for the Moliere potential
 template<>
-struct screening_function< ScreeningMoliere >
+struct screening_function< Screening::Moliere >
 {
-    static screening_function_t screeningType() { return ScreeningMoliere; }
+    static Screening screeningType() { return Screening::Moliere; }
     static const char* screeningName() { return "Moliere"; }
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -192,9 +192,9 @@ struct screening_function< ScreeningMoliere >
 };
 // Explicit specialization for the Ziegler-Biersack-Littmark (ZBL) potential
 template<>
-struct screening_function< ScreeningZBL >
+struct screening_function< Screening::ZBL >
 {
-    static screening_function_t screeningType() { return ScreeningZBL; }
+    static Screening screeningType() { return Screening::ZBL; }
     static const char* screeningName() { return "Ziegler-Biersack-Littmark (ZBL)"; }
     static double screeningLength(int Z1, int Z2) {
         return SCREENCONST*BOHR_RADIUS/(std::pow(Z1,0.23)+std::pow(Z2,  0.23));
@@ -222,7 +222,7 @@ struct screening_function< ScreeningZBL >
  *
  * @ingroup XS
  */
-template<screening_function_t ScreeningType>
+template<Screening ScreeningType>
 struct xs_base : public screening_function< ScreeningType >
 {
     typedef screening_function< ScreeningType > Phi;
@@ -339,14 +339,14 @@ struct xs_base : public screening_function< ScreeningType >
 
 // Unscreened Coulomb minimal approach distance
 template<>
-inline double xs_base<ScreeningNone>::minApproach(double e, double s)
+inline double xs_base<Screening::None>::minApproach(double e, double s)
 {
     double x0 = 1.0/(2*e);
     return x0+std::sqrt(x0*x0+s*s);
 }
 // ZBL potential impulse aprox
 template<>
-inline double xs_base<ScreeningZBL>::theta_impulse_approx(double e, double s)
+inline double xs_base<Screening::ZBL>::theta_impulse_approx(double e, double s)
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
@@ -358,7 +358,7 @@ inline double xs_base<ScreeningZBL>::theta_impulse_approx(double e, double s)
 }
 // KrC potential impulse aprox
 template<>
-inline double xs_base<ScreeningKrC>::theta_impulse_approx(double e, double s)
+inline double xs_base<Screening::KrC>::theta_impulse_approx(double e, double s)
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
@@ -369,7 +369,7 @@ inline double xs_base<ScreeningKrC>::theta_impulse_approx(double e, double s)
 }
 // Moliere potential impulse aprox
 template<>
-inline double xs_base<ScreeningMoliere>::theta_impulse_approx(double e, double s)
+inline double xs_base<Screening::Moliere>::theta_impulse_approx(double e, double s)
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
@@ -398,7 +398,7 @@ inline double xs_base<ScreeningMoliere>::theta_impulse_approx(double e, double s
  *
  * @ingroup XS
  */
-template<screening_function_t ScreeningType = ScreeningZBL>
+template<Screening ScreeningType = Screening::ZBL>
 struct xs_quad : public xs_base< ScreeningType >
 {
     using xs_base< ScreeningType >::F;
@@ -555,9 +555,9 @@ struct xs_quad : public xs_base< ScreeningType >
  *
  * @ingroup XS
  */
-struct xs_zbl_magic : public xs_base< ScreeningZBL >
+struct xs_zbl_magic : public xs_base< Screening::ZBL >
 {
-    using xs_base<ScreeningZBL>::minApproach;
+    using xs_base<Screening::ZBL>::minApproach;
     /**
      * @brief Scattering angle in center-of-mass (CM) system
      *
@@ -648,8 +648,8 @@ struct xs_zbl_magic : public xs_base< ScreeningZBL >
      */
     static double ZBL_and_deriv(double R, double* Vprime)
     {
-        auto &C =  screening_function<ScreeningZBL>::C;
-        auto &A =  screening_function<ScreeningZBL>::A;
+        auto &C =  screening_function<Screening::ZBL>::C;
+        auto &A =  screening_function<Screening::ZBL>::A;
 
         double EX1 = C[0]*exp(-A[0]*R);
         double EX2 = C[1]*exp(-A[1]*R);
@@ -787,7 +787,7 @@ const float* corteo4bitdata();
  *
  * @ingroup XS
  */
-struct xs_zbl_corteo4bit : public screening_function< ScreeningZBL >
+struct xs_zbl_corteo4bit : public screening_function< Screening::ZBL >
 {
     /// The 2D corteo index type
     typedef xs_corteo_index<4> corteo_idx_t;
@@ -829,7 +829,7 @@ struct xs_zbl_corteo4bit : public screening_function< ScreeningZBL >
  *
  * @ingroup XS
  */
-struct xs_zbl_corteo6bit : public screening_function< ScreeningZBL >
+struct xs_zbl_corteo6bit : public screening_function< Screening::ZBL >
 {
     /// The 2D corteo index type
     typedef xs_corteo_index<6> corteo_idx_t;
@@ -1077,14 +1077,14 @@ public:
     {
         double thetaCM = T/E/gamma_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<ScreeningZBL>::findS(E*red_E_conv_,thetaCM)*screening_length_;
+        return xs_quad<Screening::ZBL>::findS(E*red_E_conv_,thetaCM)*screening_length_;
 
     }
     virtual float crossSection(float E, float T) const override
     {
         double thetaCM = T/E/gamma_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<ScreeningZBL>::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/gamma_;
+        return xs_quad<Screening::ZBL>::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/gamma_;
     }
 };
 
