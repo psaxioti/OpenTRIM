@@ -110,6 +110,8 @@ public:
     size_t size() const { return P_->buffer.size(); }
     int ndim() const { return P_->dim.size(); }
 
+    Scalar& operator[](int i) { return P_->buffer[i]; }
+    const Scalar& operator[](int i) const { return P_->buffer[i]; }
     Scalar& operator()(int i) { return P_->buffer[i]; }
     const Scalar& operator()(int i) const { return P_->buffer[i]; }
     Scalar& operator()(int i, int j) { return P_->buffer[P_->idx(i,j)]; }
@@ -128,6 +130,15 @@ public:
             while(p<pend) *p++ += *q++;
         }
         return *this;
+    }
+
+    void addSquared(const ArrayND& a) {
+        if (size()==a.size()) {
+            Scalar* p = data();
+            Scalar* pend = p + size();
+            const Scalar* q = a.data();
+            while(p<pend) *p++ += (*q)*(*q++);
+        }
     }
 
     void clear() {

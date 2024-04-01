@@ -63,6 +63,8 @@ public:
 
     static const int std_tallies = 12;
     static const char* arrayName(int i);
+    static const char* arrayDescription(int i);
+    static const char* arrayGroup(int i);
 
     const double& Nions() const { return A[0](N); }
     const double& Npkas() const { return A[0](P); }
@@ -104,6 +106,11 @@ public:
         for(int i=0; i<A.size(); i++)
             A[i] += t.A[i];
         return *this;
+    }
+
+    void addSquared(const tally& t) {
+        for(int i=0; i<A.size(); i++)
+            A[i].addSquared(t.A[i]);
     }
 
     void copy(const tally& t) {

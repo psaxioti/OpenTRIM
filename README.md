@@ -10,10 +10,10 @@ The emphasis is on calculation of target damage.
 Iradina++ is a command line program and can be invoked by 
 
 ```
-> iradina++ [options] [ < [config_file.json]]
+> iradina++ [options] [ < config_file.json ]
 ```
-The program accepts a JSON-formatted configuration either
-directly from stdin or from a file `[config_file.json]` by redirection
+The program accepts a JSON-formatted configuration input either
+directly from stdin or from a file by redirection
 as shown above.
 
 Currently the only option that can be given is 
@@ -21,8 +21,7 @@ Currently the only option that can be given is
   -h : print a short help message and exit.
 ```
 
-The program first checks and validates the input. If something is wrong
-it stops and indicates the error.
+The program first checks and validates the configuration input. 
 
 It then runs the simulation and saves the results into HDF5 files.
 
@@ -34,15 +33,16 @@ The JSON configuration input has the following self-explanatory structure:
 {
     "Simulation": {
         "simulation_type": "FullCascade",       // FullCascade|IonsOnly|CascadesOnly
-        "nrt_calculation": "NRT_element",       // NRT_element|NRT_average
-        "scattering_calculation": "Corteo4bit", // Corteo4bit|Corteo6bit|ZBL_MAGICK
+        "screening_type": "ZBL",       // None|LenzJensen|KrC|Moliere|ZBL
+        "scattering_calculation": "Corteo4bitTable", // Corteo4bitTable|Corteo6bitTable|ZBL_MAGICK|GCQuad
         "flight_path_type": "AtomicSpacing",    // AtomicSpacing|Constant|MendenhallWeller
         "straggling_model": "YangStraggling",   // NoStraggling|BohrStraggling|ChuStraggling|YangStraggling
-        "flight_path_const": 0.1,   // [nm], used if "flight_path_type"=Constant
-        "min_energy": 1.0           // [eV], min cutoff ion energy 
+        "nrt_calculation": "NRT_element",       // NRT_element|NRT_average
+        "flight_path_const": 0.1,   // [nm], used if "flight_path_type"=Constant        
+        "min_energy": 1.0           // [eV], transport cutoff energy.  
     },
     "IonBeam": {
-        "ion_distribution": "SurfaceCentered", // SurfaceCentered|SurfaceCentered|FixedPos|VolumeCentered|VolumeRandom
+        "ion_distribution": "SurfaceCentered", // SurfaceRandom|SurfaceCentered|FixedPos|VolumeCentered|VolumeRandom
         "ionZ": 1,          // ion atomic number
         "ionM": 1.00784,    // ion mass
         "ionE0": 1e+06,     // ion energy [eV] 
@@ -54,12 +54,12 @@ The JSON configuration input has the following self-explanatory structure:
             "Fe Layer": { // example material definition
                 "density": 7.8658, // [g/cm^3]
                 "Z": [26],      // atomic numbers
-                "M": [55.845],  // atomic mass
-                "X": [1.0],     // atomic concentration (normalized by the program)
-                "Ed": [40.0],   // displacement threshold [eV]
-                "El": [3.0],    // Lattice binding [eV] 
-                "Es": [3.0],    // Surface binding [eV]
-                "Er": [40.0]    // Replacement threshold [eV]
+                "M": [55.845],  // atomic masses
+                "X": [1.0],     // atomic fractions 
+                "Ed": [40.0],   // displacement thresholds [eV]
+                "El": [3.0],    // Lattice binding energies [eV] 
+                "Es": [3.0],    // Surface binding energies [eV]
+                "Er": [40.0]    // Replacement threshold energies [eV]
             } // more materials can be added here
         },
         "regions": { // rectangular regions filled with a material
@@ -96,20 +96,70 @@ The target materials and regions must always be given.
 
 ## Output files
 
-The simulation produces a main file with the standard tally output and a number of
- optional files. All output files will be named according to the config option Output/OutputFileBaseName.
+The simulation produces a main file with the standard tallies and a number of
+ optional files. 
+ 
+ All output files will be named according to the config option `Output/OutputFileBaseName`.
 
- A brief description is given here. Detail information can be found within the files 
+ A brief description is given here. More detailed information can be found within the files. 
 
-- `[basename].h5` is the main output file that contains:
-  - The input configuration
-  - Cell coordinates
-  - Tally data for generated vacancies, implanted ions, interstitials, replacements, lost ions 
-  - Tally data for energy deposition in electronic ionization, the lattice and lost due to ions leaving the simulation
-  - Tally data for PKA damage energy and NRT estimated vacancy generation
-  - [optional] Tables of electronic energy loss and straggling
-- `[basename].pka.h5` [optional] contains a table with all PKA event
+- `[basename].h5` is the main output file
+- `[basename].pka.h5` [optional] contains a table with all PKA events
 - `[basename].exit.h5` [optional] contains a table with all ions that left the simulation volume
+
+The main output file has the following structure with the data organized in folders.
+
+- `/` : Root folder
+  - `Title` : the title given in the config
+  - `Nh` : # of histories
+  - `Variable_List` : Detailed list of variables in the file
+  - `config_json` : JSON formatted configuration
+  - `eels/` : electron energy loss tables folder
+    - `dEdx_erg` : array of energy values [eV]
+    - `dEdx` : stopping power [eV] table [energy x atoms x materials]    
+    - `dEstrag` : straggling [eV/nm^(1/2)] table [energy x atoms x materials]
+    - `maxImpactPar`
+    - `max_fp`
+  - `grid/` : geometric grid folder
+    - `X` : x-axis grid points [nm]
+    - `Y` : y-axis grid points [nm]
+    - `Z` : z-axis grid points [nm]
+    - `cell_xyz` : cell center positions [cells x 3]
+  - `tally/`  : tallies folder
+    - `totals/` : total defects/ions in the simulation volume
+      - `Ndisp` : displacements
+      - `Nimpl` : implantations / interstitals
+      - `Nlost` : total # of ions that left the simulation
+      - `Npkas` : PKAs
+      - `Nrepl` : replacements
+      - `Nvac`  : vacancies
+    - `damage/` : damage quantities
+      - `Tdam` : damage energy per pka [eV] [cells x atoms]
+      - `Tdam_LSS` : LSS damage energy per pka [eV] [cells x atoms]
+      - `Vnrt` : NRT vacancies from Tdam [eV] [cells x atoms]
+      - `Vnrt_LSS` : NRT vacancies from Tdam_LSS [eV] [cells x atoms]
+    - `defects/`
+      - `Implantations` : Implanted ions and interstitials [cells x atoms]
+      - `Replacements` : Replacements [cells x atoms]
+      - `Vacancies` : Vacancies [cells x atoms]
+      - `Lost` : ions exiting the simulation [cells x atoms]
+    - `energy_deposition/`
+      - `Ionization` : Ion energy deposited to ionization [eV] [cells x atoms]
+      - `Phonons` : Ion energy deposited to phonons [eV] [cells x atoms]
+      - `Lost`  : Energy lost due to ion exit [eV] [cells x atoms]
+
+To reach a variable in the file use the complete path, e.g. `/tally/damage/Tdam`.
+
+The tallies give the mean values over all histories.
+For each tally variable there is an additional entry corresponding to the standard deviation of the mean. The name of this entry is the same as the variable plus `_std` at the end, e.g.   `/tally/damage/Tdam_std`.
+
+Specifically, if $x_i$ is the tally contribution to quantity $x$ from the $i$-th ion history, then the mean and std given in the output file are:
+$$
+\bar{x} = \frac{1}{N_h} \sum_i {x_i}
+$$
+$$
+\sigma_{\bar{x}} = \frac{1}{N_h(N_h-1)} \sum_i { (x_i - \bar{x})^2 }
+$$
 
 ## Documentation
 

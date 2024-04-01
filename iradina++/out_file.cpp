@@ -3,9 +3,13 @@
 #include "dedx.h"
 #include "mcdriver.h"
 
+#include <iostream>
 #include <H5Cpp.h>
 
 using namespace H5;
+
+using std::cerr;
+using std::endl;
 
 template <typename T> struct h5traits;
 
@@ -29,34 +33,14 @@ struct h5traits<int> {
 template<typename T>
 int save_scalar(H5File* f, const char* name, const T& data)
 {
-
-    /*
-     * Try block to detect exceptions raised by any of the calls inside it
-     */
     try
-    {
-
-        /*
-     * Turn off the auto-printing when failure occurs so that we can
-     * handle the errors appropriately
-     */
-        Exception::dontPrint();
-
-        /*
-     * Create dataspace for the dataset in the file.
-     */
+    {   
         DataSpace fspace; // default = scalar
-
-        /*
-       * Create a new dataset within the file using defined dataspace and
-       * datatype and default dataset creation properties.
-       */
-        DataSet dataset = f->createDataSet( name, h5traits<T>::predType(), fspace );
-
-        /*
-       * Write the data to the dataset using default memory space, file
-       * space, and transfer properties.
-       */
+        LinkCreatPropList lcpl;
+        lcpl.setCreateIntermediateGroup(true);
+        DataSet dataset = f->createDataSet(name, h5traits<T>::predType(), fspace,
+                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
+                                           lcpl );
         dataset.write( &data, h5traits<T>::predType() );
 
     }  // end of try block
@@ -64,19 +48,22 @@ int save_scalar(H5File* f, const char* name, const T& data)
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     return 0;
@@ -89,28 +76,35 @@ int save_string(H5File* f, const char* name, const std::string& data)
 
     try
     {
-        Exception::dontPrint();
+        //Exception::dontPrint();
         hsize_t dims = 1;
         DataSpace fspace(1,&dims); // default = scalar
         StrType type(PredType::C_S1, len);
-        DataSet dataset = f->createDataSet( name, type, fspace );
+        LinkCreatPropList lcpl;
+        lcpl.setCreateIntermediateGroup(true);
+        DataSet dataset = f->createDataSet(name, type, fspace,
+                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
+                                           lcpl);
         dataset.write( data.c_str(), type );
     }
     catch( FileIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
         return -1;
     }
     return 0;
@@ -121,54 +115,45 @@ int save_array(H5File* f, const char* name,
                const T* data,
                const std::vector<hsize_t>& dims)
 {
-
-    /*
-     * Try block to detect exceptions raised by any of the calls inside it
-     */
     try
     {
+        DataSpace fspace( dims.size(), dims.data() );
+        LinkCreatPropList lcpl;
+        lcpl.setCreateIntermediateGroup(true);
+        DataSet dataset = f->createDataSet(name, h5traits<T>::predType(), fspace,
+                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
+                                           lcpl);
 
-    /*
-     * Turn off the auto-printing when failure occurs so that we can
-     * handle the errors appropriately
-     */
-    Exception::dontPrint();
-
-    /*
-     * Create dataspace for the dataset in the file.
-     */
-    DataSpace fspace( dims.size(), dims.data() );
-
-    /*
-       * Create a new dataset within the file using defined dataspace and
-       * datatype and default dataset creation properties.
-       */
-    DataSet dataset = f->createDataSet( name, h5traits<T>::predType(), fspace );
-
-    /*
-       * Write the data to the dataset using default memory space, file
-       * space, and transfer properties.
-       */
-    dataset.write( data, h5traits<T>::predType() );
+        dataset.write( data, h5traits<T>::predType() );
 
     }  // end of try block
 
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        //error.printError();
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
+        return -1;
+    }
+    // catch failure caused by the DataSet operations
+    catch( GroupIException error )
+    {
+        cerr << error.getDetailMsg() << endl;
+        error.printErrorStack();
         return -1;
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        //error.printError();
+        cerr << error.getDetailMsg() << endl;
+        error.printErrorStack();
         return -1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        //error.printError();
+        cerr << error.getDetailMsg() << endl;
+        error.printErrorStack();
         return -1;
     }
     return 0;
@@ -220,6 +205,30 @@ int save_array_nd(H5File* f, const char* name, const ArrayND<T>& A) {
     return save_array(f, name, A.data(), dims);
 }
 
+template<typename T>
+int save_array_normalized(H5File* f, const char* name, const ArrayND<T>& A, const uint& N) {
+    std::vector<T> a(A.size());
+    for(int i=0; i<A.size(); i++) a[i] = A[i]/N;
+    std::vector<hsize_t> dims(A.ndim());
+    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
+    return save_array(f, name, a.data(), dims);
+}
+
+template<typename T>
+int save_array_normalized(H5File* f, const char* name, const char* dname,
+                          const ArrayND<T>& A, const ArrayND<T>& dA, const uint& N) {
+    assert(A.size()==dA.size());
+    std::vector<T> a(A.size()), da(A.size());
+    for(int i=0; i<A.size(); i++) {
+        a[i] = A[i]/N;
+        // error in the mean
+        da[i] = std::sqrt((dA[i]/N-a[i]*a[i])/(N-1));
+    }
+    std::vector<hsize_t> dims(A.ndim());
+    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
+    return save_array(f, name, a.data(), dims) + save_array(f, dname, da.data(), dims);
+}
+
 out_file::out_file(const mccore *s) :
     sim_(s), h5f(nullptr)
 {
@@ -234,26 +243,15 @@ out_file::~out_file()
 
 int out_file::open(const char* fname)
 {
-
-
-    // Try block to detect exceptions raised by any of the calls inside it
     try
     {
-        /*
-       * Turn off the auto-printing when failure occurs so that we can
-       * handle the errors appropriately
-       */
-        Exception::dontPrint();
-        /*
-       * Create a new file using H5F_ACC_TRUNC access,
-       * default file creation properties, and default file
-       * access properties.
-       */
        h5f = new H5File(fname, H5F_ACC_TRUNC);
     }  // end of try block
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
+        cerr << error.getDetailMsg() << endl;
+        error.printErrorStack();
         return -1;
     }
 
@@ -263,26 +261,29 @@ int out_file::open(const char* fname)
 
 int out_file::save(const options &opt)
 {
+    // variable list
+    std::stringstream var_list;
+
+    // title
+    save_string(h5f, "Title", opt.Output.title);
+    var_list << "Title" << '\t' << "string" <<  endl;
+
     // save options
     std::stringstream ss;
     opt.printJSON(ss);
-    save_string(h5f, "json_options", ss.str());
-
-
-    const tally& t = sim_->getTally();
-    save_scalar(h5f, "Nions", t.Nions());
-    save_scalar(h5f, "Npkas", t.Npkas());
-    save_scalar(h5f, "Ndisp", t.Ndisp());
-    save_scalar(h5f, "Nrepl", t.Nrepl());
-    save_scalar(h5f, "Nimpl", t.Nimpl());
-    save_scalar(h5f, "Nvac", t.Nvac());
-    save_scalar(h5f, "Nlost", t.Nlost());
+    save_string(h5f, "config_json", ss.str());
+    var_list << "config_json" << '\t' << "string" << '\t' << "JSON formatted simulation options" << endl;
+    var_list << endl;
 
     // save grid
+    var_list << "Spatial Grid" << endl;
     auto grid = sim_->getTarget().grid();
-    save_array<float, grid1D>(h5f, "X", grid.x());
-    save_array<float, grid1D>(h5f, "Y", grid.y());
-    save_array<float, grid1D>(h5f, "Z", grid.z());
+    save_array<float, grid1D>(h5f, "/grid/X", grid.x());
+    var_list << "/grid/X" << '\t' << "1x" << grid.x().size() << '\t' << "x-axis grid" << endl;
+    save_array<float, grid1D>(h5f, "/grid/Y", grid.y());
+    var_list << "/grid/Y" << '\t' << "1x" << grid.y().size() << '\t' << "y-axis grid" << endl;
+    save_array<float, grid1D>(h5f, "/grid/Z", grid.z());
+    var_list << "/grid/Z" << '\t' << "1x" << grid.z().size() << '\t' << "z-axis grid" << endl;
     { // save xyz of each cell center
         int rows = grid.x().size()-1;
         int cols = grid.y().size()-1;
@@ -299,17 +300,91 @@ int out_file::save(const options &opt)
                     buff(2,l) = 0.5f*(grid.z()[k] + grid.z()[k+1]);
                 }
 
-        save_array_nd(h5f, "cell_xyz", buff);
+        save_array_nd(h5f, "grid/cell_xyz", buff);
+        var_list << "grid/cell_xyz" << '\t' << "[3x" << rows << "]\t" << "cell center coordinates" << endl;
     }
+    var_list << endl;
 
 
     // save tallys
+    var_list << "Tallies" << endl;
+    var_list << "  Results are mean values over the ion histories. " << endl
+             << "  [VarName]_std is the standard error of the mean." << endl;
+    const tally& t = sim_->getTally();
+    const tally& dt = sim_->getTallyVar();
+    uint N = t.Nions();
+    save_scalar(h5f, "Nh", t.Nions());
+    var_list << "Nh" << '\t' << "Scalar" << '\t' << "# of histories" << endl;
+
+    // PKAs
+    double vm = t.Npkas()/N, dvm = std::sqrt((dt.Npkas()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Npkas", vm);
+    var_list << "/tally/totals/Npkas" << '\t' << "Scalar" << '\t' << "# of PKAs" << endl;
+    save_scalar(h5f, "/tally/totals/Npkas_std", dvm);
+    var_list << "/tally/totals/Npkas_std" << '\t' << "Scalar" << '\t' << "(std dev) # of PKAs" << endl;
+
+    // Disp
+    vm = t.Ndisp()/N; dvm = std::sqrt((dt.Ndisp()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Ndisp", vm);
+    var_list << "/tally/totals/Ndisp" << '\t' << "Scalar" << '\t' << "# of displacements" << endl;
+    save_scalar(h5f, "/tally/totals/Ndisp_sig", dvm);
+    var_list << "/tally/totals/Ndisp_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of displacements" << endl;
+
+    // Repl
+    vm = t.Nrepl()/N; dvm = std::sqrt((dt.Nrepl()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Nrepl", vm);
+    var_list << "/tally/totals/Nrepl" << '\t' << "Scalar" << '\t' << "# of replacements" << endl;
+    save_scalar(h5f, "/tally/totals/Nrepl_sig", dvm);
+    var_list << "/tally/totals/Nrepl_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of replacements" << endl;
+
+    // Nimpl
+    vm = t.Nimpl()/N; dvm = std::sqrt((dt.Nimpl()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Nimpl", vm);
+    var_list << "/tally/totals/Nimpl" << '\t' << "Scalar" << '\t' << "# of implanted/interstitial ions" << endl;
+    save_scalar(h5f, "/tally/totals/Nimpl_sig", dvm);
+    var_list << "/tally/totals/Nimpl_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of implanted/interstitial ions" << endl;
+
+    // Nvac
+    vm = t.Nvac()/N; dvm = std::sqrt((dt.Nvac()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Nvac", vm);
+    var_list << "/tally/totals/Nvac" << '\t' << "Scalar" << '\t' << "# of vacancies" << endl;
+    save_scalar(h5f, "/tally/totals/Nvac_sig", dvm);
+    var_list << "/tally/totals/Nvac_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of vacancies" << endl;
+
+    // Nlost
+    vm = t.Nlost()/N; dvm = std::sqrt((dt.Nlost()/N-vm*vm)/(N-1));
+    save_scalar(h5f, "/tally/totals/Nlost", vm);
+    var_list << "/tally/totals/Nlost" << '\t' << "Scalar" << '\t' << "# of lost ions" << endl;
+    save_scalar(h5f, "/tally/totals/Nlost_sig", dvm);
+    var_list << "/tally/totals/Nlost_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of lost ions" << endl;
+
     if (opt.Simulation.simulation_type == mccore::FullCascade) {
 
         bool ret = true;
-        int k = 0;
+        int k = 1;
+
         while(ret && k<tally::std_tallies) {
-            ret = ret && save_array_nd(h5f, tally::arrayName(k), t.at(k))==0;
+            std::string name("/tally/");
+            name += tally::arrayGroup(k);
+            name += "/";
+            name += tally::arrayName(k);
+            std::string dname(name);
+            dname += "_std";
+            ret = ret && save_array_normalized(h5f, name.c_str(), dname.c_str(),
+                                               t.at(k), dt.at(k), t.Nions())==0;
+            if (ret) {
+                auto dim = t.at(k).dim();
+                var_list << tally::arrayName(k) << '\t' << '[' << dim[0];
+                for(int i=1; i<dim.size(); ++i)
+                    var_list << 'x' << dim[i];
+                var_list << ']' << '\t' << tally::arrayDescription(k) << endl;
+
+                var_list << dname << '\t' << '[' << dim[0];
+                for(int i=1; i<dim.size(); ++i)
+                    var_list << 'x' << dim[i];
+                var_list << ']' << '\t' << "(std. dev) " << tally::arrayDescription(k) << endl;
+
+            }
             k++;
         }
 
@@ -323,14 +398,16 @@ int out_file::save(const options &opt)
     }
 
     if (opt.Output.store_dedx) {
-        save_array_nd(h5f,"dEdx",sim_->dedx());
-        save_array_nd(h5f,"dEstrag",sim_->de_strag());
+        save_array_nd(h5f,"/eels/dEdx",sim_->dedx());
+        save_array_nd(h5f,"/eels/dEstrag",sim_->de_strag());
         ArrayND<float> dedx_erg(dedx_index::size);
         for(dedx_index i; i<i.end(); i++) dedx_erg(i) = *i;
-        save_array_nd(h5f,"dEdx_erg",dedx_erg);
-        save_array_nd(h5f,"maxImpactPar",sim_->max_impact_par());
-        save_array_nd(h5f,"max_fp",sim_->max_fp());
+        save_array_nd(h5f,"/eels/dEdx_erg",dedx_erg);
+        save_array_nd(h5f,"/eels/maxImpactPar",sim_->max_impact_par());
+        save_array_nd(h5f,"/eels/max_fp",sim_->max_fp());
     }
+
+    save_string(h5f, "Variable_List", var_list.str());
 
     return 0;
 }
