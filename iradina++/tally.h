@@ -126,7 +126,10 @@ public:
             break;
         case Event::NewRecoil:
             A[0](D)++;
-            A[0](P) += (i.recoil_id()==1);
+            if (i.recoil_id()==1) { // PKA
+                A[0](P) += 1;
+                A[V](0,i.cellid())++; // Put in vacancy 1st col - 0 = ion id
+            }
             break;
         case Event::Replacement:
             A[0](R)++;
