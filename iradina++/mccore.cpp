@@ -333,19 +333,7 @@ int mccore::run()
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
             pka.init(j);
-
-            // calc LSS/NRT - QC type damage
-            // based on material / average Ed, Z, M
-//            const material* mat = target_->cell(pka.cellid());
-//            float Tdam_LSS_ = mat->LSS_Tdam(pka.recoilE());
-//            tally_.Tdam_LSS(pka.cellid()) += Tdam_LSS_;
-//            tally_.Vnrt_LSS(pka.cellid()) += mat->NRT(Tdam_LSS_);
-
-            const atom* z2 = j->myAtom();
-            float dp[2];
-            dp[0] = z2->LSS_Tdam(pka.recoilE());
-            dp[1] = z2->NRT(dp[0]);
-            tion_(Event::NRT_LSS_damage,*j,dp);
+            ion j1(*j); // keep a clone ion to have initial position
 
             // FullCascade or CascadesOnly
             if (par_.simulation_type != IonsOnly) {
@@ -355,11 +343,8 @@ int mccore::run()
                 while ((k = q_.pop_recoil())!=nullptr) {
                     transport(k,tion_,&pka);
                 }
-                // store total Tdam & NRT vacancies
-                dp[0] = pka.Tdam();
-                dp[1] = z2->NRT(pka.Tdam());
-                tion_(Event::NRT_damage,*j,dp);
             }
+            NRT(&j1,tion_,pka);
             pka_stream_.write(&pka);
         } // pka loop
 
@@ -634,6 +619,39 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         fp = ip = 0.f;
     }
     return 0;
+}
+
+void mccore::NRT(const ion* i, tally &t, const pka_event& pka)
+{
+    const atom* z2;
+    const material* m;
+    float dp[2];
+    switch (par_.nrt_calculation) {
+    case NRT_element:
+        // NRT/LSS damage based on element
+        z2 = i->myAtom();
+        dp[0] = z2->LSS_Tdam(pka.recoilE());
+        dp[1] = z2->NRT(dp[0]);
+        t(Event::NRT_LSS_damage,*i,dp);
+        // NRT damage based on element with true Tdam
+        dp[0] = pka.Tdam();
+        dp[1] = z2->NRT(dp[0]);
+        t(Event::NRT_damage,*i,dp);
+        break;
+    case NRT_average:
+        m = target_->cell(i->cellid());
+        // NRT/LSS damage based on material / average Ed, Z, M
+        dp[0] = m->LSS_Tdam(pka.recoilE());
+        dp[1] = m->NRT(dp[0]);
+        t(Event::NRT_LSS_damage,*i,dp);
+        // NRT damage based on material with true Tdam
+        dp[0] = pka.Tdam();
+        dp[1] = m->NRT(dp[0]);
+        t(Event::NRT_damage,*i,dp);
+        break;
+    default:
+        break;
+    }
 }
 
 void mccore::merge(const mccore& other)

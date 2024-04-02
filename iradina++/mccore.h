@@ -370,6 +370,8 @@ protected:
      */
     static float interp_dedx(float E, const float* data);
 
+    void NRT(const ion* i, tally &t, const pka_event &pka);
+
 };
 
 inline float mccore::interp_dedx(float E, const float* data)
