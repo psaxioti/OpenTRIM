@@ -290,10 +290,15 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
 
     // adjust recoil atom type and energy
     j->myAtom() = target;
-    // recoil energy is reduced by lattice binding energy
-    j->erg() = recoil_erg - target->El();
-    // add El to phonon energy
+    j->erg() = recoil_erg;
+
+    // tally the recoil
+    t(Event::NewRecoil,*j);
+
+    // subtract lattice binding energy
     float El = target->El();
+    j->erg() -= El;
+    // add El to phonon energy tally
     t(Event::Phonon,*j,&El);
 
     // add lattice energy recoil to pka Tdam
@@ -328,7 +333,6 @@ int mccore::run()
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
             pka.init(j);
-            tion_(Event::NewRecoil,*j); // a PKA is also a recoil
 
             // calc LSS/NRT - QC type damage
             // based on material / average Ed, Z, M
@@ -349,7 +353,6 @@ int mccore::run()
                 // transport all secondary recoils
                 ion* k;
                 while ((k = q_.pop_recoil())!=nullptr) {
-                    tion_(Event::NewRecoil,*k);
                     transport(k,tion_,&pka);
                 }
                 // store total Tdam & NRT vacancies
@@ -528,8 +531,9 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
                      * Z1==Z2 && M1==M2
                      */
                 if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {                    
-                    // Count replacement, energy goes to phonons {???}
+                    // Replacement event, ion energy goes to Phonons
                     t(Event::Replacement,*i);
+                    // energy is added to Tdam
                     if (pka) pka->Tdam() += i->erg();
                     break; // end of ion history
                 }

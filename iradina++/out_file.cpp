@@ -110,6 +110,57 @@ int save_string(H5File* f, const char* name, const std::string& data)
     return 0;
 }
 
+int save_string(H5File* f, const char* name, const std::vector<std::string>& strvec)
+{
+    int n = strvec.size();
+    int stride = strvec[0].size();
+    for (int i=0; i<n; ++i)
+        if (strvec[i].size()> stride) stride = strvec[i].size();
+    stride++; // +1 for the null term
+    std::vector<char> buff(n*stride,'\0');
+    for (int i=0; i<n; ++i)
+        memcpy(buff.data() + i*stride,
+               strvec[i].data(),
+               strvec[i].size());
+
+    try
+    {
+        //Exception::dontPrint();
+        hsize_t dims = n;
+        DataSpace fspace(1,&dims); // default = scalar
+        StrType type(PredType::C_S1, stride);
+        //type.setStrpad(H5T_STR_NULLPAD);
+        LinkCreatPropList lcpl;
+        lcpl.setCreateIntermediateGroup(true);
+        DataSet dataset = f->createDataSet(name, type, fspace,
+                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
+                                           lcpl);
+
+        dataset.write( buff.data(), type );
+    }
+    catch( FileIException error )
+    {
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
+        return -1;
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
+        return -1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        error.printErrorStack();
+        cerr << error.getDetailMsg() << endl;
+        return -1;
+    }
+    return 0;
+}
+
 template<typename T>
 int save_array(H5File* f, const char* name,
                const T* data,
@@ -304,6 +355,21 @@ int out_file::save(const options &opt)
         var_list << "grid/cell_xyz" << '\t' << "[3x" << rows << "]\t" << "cell center coordinates" << endl;
     }
     var_list << endl;
+
+    // save atoms & materials
+    auto atoms = sim_->getTarget().atoms();
+    std::vector<std::string> atom_labels(atoms.size());
+    for(int i=0; i<atoms.size(); i++) {
+        std::string& s = atom_labels[i];
+        const material* m = atoms[i]->mat();
+        s = atoms[i]->name();
+        if (m) {
+            s += " in ";
+            s += m->name();
+        } else s += " ion";
+    }
+    save_string(h5f, "/atom/label", atom_labels);
+    var_list << "/atom/label" << '\t' << "string array" << endl;
 
 
     // save tallys

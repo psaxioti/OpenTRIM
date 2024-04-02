@@ -103,7 +103,7 @@ public:
      * @brief Detail of NRT implementation in multielement materials
      */
     enum nrt_calculation_t {
-        NRT_element = 0, /**< NRT calculated for using Ed of struck atom (similar to SRIM) */
+        NRT_element = 0, /**< NRT calculated using Ed of struck atom (similar to SRIM) */
         NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
         NRT_InvalidOption = -1
     };
