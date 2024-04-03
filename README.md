@@ -168,11 +168,15 @@ $$
 
 Doxygen documentation can be found here: https://fusion.ipta.demokritos.gr/iradina++/
 
-## Build & Install
+## Build & Install - Linux
 
 The project can be built and installed with `cmake`.
 
-The Eigen and HDF5 C++ libraries are needed for building.  
+The Eigen and HDF5 C++ libraries are needed for building. Install them with
+```
+# Ubuntu 22.04
+sudo apt install libeigen3-dev libhdf5-dev libhdf5-103-1 libhdf5-cpp-103-1
+```  
 
 The HDF5 runtime libraries are needed for running the program.
 
@@ -181,10 +185,14 @@ Run the following commands from the project folder
 ```
 mkdir build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/your/dest/folder"
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make
 make install
 ```
+The default install location is `$HOME/.local` and `sudo` is not required.
+Override this by setting the option `-DCMAKE_INSTALL_PREFIX="/your/install/location"` when calling `cmake`. 
+
+
 
 ## Credits
 

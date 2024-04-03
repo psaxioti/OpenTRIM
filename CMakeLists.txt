@@ -2,7 +2,28 @@ cmake_minimum_required(VERSION 3.5.0)
     
 project(iradina++ C CXX)
 
+set (IRADINAPP_MAJOR_VERSION "0")
+set (IRADINAPP_MINOR_VERSION "1")
+set (IRADINAPP_BUGFIX_VERSION "0")
+set (IRADINAPP_VERSION_STRING ${IRADINAPP_MAJOR_VERSION}.${IRADINAPP_MINOR_VERSION}.${IRADINAPP_BUGFIX_VERSION})
+message (STATUS "iradina++ version ${IRADINAPP_VERSION_STRING}")
+
 include (GNUInstallDirs)
+
+# by default, install into $HOME/.local (not /usr/local), so that no root access (and sudo!!) is needed
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  if((CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (NOT CMAKE_CROSSCOMPILING))
+    set(CMAKE_INSTALL_PREFIX "$ENV{USERPROFILE}/iradina++" CACHE PATH "Default install path" FORCE)
+  else()
+    set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/.local" CACHE PATH "Default install path" FORCE)
+  endif()
+endif()
+
+message (STATUS "Install prefix =  ${CMAKE_INSTALL_PREFIX}") 
+
+# use install rpath, no need to use LD_LIBRARY_PATH 
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 
 find_package(Eigen3 3.4 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -89,15 +110,6 @@ target_link_libraries(iradina++ "-lm"
 target_include_directories(iradinapp PRIVATE
     extern/json-3.11.3/single_include/ )
 
-set_target_properties(iradina++
-    PROPERTIES
-        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
-)
-set_target_properties(iradinapp
-    PROPERTIES
-        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
-)
-
 # add_subdirectory(doc)
 
 set(installable_libs
@@ -108,3 +120,9 @@ set(installable_libs
 install(TARGETS ${installable_libs} DESTINATION lib)
 install(FILES ${IRADINAPP_HEADERS} DESTINATION include)
 install(TARGETS iradina++ DESTINATION bin)
+
+
+
+
+
+
