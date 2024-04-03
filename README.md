@@ -88,11 +88,11 @@ The JSON configuration input has the following self-explanatory structure:
 }
 ```
 
-> Typically comments are not allowed in JSON but for iradina++ it is ok. 
+> Comments in JSON config file are ignored by the program
 
 Copy/paste and edit the above to create a new input file.
 Most of the options shown here are default values and can be omitted.
-The target materials and regions must always be given.
+The `target/materials` and `target/regions` must always be given.
 
 ## Output files
 
@@ -109,6 +109,7 @@ The simulation produces a main file with the standard tallies and a number of
 
 The main output file has the following structure with the data organized in folders.
 
+**Main output HDF5 file structure**
 - `/` : Root folder
   - `Title` : the title given in the config
   - `Nh` : # of histories
@@ -142,18 +143,20 @@ The main output file has the following structure with the data organized in fold
       - `Implantations` : Implanted ions and interstitials [cells x atoms]
       - `Replacements` : Replacements [cells x atoms]
       - `Vacancies` : Vacancies [cells x atoms]
+      - `PKAs` : PKAs [cells x atoms] 
       - `Lost` : ions exiting the simulation [cells x atoms]
-    - `energy_deposition/`
-      - `Ionization` : Ion energy deposited to ionization [eV] [cells x atoms]
-      - `Phonons` : Ion energy deposited to phonons [eV] [cells x atoms]
-      - `Lost`  : Energy lost due to ion exit [eV] [cells x atoms]
+    - `energy_deposition/` : [eV]
+      - `Ionization` : Ion energy deposited to ionization [cells x atoms]
+      - `Phonons` : Ion energy deposited to phonons [cells x atoms]
+      - `PKAs` : PKA recoil energy [cells x atoms]
+      - `Lost`  : Energy lost due to ion exit [cells x atoms]
 
 To reach a variable in the file use the complete path, e.g. `/tally/damage/Tdam`.
 
 The tallies give the mean values over all histories.
 For each tally variable there is an additional entry corresponding to the standard deviation of the mean. The name of this entry is the same as the variable plus `_std` at the end, e.g.   `/tally/damage/Tdam_std`.
 
-Specifically, if $x_i$ is the tally contribution to quantity $x$ from the $i$-th ion history, then the mean and std given in the output file are:
+Specifically, if $x_i$ is the contribution to the tally $x$ from the $i$-th ion history, then the mean and std given in the output file are calculated as:
 $$
 \bar{x} = \frac{1}{N_h} \sum_i {x_i}
 $$
@@ -165,6 +168,24 @@ $$
 
 Doxygen documentation can be found here: https://fusion.ipta.demokritos.gr/iradina++/
 
+## Build & Install
+
+The project can be built and installed with `cmake`.
+
+The Eigen and HDF5 C++ libraries are needed for building.  
+
+The HDF5 runtime libraries are needed for running the program.
+
+Run the following commands from the project folder
+
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/your/dest/folder"
+make
+make install
+```
+
 ## Credits
 
 Iradina++ draws heavily on the following similar open-source projects:
@@ -174,7 +195,9 @@ Iradina++ draws heavily on the following similar open-source projects:
 
 Electronic energy loss data has been obtained from the [SRIM-2013](http://www.srim.org/) distribution by  [J.F. Ziegler](ziegler[at]srim.org) using the provided utility `SRmodule.exe`
 
-The [Xoshiro128+](https://prng.di.unimi.it/) algorithm by D. Blackman and [S. Vigna](vigna@acm.org) is used for random number generation.
+The [Eigen](http://eigen.tuxfamily.org/) library by B. Jacob & G. Guennebaud is used for 3D vector math.
+
+The [Xoshiro128+](https://prng.di.unimi.it/) algorithm by D. Blackman and S. Vigna is used for random number generation.
 
 [JSON for Modern C++](https://github.com/nlohmann/json) by N. Lohmann is used for encoding/decoding program options to/from json.
 

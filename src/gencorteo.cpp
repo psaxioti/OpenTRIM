@@ -15,7 +15,7 @@ int gencorteo6bit();
 int main(int argc, char* argv[])
 {
     gencorteo4bit();
-    // gencorteo6bit();
+    gencorteo6bit();
     return 0;
 }
 

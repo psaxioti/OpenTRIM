@@ -769,7 +769,7 @@ struct xs_corteo_index {
 };
 
 const float* corteo4bitdata();
-// const float* corteo6bitdata();
+const float* corteo6bitdata();
 
 /**
  * @brief 4-bit corteo-tabulated ZBL screened potential scattering integral
@@ -853,7 +853,7 @@ struct xs_zbl_corteo6bit : public screening_function< Screening::ZBL >
     }
     /// Returns a pointer to the pre-computed table
     static const float* data() {
-        return nullptr; //corteo6bitdata();
+        return corteo6bitdata();
     }
 };
 
