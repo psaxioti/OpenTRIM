@@ -269,30 +269,33 @@ struct xs_base : public screening_function< ScreeningType >
         double f1 = F(x1, e, s);  // should be always negative
         double f2 = F(x2, e, s);  // should be always positive (starting ~1.0)
 
-        if(f1>=0.) {
-            // initial guess for x1 too optimistic, start with a safe value (much longer)
-            x1 = 1.e-8;
+        // ensure bracketing
+        while(f1 >=0. ) {
+            // initial guess for x1 too optimistic
+            x1 *= 0.1;
             f1 = F(x1, e, s);  // should be always negative
         }
-        if (f2 <=0. ) {
-            do {
-                x2 *= 1.001;
-                f2 = F(x2, e, s);
-            } while (f2 <= 0.);
+        while(f2 <=0. ) {
+            // just in case
+            x2 *= 1.001;
+            f2 = F(x2, e, s);
         }
 
-        assert(f1<0.0 && f2>0.0); // values should be on each side of 0
+        // assert(f1<0.0 && f2>0.0); // values should be on each side of 0
 
         double xm = 0.5*(x1+x2);
         double fm = F(xm, e, s);
-        do {
-            if (fm<0.) x1 = xm;
-            else x2 = xm;
-            xm = 0.5*(x1+x2);
+        double d = 1.;
+        while (std::abs(fm) > std::numeric_limits<double>::epsilon() &&
+               std::abs(d) > std::numeric_limits<double>::epsilon()
+               )
+        {
+            if (fm<0.) x1 = xm; else x2 = xm;
+            double q = 0.5*(x1+x2);
+            d = (q - xm)/xm;
+            xm = q;
             fm = F(xm, e, s);
-        } while (fabs(fm) > (10*std::numeric_limits<double>::epsilon()) );
-        // 1.-XXX wont be more precise than 2^(-52)=2e-16
-        // but using 1e-10 saves time and is enough precise for float conversion later on
+        }
 
         return xm;
     }
@@ -335,6 +338,16 @@ struct xs_base : public screening_function< ScreeningType >
         double x = 2*e*s;
         return 2*std::asin(std::sqrt(1./(1+x*x)));
     }
+
+    // Modified bessel 2nd kind K1(x) with large x approx
+    // Error for x>200 ~ below 1%
+    // K1(200) ~ 1e-88
+    static double bessel_k1(double x) {
+        // sqrt(pi/2)
+        constexpr static const double sqrtpihalf = 1.25331413731550012081;
+        return (x > 200) ? sqrtpihalf*exp(-x)/std::sqrt(x) :
+                   std::cyl_bessel_k(1,x);
+    }
 };
 
 // Unscreened Coulomb minimal approach distance
@@ -350,10 +363,10 @@ inline double xs_base<Screening::ZBL>::theta_impulse_approx(double e, double s)
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
-    double th = C[0]*A[0]*std::cyl_bessel_k(1,A[0]*s) +
-                C[1]*A[1]*std::cyl_bessel_k(1,A[1]*s) +
-                C[2]*A[2]*std::cyl_bessel_k(1,A[2]*s) +
-                C[3]*A[3]*std::cyl_bessel_k(1,A[3]*s);
+    double th = C[0]*A[0]*bessel_k1(A[0]*s) +
+                C[1]*A[1]*bessel_k1(A[1]*s) +
+                C[2]*A[2]*bessel_k1(A[2]*s) +
+                C[3]*A[3]*bessel_k1(A[3]*s);
     return th/e;
 }
 // KrC potential impulse aprox
@@ -362,9 +375,9 @@ inline double xs_base<Screening::KrC>::theta_impulse_approx(double e, double s)
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
-    double th = C[0]*A[0]*std::cyl_bessel_k(1,A[0]*s) +
-                C[1]*A[1]*std::cyl_bessel_k(1,A[1]*s) +
-                C[2]*A[2]*std::cyl_bessel_k(1,A[2]*s);
+    double th = C[0]*A[0]*bessel_k1(A[0]*s) +
+                C[1]*A[1]*bessel_k1(A[1]*s) +
+                C[2]*A[2]*bessel_k1(A[2]*s);
     return th/e;
 }
 // Moliere potential impulse aprox
@@ -373,9 +386,9 @@ inline double xs_base<Screening::Moliere>::theta_impulse_approx(double e, double
 {
     auto &C =  Phi::C;
     auto &A =  Phi::A;
-    double th = C[0]*A[0]*std::cyl_bessel_k(1,A[0]*s) +
-                C[1]*A[1]*std::cyl_bessel_k(1,A[1]*s) +
-                C[2]*A[2]*std::cyl_bessel_k(1,A[2]*s);
+    double th = C[0]*A[0]*bessel_k1(A[0]*s) +
+                C[1]*A[1]*bessel_k1(A[1]*s) +
+                C[2]*A[2]*bessel_k1(A[2]*s);
     return th/e;
 }
 
@@ -486,8 +499,11 @@ struct xs_quad : public xs_base< ScreeningType >
     static double findS(double e, double thetaCM) {
 
         // inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
-        double gamma = (M_PI-thetaCM)/M_PI;
-        double x0 = minApproach((1.0-gamma*gamma)*e, 1.e-8);
+        double d = thetaCM / M_PI;
+        double gamma = 1. - d;
+        double e0 = (d < 10*std::numeric_limits<double>::epsilon()) ?
+                        2.*d*e : (1.0-gamma*gamma)*e;
+        double x0 = minApproach(e0, 1.e-8);
         double x1, x2;
         if (e >= 1.) {
             x1 = 0.7*gamma*x0;
@@ -497,18 +513,30 @@ struct xs_quad : public xs_base< ScreeningType >
             x2 = 1.4*gamma*x0;
         }
 
+        if (x2 > 1.e4) x2 = 1.e4; // this is as high as it gets. Above causes numerical instability
+
+        // ensure bracketing
+        while (thetaCM-theta(e, x1)>=0.0) x1 *= 0.1;
+        while (thetaCM-theta(e, x2)<=0.0) x2 *= 1.001;
+
         assert(thetaCM-theta(e, x1)<0.0 && thetaCM-theta(e, x2)>0.0);    // values should be on each side of 0
 
         double xm = 0.5*(x1+x2);
         double fm = thetaCM-theta(e,xm);
+        d = 1.;
         int k = 0;
-        do {
-            if (fm <0. ) x1 = xm;
+
+        while (std::abs(d) > std::numeric_limits<double>::epsilon() &&
+               k < 100)
+        {
+            if (fm < 0. ) x1 = xm;
             else x2 = xm;
-            xm = 0.5*(x1+x2);
+            double q = 0.5*(x1+x2);
+            d = (q - xm)/xm;
+            xm = q;
             fm = thetaCM-theta(e,xm);
             k++;
-        } while (fabs(fm)>1e-9 && k<100); //1e-6
+        }
 
         return xm;
     }
