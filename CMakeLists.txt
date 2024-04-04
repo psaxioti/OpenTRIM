@@ -27,9 +27,12 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 
 find_package(Eigen3 3.4 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
+message(STATUS "Eigen3 include ${EIGEN3_INCLUDE_DIR}")
 
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
 include_directories(${HDF5_INCLUDE_DIRS})
+message(STATUS "HDF5 include: ${HDF5_INCLUDE_DIRS}")
+message(STATUS "HDF5 libs: ${HDF5_LIBRARIES}")
 
 add_executable(gendedx
     src/gendedx.cpp
@@ -100,12 +103,16 @@ target_link_libraries(iradinapp "-lm"
     corteo4bit  corteo6bit
     ${HDF5_LIBRARIES})
 
-target_link_libraries(iradina++ "-lm"
+set(IRADINAPP_LIBS
+    "-lm"
     Eigen3::Eigen
     iondedx
     corteo4bit  corteo6bit
     iradinapp
     ${HDF5_LIBRARIES})
+
+target_link_libraries(iradina++ 
+    ${IRADINAPP_LIBS})
 
 target_include_directories(iradinapp PRIVATE
     extern/json-3.11.3/single_include/ )
@@ -120,9 +127,5 @@ set(installable_libs
 install(TARGETS ${installable_libs} DESTINATION lib)
 install(FILES ${IRADINAPP_HEADERS} DESTINATION include)
 install(TARGETS iradina++ DESTINATION bin)
-
-
-
-
 
 
