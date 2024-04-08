@@ -63,6 +63,7 @@ add_library(corteo6bit SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/corteo6bitdata.cpp)
 
 set (IRADINAPP_HEADERS
+    src/dedx.h
     src/corteo.h
     src/xs.h
     src/elements.h
@@ -93,29 +94,28 @@ add_library(iradinapp SHARED
     src/parse_json.cpp    
     src/mcdriver.cpp)
 
-add_executable(iradina++  
-    src/iradina.cpp 
-)
-
-target_link_libraries(iradinapp "-lm"
-    Eigen3::Eigen
-    iondedx
-    corteo4bit  corteo6bit
-    ${HDF5_LIBRARIES})
-
 set(IRADINAPP_LIBS
     "-lm"
     Eigen3::Eigen
     iondedx
     corteo4bit  corteo6bit
-    iradinapp
     ${HDF5_LIBRARIES})
 
-target_link_libraries(iradina++ 
-    ${IRADINAPP_LIBS})
+target_link_libraries(iradinapp ${IRADINAPP_LIBS})
 
 target_include_directories(iradinapp PRIVATE
     extern/json-3.11.3/single_include/ )
+
+add_executable(iradina++
+    src/iradina.cpp
+)
+
+target_include_directories(iradina++ PRIVATE
+    extern/cxxopts-3.1.1/include)
+
+target_link_libraries(iradina++
+    ${IRADINAPP_LIBS} iradinapp
+    )
 
 # add_subdirectory(doc)
 

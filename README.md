@@ -7,23 +7,37 @@ The emphasis is on calculation of target damage.
 
 ## Usage
 
-Iradina++ is a command line program and can be invoked by 
+Iradina++ provides a command line program which can be invoked by 
 
 ```
-> iradina++ [options] [ < config_file.json ]
+> iradina++ [options] [-f config.json]
 ```
 The program accepts a JSON-formatted configuration input either
-directly from stdin or from a file by redirection
-as shown above.
+directly from a file (with the `-f` option) or from stdin.
 
-Currently the only option that can be given is 
+To see all available options run `iradina++ -h`, which prints
 ```
-  -h : print a short help message and exit.
+Monte-Carlo ion trasport simulation
+Usage:
+  iradina++ [OPTION...]
+
+  -n arg          Number of histories to run (overrides config input)
+  -j arg          Number of threads (overrides config input)
+  -s, --seed arg  random generator seed (overrides config input)
+  -f arg          JSON config file
+  -v, --version   Display version information
+  -h, --help      Display short help message
 ```
 
 The program first checks and validates the configuration input. 
 
 It then runs the simulation and saves the results into HDF5 files.
+
+Additionally, the following libraries are provided, which can be used independently:
+- `libiradinapp` contains all the Monte-Carlo ion transport C++ code as a shared library. It can be used by external applications
+- `libiondedx` is a shared library containing tables of electronic stopping data
+- The [`xs.h`](src/xs.h) C++ header file can be used standalone for screened Coulomb scattering calculations.
+- `libcorteo4bit` & `libcorteo6bit` are shared libraries containing scattering tables of the ZBL potential. They can be used independently together with `xs.h` for scattering simulations.
 
 ## Input configuration
 
@@ -88,9 +102,10 @@ The JSON configuration input has the following self-explanatory structure:
 }
 ```
 
-> Comments in JSON config file are ignored by the program
+> Comments in JSON are accepted.
 
-Copy/paste and edit the above to create a new input file.
+The easiest way to get started is to copy/paste the above configuration make changes and save to a new input file.
+
 Most of the options shown here are default values and can be omitted.
 The `target/materials` and `target/regions` must always be given.
 
@@ -156,7 +171,7 @@ To reach a variable in the file use the complete path, e.g. `/tally/damage/Tdam`
 The tallies give the mean values over all histories.
 For each tally variable there is an additional entry corresponding to the standard deviation of the mean. The name of this entry is the same as the variable plus `_std` at the end, e.g.   `/tally/damage/Tdam_std`.
 
-Specifically, if $x_i$ is the contribution to the tally $x$ from the $i$-th ion history, then the mean and std given in the output file are calculated as:
+Specifically, if $x_i$ is the contribution to quantity $x$ from the $i$-th ion history, then the mean and std given in the output file are calculated as:
 $$
 \bar{x} = \frac{1}{N_h} \sum_i {x_i}
 $$
@@ -164,7 +179,7 @@ $$
 \sigma_{\bar{x}} = \frac{1}{N_h(N_h-1)} \sum_i { (x_i - \bar{x})^2 }
 $$
 
-## Documentation
+## Code Documentation
 
 Doxygen documentation can be found here: https://fusion.ipta.demokritos.gr/iradina++/
 
@@ -197,7 +212,15 @@ Override this by setting the option `-DCMAKE_INSTALL_PREFIX="/your/install/locat
 
 Installed files are listed in `build/install_manifest.txt`, which is created in the install step.
 
+## Testing
 
+Some benchmark tests for comparison to other codes are given in folder `test/`.
+
+The file [`test/README.md`](test/README.md) gives a short description of the benchmarks.
+
+Folders `test/b1` to `b7` have config files for running each of the test.
+
+The file [`test/octave/plot_benchmark.m`](test/octave/plot_benchmark.m) is an OCTAVE script which can be used for plotting results from benchmarks.
 
 ## Credits
 
@@ -213,6 +236,8 @@ The [Eigen](http://eigen.tuxfamily.org/) library by B. Jacob & G. Guennebaud is 
 The [Xoshiro128+](https://prng.di.unimi.it/) algorithm by D. Blackman and S. Vigna is used for random number generation.
 
 [JSON for Modern C++](https://github.com/nlohmann/json) by N. Lohmann is used for encoding/decoding program options to/from json.
+
+[cxxopts](https://github.com/jarro2783/cxxopts) by [jarro2783](https://github.com/jarro2783) is used for handling cli options.
 
 The [HDF5 library](https://github.com/HDFGroup/hdf5) is used for saving
 results to HDF5 files.
