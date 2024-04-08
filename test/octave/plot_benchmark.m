@@ -1,11 +1,19 @@
 clear
 
+# Benchmark Number
 nb = 3;
-ipp = load(['../test/iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
+
+# Load HDF5 Results
+ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
+
+# Title
 titlestr = ipp.Title;
 
+# x axis = cell centers
 x = ipp.grid.cell_xyz(:,1);
 
+
+# Figure 1 = Defects vs. x
 figure 1
 clf
 subplot(2,2,1)
@@ -29,6 +37,7 @@ title([titlestr ' - PKAs'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
 
+# Figure 2 = Energy Deposition vs. x
 figure 2
 clf
 subplot(2,2,1)
@@ -56,7 +65,7 @@ legend(ipp.atom.label)
 xlabel('x (nm)')
 ylabel('eV')
 
-
+# Figure 3 = Damage parameters vs. x
 figure 3
 clf
 lbls = {};
@@ -111,6 +120,7 @@ title([titlestr ' - Vac/PKA'])
 legend(lbls)
 xlabel('x (nm)')
 
+# Figure 4 = Lost ions/energy vs. x
 figure 4
 clf
 subplot(2,1,1)

@@ -218,7 +218,7 @@ Some benchmark tests for comparison to other codes are given in folder `test/`.
 
 The file [`test/README.md`](test/README.md) gives a short description of the benchmarks.
 
-Folders `test/b1` to `b7` have config files for running each of the test.
+Folders [`test/iradina++/b1`](test/iradina++/b1) to `b7` have config files for running the benchmarks with iradina++.
 
 The file [`test/octave/plot_benchmark.m`](test/octave/plot_benchmark.m) is an OCTAVE script which can be used for plotting results from benchmarks.
 
