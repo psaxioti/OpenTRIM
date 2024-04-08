@@ -1,12 +1,13 @@
 {
     "Driver" : {        
-        "max_no_ions" : 20000,
-        "threads" : 8,
+        "max_no_ions" : 20,
+        "threads" : 1,
         "seeds" : []
     },
     "Simulation" : {
         "simulation_type" : "FullCascade",
-        "scattering_calculation" : "Corteo4bit",
+        "screening_type" : "ZBL",
+        "scattering_calculation" : "Corteo4bitTable",
         "flight_path_type" : "AtomicSpacing",
         "min_energy" : 1.0
     },

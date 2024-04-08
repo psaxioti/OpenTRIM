@@ -6,7 +6,8 @@
     },
     "Simulation" : {
         "simulation_type" : "FullCascade",
-        "scattering_calculation" : "Corteo4bit",
+        "screening_type" : "ZBL",
+        "scattering_calculation" : "Corteo4bitTable",
         "flight_path_type" : "AtomicSpacing",   // "AtomicSpacing", "MendenhallWeller", MyFFP
         "min_energy" : 1.0
     },

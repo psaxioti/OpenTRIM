@@ -6,7 +6,8 @@
     },
     "Simulation" : {
         "simulation_type" : "FullCascade",
-        "scattering_calculation" : "Corteo4bit",
+        "screening_type" : "ZBL",
+        "scattering_calculation" : "Corteo4bitTable",
         "flight_path_type" : "AtomicSpacing",
         "min_energy" : 1.0
     },
@@ -42,7 +43,7 @@
         "periodic_bc" : [0, 1, 1]
     },
     "Output" : {
-        "title" : "3MeV Xe on UO2 benchmark",
+        "title" : "1MeV Xe on UO2 benchmark",
         "OutputFileBaseName" : "b4",
         "store_pka" : 1,
         "store_dedx" : 1,
