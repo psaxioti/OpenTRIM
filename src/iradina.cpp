@@ -1,5 +1,7 @@
 #include "mcdriver.h"
 
+#include <cxxopts.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -10,39 +12,70 @@ using std::cerr;
 using std::endl;
 
 int main(int argc, char* argv[])
-{
-    if(argc == 2)
-    {
-        static const char* usage = "iradina++ v0.1.0\n"
-                                   "Usage: iradina++ [options]\n"
-                                   "Reads json config from stdin.\n"
-                                   "Use iradina++ < [file.json] to read from a file.\n"
-                                   "Options:\n"
-                                   "  -h: display usage\n";
+{   
+    cxxopts::Options cli_options("iradina++", "Monte-Carlo ion trasport simulation");
 
-        cerr << usage << endl;
+    cli_options.add_options()
+        ("n","Number of histories to run (overrides config input)", cxxopts::value<int>())
+        ("j","Number of threads (overrides config input)", cxxopts::value<int>())
+        ("s,seed","random generator seed (overrides config input)",cxxopts::value<int>())
+        ("f","JSON config file",cxxopts::value<std::string>())
+        ("v,version","Display version information")
+        ("h,help","Display short help message");
+
+    int n(-1), j(-1), s(-1);
+    std::string input_file;
+
+    try {
+        auto result = cli_options.parse(argc,argv);
+
+        if (result.count("help")) {
+            cout << cli_options.help() << endl;
+            return 0;
+        }
+        if (result.count("version")) {
+            cout << "iradina++ v0.1.0" << endl;
+            return 0;
+        }
+        if (result.count("n")) n = result["n"].as<int>();
+        if (result.count("j")) j = result["j"].as<int>();
+        if (result.count("s")) s = result["s"].as<int>();
+        if (result.count("f")) input_file = result["f"].as<std::string>();
+    }
+    catch(const cxxopts::exceptions::exception& e)
+    {
+        cout << "error parsing options: " << e.what() << endl;
         return -1;
     }
 
-    cout << "Parsing json config ... ";
-    options s;
-    if (s.parseJSON(cin)!=0) return -1;
+    // Parse JSON config
+    options opt;
+    if (input_file.empty()) {
+        cout << "Input JSON config:" << endl;
+        if (opt.parseJSON(cin)!=0) return -1;
+    } else {
+        cout << "Parsing JSON config from " << input_file << endl;
+        std::ifstream is(input_file);
+        if (opt.parseJSON(is)!=0) return -1;
+    }
 
-    cout << "OK." << endl;
+    // cli overrides
+    if (n>0) opt.Driver.max_no_ions = n;
+    if (j>0) opt.Driver.threads = j;
+    /// @todo Fix the seed cli option for iradina++
+    /// if (s>0) opt.Driver.seeds = s;
+
     cout << "Starting simulation ..." << endl << endl;
-
     mcdriver D;
-    D.setOptions(s);
+    D.setOptions(opt);
     D.exec();
-    D.saveTallys();
+    D.save();
 
     tally t = D.getSim()->getTally();
-    cout << endl << endl << "Completed." << endl;
+    cout << endl << endl
+         << "Completed " << t.Nions() << " ion histories." << endl;
     cout << "ion/s = " << D.ips() << " (total), ";
     cout << D.ips()/D.nThreads() << " (per thread)" << endl;
-    cout << "Ions = " << t.Nions() << endl;
-    cout << "PKA/Ion = " << 1.f*t.Npkas()/t.Nions() << endl;
-    cout << "Recoils/PKA = " << 1.f*t.Ndisp()/t.Npkas() << endl;
 
     return 0;
 }

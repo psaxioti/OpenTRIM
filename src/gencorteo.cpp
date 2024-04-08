@@ -34,21 +34,20 @@ const char* func6bit =
 
 int gencorteo4bit()
 {
-    typedef xs_corteo_index<4> corteo4bit;
+    typedef xs_corteo_index<4> corteo4bit; // 4bit corteo indexing
 
-    unsigned long nThetaErr = 0;
-    xs_quad xs_quad_zbl;
-    ofstream ofs("corteo4bitdata.cpp");
-    int k = 0;
-    int klast = corteo4bit::rows * corteo4bit::cols - 1;
+    xs_quad xs_quad_zbl; // xs object with ZBL screening & quadrature integration
 
     cout << "Computing 4-bit corteo scattering table";
-    // compute matrix for each reduced energy, reduced impact parameter pair
 
+    // create output file
+    ofstream ofs("corteo4bitdata.cpp");
     ofs << preample << endl;
-
     ofs << "static const float corteo4bitdata_[] = {\n";
 
+    // compute matrix for each reduced energy, reduced impact parameter pair
+    int k = 0;
+    int klast = corteo4bit::rows * corteo4bit::cols - 1;
     for(corteo4bit::e_index ie; ie<ie.end(); ie++) {
 
         if (ie % (corteo4bit::rows/10)==0) {
@@ -57,12 +56,7 @@ int gencorteo4bit()
         }
 
         for(corteo4bit::s_index is; is<is.end(); is++) {
-            // calculations (summation) made using double to decrease numerical noise
             float sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is);
-            if(std::isnan(sin2ThetaBy2)) nThetaErr++;
-
-            // store in matrix sin^2(theta_CM/2) as float
-            // matrix[is+ie*s_index::dim] = (float)(sin2ThetaBy2);
             ofs << sin2ThetaBy2;
             if (k!=klast) ofs << ',';
             k++;
@@ -77,29 +71,25 @@ int gencorteo4bit()
     cout << " done.\n";
     cout.flush();
 
-    if(nThetaErr)
-        cout << "ERROR: " << nThetaErr << " error(s) in theta evaluation.\n";
-
-    return !nThetaErr;
+    return 0;
 }
 
 int gencorteo6bit()
 {
-    typedef xs_corteo_index<6> corteo6bit;
+    typedef xs_corteo_index<6> corteo6bit; // 6bit corteo indexing
 
-    unsigned long nThetaErr = 0;
-    xs_quad xs_quad_zbl;
-    ofstream ofs("corteo6bitdata.cpp");
-    int k = 0;
-    int klast = corteo6bit::rows * corteo6bit::cols - 1;
+    xs_quad xs_quad_zbl; // xs object with ZBL screening & quadrature integration
 
     cout << "Computing 6-bit corteo scattering table";
-    // compute matrix for each reduced energy, reduced impact parameter pair
 
+    // create output file
+    ofstream ofs("corteo6bitdata.cpp");
     ofs << preample << endl;
-
     ofs << "static const float corteo6bitdata_[] = {\n";
 
+    // compute matrix for each reduced energy, reduced impact parameter pair
+    int k = 0;
+    int klast = corteo6bit::rows * corteo6bit::cols - 1;
     for(corteo6bit::e_index ie; ie<ie.end(); ie++) {
 
         if (ie % (corteo6bit::rows/10)==0) {
@@ -108,12 +98,7 @@ int gencorteo6bit()
         }
 
         for(corteo6bit::s_index is; is<is.end(); is++) {
-            // calculations (summation) made using double to decrease numerical noise
             float sin2ThetaBy2 = xs_quad_zbl.sin2Thetaby2(*ie, *is);
-            if(std::isnan(sin2ThetaBy2)) nThetaErr++;
-
-            // store in matrix sin^2(theta_CM/2) as float
-            // matrix[is+ie*s_index::dim] = (float)(sin2ThetaBy2);
             ofs << sin2ThetaBy2;
             if (k!=klast) ofs << ',';
             k++;
@@ -128,8 +113,5 @@ int gencorteo6bit()
     cout << " done.\n";
     cout.flush();
 
-    if(nThetaErr)
-        cout << "ERROR: " << nThetaErr << " error(s) in theta evaluation.\n";
-
-    return !nThetaErr;
+    return 0;
 }

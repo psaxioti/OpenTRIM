@@ -34,7 +34,7 @@ mcdriver::~mcdriver()
     if (s_) delete s_;
 }
 
-int mcdriver::saveTallys()
+int mcdriver::save()
 {
     out_file of(s_);
     std::string fname(out_opts_.OutputFileBaseName);

@@ -90,7 +90,7 @@ public:
     double ips() const { return ips_; }
     int nThreads() const { return par_.threads; }
 
-    int saveTallys();
+    int save();
 
     const std::vector<uint>& thread_ion_count() const { return thread_ion_count_; }
 
