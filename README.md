@@ -233,7 +233,7 @@ Electronic energy loss data has been obtained from the [SRIM-2013](http://www.sr
 
 The [Eigen](http://eigen.tuxfamily.org/) library by B. Jacob & G. Guennebaud is used for 3D vector math.
 
-The [Xoshiro128+](https://prng.di.unimi.it/) algorithm by D. Blackman and S. Vigna is used for random number generation.
+The [Xoshiro256+](https://prng.di.unimi.it/) algorithm by D. Blackman and S. Vigna is used for random number generation.
 
 [JSON for Modern C++](https://github.com/nlohmann/json) by N. Lohmann is used for encoding/decoding program options to/from json.
 
