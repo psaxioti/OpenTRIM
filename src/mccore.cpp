@@ -276,7 +276,7 @@ int mccore::init() {
 }
 
 ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &mass_ratio, tally& t, pka_event *pka)
+                            const vector3& dir0, const float &sqrt_mass_ratio, tally& t, pka_event *pka)
 {
     // clone the projectile ion
     ion* j = q_.new_ion(*proj);
@@ -286,11 +286,20 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
     f1 = proj->erg() / recoil_erg;
     f2 = std::sqrt(f1);
     f1 = std::sqrt(f1+1);
-    j->dir() = (f1*dir0 - f2*(proj->dir()))*mass_ratio;
+    j->dir() = (f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio;
 
     // adjust recoil atom type and energy
     j->myAtom() = target;
     j->erg() = recoil_erg;
+
+    // check momentum cons.
+//    {
+//        vector3 p0 = dir0*std::sqrt(2*(j->erg()+proj->erg())*proj->myAtom()->M());
+//        vector3 p1 = proj->dir()*std::sqrt(2*proj->erg()*proj->myAtom()->M());
+//        vector3 p2 = j->dir()*std::sqrt(2*j->erg()*j->myAtom()->M());
+//        vector3 p = (p0-p1-p2)/p0.norm();
+//        assert(p.x() < 1e-6f && p.y() < 1e-6f && p.z() < 1e-6f);
+//    }
 
     // tally the recoil
     t(Event::NewRecoil,*j);
@@ -402,6 +411,8 @@ float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, co
 
 int mccore::transport(ion* i, tally &t, pka_event *pka)
 {
+    float xxx;
+
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
     // get the corresponding dEdx & straggling table for ion/material combination
@@ -491,6 +502,9 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
             float sintheta, costheta; // scattering angle in Lab sys
             assert(i->erg() > 0);
             xs->scatter(i->erg(), ip, T, sintheta, costheta);
+            if (T>1000) {
+                xxx = T;
+            }
             float nx, ny; // azimuthial dir
             rng.azimuth(nx,ny);
 
@@ -567,12 +581,12 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
     case AtomicSpacing:
         fp = m->atomicDistance();
         sqrtfp = 1.f;
-        ip = m->meanImpactPar()*std::sqrt(rng.u01());
+        ip = m->meanImpactPar()*std::sqrt(rng.u01d_lopen());
         break;
     case Constant:
         fp = par_.flight_path_const;
         sqrtfp = sqrtfp_const[m->id()];
-        ip = m->meanImpactPar()/sqrtfp_const[m->id()]*std::sqrt(rng.u01());
+        ip = m->meanImpactPar()/sqrtfp_const[m->id()]*std::sqrt(rng.u01d_lopen());
         break;
     case SRIMlike:
         {
@@ -582,7 +596,7 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
             ipmax = bmax * m->meanA();
             fp = 1./(M_PI * m->atomicDensity() * ipmax * ipmax);
             sqrtfp = std::sqrt(fp/m->atomicDistance());
-            ip = ipmax*std::sqrt(rng.u01());
+            ip = ipmax*std::sqrt(rng.u01d_lopen());
         }
         break;
     case MendenhallWeller:
@@ -591,12 +605,12 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         {
             fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
             sqrtfp = std::sqrt(fp/m->atomicDistance());
-            ip = std::sqrt(-std::log(rng.u01open()))*ipmax;
+            ip = std::sqrt(-std::log(rng.u01s_open()))*ipmax;
             if (ip > ipmax) ip = INFINITY;
         } else { // atomic spacing
             fp = m->atomicDistance();
             sqrtfp = 1.f;
-            ip = m->atomicDistance()*std::sqrt(rng.u01());
+            ip = m->atomicDistance()*std::sqrt(rng.u01d_lopen());
         }
         break;
     case MyFFP:
@@ -604,15 +618,15 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         if (ipmax < m->atomicDistance()) // TODO: check def of impact par
         {
             fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
-            fp *= (-std::log(rng.u01open()));
+            fp *= (-std::log(rng.u01s_open()));
             sqrtfp = std::sqrt(fp/m->atomicDistance());
             //ip = -std::log(urbg.u01open())*ipmax;
             //if (ip > ipmax) ip = INFINITY;
-            ip = ipmax*std::sqrt(rng.u01lopen());
+            ip = ipmax*std::sqrt(rng.u01d_lopen());
         } else { // atomic spacing
             fp = m->atomicDistance();
             sqrtfp = 1.f;
-            ip = m->atomicDistance()*std::sqrt(rng.u01lopen());
+            ip = m->atomicDistance()*std::sqrt(rng.u01d_lopen());
         }
         break;
     default:

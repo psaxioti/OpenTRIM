@@ -1002,7 +1002,7 @@ public:
     {
         float e = E*red_E_conv_;
         float sin2thetaby2 = xs_cm::sin2Thetaby2(e, S/screening_length_);
-        recoil_erg = e*sin2thetaby2;
+        recoil_erg = E*gamma_*sin2thetaby2;
         /* convert scattering angle to lab frame of reference: */
         costheta = 1.f - 2*sin2thetaby2;
         sintheta = std::sqrt(1.f-costheta*costheta);

@@ -126,7 +126,7 @@ material::material_desc_t material::getDescription() const
 const atom* material::selectAtom(random_vars& g) const
 {
     if (atoms_.size()==1) return atoms_.front();
-    float u = g.u01ropen();
+    float u = g.u01s();
     int i=0;
     while((i < atoms_.size()-1) && (u > cumX_[i])) i++;
     return atoms_[i];

@@ -14,6 +14,57 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
+// Test influence of RNG 32 or 64bit on impact parameter sampling
+//
+//  ----> MUST BE 64-bit for good statistics
+//  Otherwise with light ions where ip is small, PKAs are not sampled correctly
+//
+int test_rnd_ip(int argc, char* argv[])
+{
+    float E0 = 3e6; // eV
+    int Z1 = 1, Z2 = 26;
+    float M1 = 1.00784, M2 = 55.845;
+
+    xs_lab_zbl_corteo4bit xs;
+    xs.init(Z1,M1,Z2,M2);
+
+    // iron
+    float n = 6.02214e2f*7.8658f/M2; // at. density at/nm^3
+    float L = 1/std::pow(4*M_PI*n/3,1.f/3);
+    float Pmax = 1/sqrt(M_PI*n*L);
+
+    float Ed = 40;
+
+    int N = 10;
+    if (argc>1) N = atoi(argv[1]);
+
+    std::random_device rd;
+    random_vars rng;
+    rng.seed(rd());
+    //std::mt19937 rng;
+    //std::uniform_real_distribution<float> U(0.f,1.f);
+
+    int i = 0;
+    uint k = 0;
+    while (i<N)
+    {
+        float ip,T;
+        do {
+            ip = Pmax*std::sqrt(rng.u01d_lopen());
+            //do ip = Pmax*std::sqrt(U(rng)); while (ip==0.f);
+            float s,c;
+            xs.scatter(E0,ip,T,s,c);
+            k++;
+        } while (T<Ed);
+        cout << ip << '\t' << T << endl;
+        i++;
+    }
+
+    cerr << k << endl;
+
+    return 0;
+}
+
 int Fe_2MeV_on_Fe()
 {
     simulation<XS_corteo4bit, std::mt19937> S("2MeV Fe on Fe");
