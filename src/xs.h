@@ -393,6 +393,66 @@ inline double xs_base<Screening::Moliere>::theta_impulse_approx(double e, double
 }
 
 /**
+ * @brief DE integration from Press et al. Numerical Recipes 3rd ed.
+ */
+template<class T>
+class de_integrator {
+
+    double a,b,hmax,s;
+    T &func;
+    int n;
+
+    /*
+         * On the ﬁrst call to the function next (n=1), the routine returns
+         * the crudest estimate for the integral.
+         * Subsequent calls to next (n=2,3,...) will improve the accuracy by adding
+         * 2^(n-1) additional interior points.
+         */
+    double next() {
+        double del,fact,q,qp1,sum,t,twoh;
+        int it,j;
+        n++;
+        if (n == 1) {
+            fact=0.25;
+            return s=hmax*2.0*(b-a)*fact*func(0.5*(b+a),0.5*(b-a));
+        } else {
+            for (it=1,j=1;j<n-1;j++) it <<= 1;
+            twoh=hmax/it;
+            // Twice the spacing of the points to be added.
+            t=0.5*twoh;
+            for (sum=0.0,j=0;j<it;j++) {
+                q=exp(-2.0*sinh(t));
+                qp1 = 1.0 + q;
+                del=(b-a)*q/qp1;
+                fact=q/qp1/qp1*cosh(t);
+                sum += fact*(func(a+del,del)+func(b-del,del));
+                t += twoh;
+            }
+            return s=0.5*s+(b-a)*twoh*sum; // Replace s by its reﬁned value and return.
+        }
+    }
+
+public:
+    de_integrator(T &funcc, const double hmaxx=3.7)
+        : func(funcc), hmax(hmaxx) {}
+
+    double integrate(double aa, double bb, double eps = 1.e-10) {
+        const int JMAX=20;
+        double os=0.0;
+        a=aa; b=bb; n=0;
+        for (int j=0;j<JMAX;j++) {
+            next();
+            if (j > 5) // Avoid spurious early convergence.
+                if (std::abs(s-os) < eps*std::abs(os) ||
+                    (s == 0.0 && os == 0.0)) return s;
+            os=s;
+        }
+        // too many iterations
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+};
+
+/**
  * @brief The xs_quad class implements screened potential scattering integral evaluation by quadrature
  *
  * Using Gauss–Chebyshev quadrature (https://dlmf.nist.gov/3.5#v) the integral is evaluated as
@@ -472,6 +532,11 @@ struct xs_quad : public xs_base< ScreeningType >
         if (e*s3*s3 > 1.e12)
             return theta_impulse_approx(e,s);
 
+        return M_PI - pi_minus_theta(e,s,nsum);
+    }
+
+    static double pi_minus_theta(double e, double s, int nsum = 100)
+    {
         double x0 = minApproach(e, s);
 
         double sum(0.);
@@ -483,7 +548,7 @@ struct xs_quad : public xs_base< ScreeningType >
             sum += H(uj, x0, e, s);
         }
 
-        return M_PI-2.0*s/x0*a*sum;
+        return 2.0*s/x0*a*sum;
     }
 
     /**
@@ -496,11 +561,16 @@ struct xs_quad : public xs_base< ScreeningType >
      * @param thetaCM scattering angle (rad) in center-of-mass system
      * @return the reduced impact parameter
      */
-    static double findS(double e, double thetaCM) {
+    static double findS(double e, double thetaCM, double tol = std::numeric_limits<double>::epsilon()) {
+
+        if (thetaCM==0.) return std::numeric_limits<double>::infinity();
 
         // inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
         double d = thetaCM / M_PI;
         double gamma = 1. - d;
+
+        if (gamma==0.) return 0;
+
         double e0 = (d < 10*std::numeric_limits<double>::epsilon()) ?
                         2.*d*e : (1.0-gamma*gamma)*e;
         double x0 = minApproach(e0, 1.e-8);
@@ -526,8 +596,7 @@ struct xs_quad : public xs_base< ScreeningType >
         d = 1.;
         int k = 0;
 
-        while (std::abs(d) > std::numeric_limits<double>::epsilon() &&
-               k < 100)
+        while (std::abs(d) > tol && k < 100)
         {
             if (fm < 0. ) x1 = xm;
             else x2 = xm;
@@ -554,10 +623,25 @@ struct xs_quad : public xs_base< ScreeningType >
      * @param thetaCM is the center-of-mass scattering angle (rad)
      * @return the reduced cross-section
      */
-    static double crossSection(double e, double thetaCM)
+    static double crossSection(double e, double thetaCM, double tol = std::numeric_limits<double>::epsilon())
     {
         // find corresponfding reduced impact parameter
-        double s = findS(e, thetaCM);
+        double s = findS(e, thetaCM, tol);
+
+        if (s < 1.e-6) { // quasi head on collision
+            double dth = pi_minus_theta(e,s);
+            if (s==0.) {
+                s = 1.e-30;
+                dth = pi_minus_theta(e,s);
+            }
+            double ds = s*0.001;
+            double dsdTheta = (12.0*ds)/(-pi_minus_theta(e,s+2.0*ds)
+                                             +8.0*pi_minus_theta(e,s+ds)
+                                             -8.0*pi_minus_theta(e,s-ds)
+                                             +pi_minus_theta(e,s-2.0*ds));
+
+            return s/sin(dth)*fabs(dsdTheta);
+        }
 
         // ds/dTheta using five-point stencil
         double ds = s*0.001;
@@ -568,6 +652,57 @@ struct xs_quad : public xs_base< ScreeningType >
 
 
         return s/sin(thetaCM)*fabs(dsdTheta);
+    }
+
+private:
+    struct eloss_functor_ {
+        double e_;
+        static double ergxs(double e, double mu) {
+            double thetaCM = 2.*std::asin(std::sqrt(mu));
+            return crossSection(e,thetaCM,1e-10)*mu;
+        }
+        double operator()(double x, double d) {
+            return ergxs(e_, x);
+        }
+    };
+
+public:
+
+    /**
+     * @brief Reduced stopping power
+     *
+     * Calculate the reduced stopping power
+     *
+     * \f[
+     * S_n(\epsilon) = \frac{\epsilon}{\pi\, a^2 T_m N} \frac{dE}{dx} =
+     * \frac{4 \epsilon}{a^2 T_m^2} \int_0^{T_m}{T\,\sigma(T) dT}
+     * \f]
+     *
+     * where \f$ \sigma \f$ is the reduced cross-section.
+     *
+     * The integral is evaluated numerically.
+     *
+     * Optionally, the function calculates the stopping power
+     * for scattering angles below `theta_max`. In this case the
+     * upper limit in the integral is replaced with
+     *
+     * \f[
+     * T(\theta_m) = T_m \, \sin^2 \theta_m/2
+     * \f]
+     *
+     * @param e the reduced energy
+     * @param theta_max optional maximum scattering angle, defaults to \f$ \pi \f$
+     * @param tol optional rel. tolerance of the integration, default is 1e-6
+     * @return the energy loss cross-section
+     */
+    static double stoppingPower(double e, double theta_max = M_PI, double tol = 1.e-6)
+    {
+        eloss_functor_ F;
+        de_integrator<eloss_functor_> I(F);
+        F.e_ = e;
+        double mu_max = sin(theta_max/2);
+        mu_max = mu_max*mu_max;
+        return 4*e*I.integrate(0., mu_max, tol);
     }
 };
 
@@ -752,6 +887,13 @@ struct xs_zbl_magic : public xs_base< Screening::ZBL >
 
         return s/sin(thetaCM)*fabs(dsdTheta);
     }
+
+    static double stoppingPower(double e, double theta_max = M_PI)
+    {
+        return 0.5*std::log(1+1.1383*e)/
+               (e + 0.01321*std::pow(e,0.21226) +
+                    0.19593*std::sqrt(e));
+    }
 };
 
 /**
@@ -899,6 +1041,7 @@ protected:
     float sqrt_mass_ratio_;     /* we will need this occasionally */
     float gamma_;           /* 4 M1 M2 / (M1 + M2)^2 */
     float red_E_conv_;          /* reduced energy conversion factor */
+    float sig0_;                /* pi a^2 [nm^2] */
 
     template<class _XScm>
     void init_impl_(float Z1, float M1, float Z2, float M2)
@@ -909,6 +1052,7 @@ protected:
         sqrt_mass_ratio_  = std::sqrt(mass_ratio_);
         gamma_            = 4*mass_ratio_ / ((mass_ratio_+1) * (mass_ratio_+1));
         red_E_conv_       = screening_length_ / ((mass_ratio_+1) * Z1 * Z2 * E2);
+        sig0_             = M_PI*screening_length_*screening_length_;
     }
 
 public:
@@ -973,6 +1117,23 @@ public:
      */
     virtual float crossSection(float E, float T) const = 0;
 
+    /**
+     * @brief Stopping power \f$ S_n(E) = N^{-1}dE/dx \f$
+     *
+     * @param E projectile energy [eV]
+     * @return the stopping power [eV-nm^2]
+     */
+    virtual float stoppingPower(float E) const = 0;
+
+    /**
+     * @brief Stopping power of collisions with recoil energy \f$ T \leq T_1 \f$
+     *
+     * @param E projectile energy [eV]
+     * @param T1 maximum recoil energy [eV]
+     * @return the stopping power [eV-nm^2]
+     */
+    virtual float stoppingPower(float E, float T1) const = 0;
+
 
 };
 
@@ -1013,7 +1174,9 @@ public:
 
     virtual float impactPar(float E, float T) const override
     {
-        double thetaCM = T/E/gamma_;
+        double thetaCM = 1.0*T/E/gamma_;
+        if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
+        if (thetaCM == 1.0) return 0.f;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
         return xs_cm::findS(E*red_E_conv_,thetaCM)*screening_length_;
     }
@@ -1022,7 +1185,20 @@ public:
     {
         double thetaCM = T/E/gamma_;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_cm::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/gamma_;
+        return xs_cm::crossSection(E*red_E_conv_,thetaCM)*4*sig0_/E/gamma_;
+    }
+
+    virtual float stoppingPower(float E) const override
+    {
+        return xs_cm::stoppingPower(E*red_E_conv_)*sig0_*gamma_/red_E_conv_;
+    }
+
+    virtual float stoppingPower(float E, float T1) const override
+    {
+        double theta_max = 1.0*T1/E/gamma_;
+        if (theta_max >= 1.) return stoppingPower(E);
+        theta_max = 2.*std::asin(std::sqrt(theta_max));
+        return xs_cm::stoppingPower(E*red_E_conv_,theta_max)*sig0_*gamma_/red_E_conv_;
     }
 };
 
@@ -1103,16 +1279,30 @@ public:
     }
     virtual float impactPar(float E, float T) const override
     {
-        double thetaCM = T/E/gamma_;
+        double thetaCM = 1.0*T/E/gamma_;
+        if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
+        if (thetaCM == 1.0) return 0.f;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
         return xs_quad<Screening::ZBL>::findS(E*red_E_conv_,thetaCM)*screening_length_;
 
     }
     virtual float crossSection(float E, float T) const override
     {
-        double thetaCM = T/E/gamma_;
+        double thetaCM = 1.0*T/E/gamma_;
+        if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<Screening::ZBL>::crossSection(E*red_E_conv_,thetaCM)*4*M_PI*screening_length_*screening_length_/E/gamma_;
+        return xs_quad<Screening::ZBL>::crossSection(E*red_E_conv_,thetaCM)*4*sig0_/E/gamma_;
+    }
+    virtual float stoppingPower(float E) const override
+    {
+        return xs_quad<Screening::ZBL>::stoppingPower(E*red_E_conv_)*sig0_*gamma_/red_E_conv_;
+    }
+    virtual float stoppingPower(float E, float T1) const override
+    {
+        double theta_max = 1.0*T1/E/gamma_;
+        if (theta_max >= 1.0) return stoppingPower(E);
+        theta_max = 2.*std::asin(std::sqrt(theta_max));
+        return xs_quad<Screening::ZBL>::stoppingPower(E*red_E_conv_,theta_max)*sig0_*gamma_/red_E_conv_;
     }
 };
 
