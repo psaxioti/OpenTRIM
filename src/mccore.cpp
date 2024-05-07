@@ -39,9 +39,8 @@ mccore::mccore(const mccore &s) :
     sqrtfp_const(s.sqrtfp_const),
     dedx_(s.dedx_),
     de_strag_(s.de_strag_),
-    max_fp_(s.max_fp_),
-    max_impact_par_(s.max_impact_par_),
     scattering_matrix_(s.scattering_matrix_),
+    mfp_(s.mfp_), ipmax_(s.ipmax_), dedxn_(s.dedxn_),
     rng(),
     pka(s.pka)
 {
@@ -124,25 +123,6 @@ int mccore::init() {
                    }
                 */
             }
-        }
-    }
-
-    /*
-     * create max_fp_ tables for all ion - material
-     * combinations, # =
-     * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get a corteo dedx table
-     */
-    max_fp_ = ArrayNDf(natoms,nmat,nerg);
-    float dEmin = 0.01f; /// @TODO: dEmin should be user option
-    for(int z1 = 0; z1<natoms; z1++)
-    {
-        for(int im=0; im<materials.size(); im++)
-        {
-            float* p = &max_fp_(z1,im,0);
-            const float* q = &dedx_(z1,im,0);
-            for(dedx_index ie; ie!=ie.end(); ie++)
-                p[ie] = dEmin*(*ie)/(*q++);
         }
     }
 
@@ -237,31 +217,85 @@ int mccore::init() {
     }
 
     /*
-     * create arrays of sig(E) - "total" cross-section vs E
-     * for each ion in each materials
-     * # of combinations =
-     * (all target atoms + projectile ) x (all materials)
+     * create tables of parameters for flight path selection
+     *
+     * - Set a low cutoff recoil energy T0
+     * - Scattering events with T<T0 are not considered in the MC
+     * - T0/Tm = sin(th0/2)^2, th0 : low cutoff scattering angle
+     * - ipmax = ip(e,th0) : max impact parameter
+     * - sig0 = pi*ipmax^2 : total xs for events T>T0
+     * - mfp = 1/(N*sig0) : mean free path
+     *
+     * Additionally
+     *
+     * - mfp < Δxmax for el. energy loss below 1% or 5%
+     * - mfp > interatomic distance L = N^(-1/3)
+     *
      */
-    max_impact_par_ = ArrayNDf(natoms, nmat, dedx_index::size);
-    float Tmin = 1e-6f; // TODO: this should be user option
+    mfp_   = ArrayNDf(natoms,nmat,nerg);
+    ipmax_ = ArrayNDf(natoms,nmat,nerg);
+    dedxn_ = ArrayNDf(natoms,nmat,nerg);
+    float delta_dedx = 0.05f; /// @TODO: should be user option
+    float Tmin = 0.000001; //par_.min_energy; /// @TODO: this should be user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
         {
             const material* m = materials[im];
-            float* p = &max_impact_par_(z1,im,0);
-            for(const atom* a : m->atoms())
-            {
-                int z2 = a->id();
-                float x=a->X();
-                for(dedx_index ie; ie!=ie.end(); ie++) {
-                    float d = scattering_matrix_(z1,z2)->impactPar(*ie, Tmin);
-                    p[ie] += x*d*d;
+            const float & N = m->atomicDensity();
+            const float & L = m->atomicDistance();
+            for(dedx_index ie; ie!=ie.end(); ie++) {
+                float & mfp = mfp_(z1,im,ie);
+                float & ipmax = ipmax_(z1,im,ie);
+                float & dedxn = dedxn_(z1,im,ie);
+                float E = *ie;
+                float T0 = Tmin;
+
+                // ensure Tmin is below Tm/2 of all target atoms
+                for(const atom* a : m->atoms()) {
+                    int z2 = a->id();
+                    float Tm = E*scattering_matrix_(z1,z2)->gamma();
+                    if (T0 > 0.5*Tm) T0 = 0.5*Tm;
                 }
-            }
-            for(dedx_index ie; ie!=ie.end(); ie++) p[ie] = std::sqrt(p[ie]);
-        }
-    }
+
+                // Calc mfp corresponding to T0, mfp = 1/(N*sig0), sig0 = pi*sum_i{ X_i * [P_i(E,T0)]^2 }
+                mfp = 0.f;
+                for(const atom* a : m->atoms()) {
+                    int z2 = a->id();
+                    float d = scattering_matrix_(z1,z2)->impactPar(E, T0);
+                    mfp += a->X()*d*d;
+                }
+                mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
+
+                // ensure mfp below 1% energy loss
+                float dx = delta_dedx*E/dedx_(z1,im,ie);
+                if (mfp > dx) mfp = dx;
+
+                // ensure mfp not smaller than interatomic distance
+                if (mfp < L) mfp = L;
+
+                // this is the max impact parameter ip = (N*pi*mfp)^(-1/2)
+                ipmax = std::sqrt(1.f/M_PI/mfp/N);
+
+                // Calc dedxn for  T<T0 = N*sum_i { X_i * Sn(E,T0) }
+                // Add this to dedx
+                /// @TODO: this is very slow. dedxn is very small, can be ignored
+                // We need to re-calc T0 from mfp
+                /// @TODO: solve ipmax^2 = sum_i { X_i * ipmax_i(e,T0) } for T0
+//                int z2 = m->atoms().front()->id();
+//                float s1,c1;
+//                scattering_matrix_(z1,z2)->scatter(E,ipmax,T0,s1,c1);
+//                dedxn = 0;
+//                for(const atom* a : m->atoms()) {
+//                    int z2 = a->id();
+//                    dedxn += scattering_matrix_(z1,z2)->stoppingPower(E,T0) * a->X();
+//                }
+//                dedxn *= N;
+//                if (par_.flight_path_type == MyFFP) dedx_(z1,im,ie) += dedxn;
+
+            } // energy
+        } // material
+    } // Z1
 
     /*
      * Allocate Tally Memory
@@ -376,6 +410,7 @@ int mccore::run()
 float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
 {
     dedx_index ie(i->erg());
+
     float de_stopping = fp * interp_dedx(i->erg(), stopping_tbl);
     if (par_.straggling_model != NoStraggling) {
 
@@ -600,34 +635,25 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         }
         break;
     case MendenhallWeller:
-        ipmax = max_impact_par_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
+        ipmax = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
+        fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         if (ipmax < m->atomicDistance()) // TODO: check def of impact par
         {
-            fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
             sqrtfp = std::sqrt(fp/m->atomicDistance());
-            ip = std::sqrt(-std::log(rng.u01s_open()))*ipmax;
+            ip = ipmax*std::sqrt(-std::log(rng.u01s_open()));
             if (ip > ipmax) ip = INFINITY;
         } else { // atomic spacing
             fp = m->atomicDistance();
             sqrtfp = 1.f;
-            ip = m->atomicDistance()*std::sqrt(rng.u01d_lopen());
+            ip = ipmax*std::sqrt(rng.u01d_lopen());
         }
         break;
     case MyFFP:
-        ipmax = max_impact_par_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        if (ipmax < m->atomicDistance()) // TODO: check def of impact par
-        {
-            fp = 1.f/(M_PI*m->atomicDensity()*ipmax*ipmax);
-            fp *= (-std::log(rng.u01s_open()));
-            sqrtfp = std::sqrt(fp/m->atomicDistance());
-            //ip = -std::log(urbg.u01open())*ipmax;
-            //if (ip > ipmax) ip = INFINITY;
-            ip = ipmax*std::sqrt(rng.u01d_lopen());
-        } else { // atomic spacing
-            fp = m->atomicDistance();
-            sqrtfp = 1.f;
-            ip = m->atomicDistance()*std::sqrt(rng.u01d_lopen());
-        }
+        fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
+        fp *= (-std::log(rng.u01s_open()));
+        sqrtfp = std::sqrt(fp/m->atomicDistance());
+        ip = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
+        ip = ip*std::sqrt(rng.u01d_lopen());
         break;
     default:
         fp = ip = 0.f;

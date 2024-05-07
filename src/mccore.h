@@ -166,9 +166,8 @@ protected:
     ArrayNDf dedx_; // stopping data (atoms x materials x energy)
     ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
 
-    // Max free flight path
-    ArrayNDf max_fp_; // max fp for 1% dEdx (atoms x materials x energy)
-    ArrayNDf max_impact_par_;
+    // flight path selection par
+    ArrayNDf mfp_, ipmax_, dedxn_;
 
 public:
     mccore();
@@ -214,8 +213,11 @@ public:
     ArrayNDf dedx() const { return dedx_; }
     /// Return the table of electronic straggling dE values [eV/sqrt{nm}] for all atom/target combinations
     ArrayNDf de_strag() const { return de_strag_; }
-    ArrayNDf max_impact_par() const { return max_impact_par_; }
-    ArrayNDf max_fp() const { return max_fp_; }
+
+    // Tables of flight path selection parameters 
+    ArrayNDf mfp() const { return mfp_; }
+    ArrayNDf ipmax() const { return ipmax_; }
+    ArrayNDf dedxn() const { return dedxn_; }
 
     /**
      * @brief Initialize internal variables of the mccore object
@@ -223,8 +225,8 @@ public:
      * The init() function performs the following:
      *  - calls the init() function of the underlying target and ion_beam objects
      *  - creates electronic stopping and straggling interpolation tables for all atom/material combinations
-     *  - creates tables of maximum flight path
      *  - creates an array of lab frame scattering cross-section objects (\ref xs_lab) for all ion combinations
+     *  - creates tables of mean free path and max impact parameter for flight path selection
      *  - allocates tally memory
      *
      * @return 0 if succesfull

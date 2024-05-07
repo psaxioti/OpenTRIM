@@ -469,9 +469,11 @@ int out_file::save(const options &opt)
         ArrayND<float> dedx_erg(dedx_index::size);
         for(dedx_index i; i<i.end(); i++) dedx_erg(i) = *i;
         save_array_nd(h5f,"/eels/dEdx_erg",dedx_erg);
-        save_array_nd(h5f,"/eels/maxImpactPar",sim_->max_impact_par());
-        save_array_nd(h5f,"/eels/max_fp",sim_->max_fp());
+        save_array_nd(h5f,"/eels/mfp",sim_->mfp());
+        save_array_nd(h5f,"/eels/ipmax",sim_->ipmax());
+        save_array_nd(h5f,"/eels/dEdxn",sim_->dedxn());
     }
+
 
     save_string(h5f, "Variable_List", var_list.str());
 
