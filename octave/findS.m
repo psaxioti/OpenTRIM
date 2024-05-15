@@ -3,6 +3,17 @@ function xm = findS(e,thetaCM)
 # inital guesses: Mendenhall & Weller NIMB 58 (1991) 11, eqs. 23-25
 d = thetaCM/pi;
 gam = 1-d;
+
+if gam==0,
+  xm = 0;
+  return
+end
+
+if thetaCM==0,
+  xm = inf;
+  return;
+end
+
 if d<10*eps,
   e0 = 2*d*e;
 else

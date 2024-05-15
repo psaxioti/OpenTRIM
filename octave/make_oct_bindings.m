@@ -1,6 +1,6 @@
 clear
 
-prefix  = '/home/george/.local/';
+prefix  = [get_home_directory() '/.local/'];
 eigendir = '/usr/include/eigen3';
 
 # libdir = [prefix 'lib'];
@@ -23,5 +23,9 @@ mkoctfile(['-I' prefix 'include'],...
 mkoctfile(['-I' prefix 'include'],...
           ['-I' eigendir],...
           '-v','screened_coulomb_xs.cpp')
+
+mkoctfile(['-I' prefix 'include'],...
+          ['-I' eigendir],...
+          '-v','screened_coulomb_sn.cpp')
 
 
