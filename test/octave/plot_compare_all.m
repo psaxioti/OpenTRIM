@@ -12,7 +12,7 @@ Nions = Nions_all(nb);
 
 # Size of the cell
 cellsize_all = [12 6 12 6 3 500 100];
-cellsize = cellsize_all(3) ;
+cellsize = cellsize_all(nb) ;
 
 # Load HDF5 Results from iradina++
 ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
