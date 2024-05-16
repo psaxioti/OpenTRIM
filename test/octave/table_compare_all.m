@@ -14,6 +14,9 @@ Nions = Nions_all(nb);
 cellsize_all = [12 6 12 6 3 500 100];
 cellsize = cellsize_all(3) ;
 
+Energy_all = [2e6 2e6 3e6 1e6 3e5 3e6 1e6]; %ion energy in eV
+E0 = Energy_all(nb);
+
 # Load HDF5 Results from iradina++
 ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
 
@@ -69,9 +72,99 @@ if (nb == 3 )||(nb == 4)||(nb == 5),
 else
   str = [str num2str(sum(implants),4) '\t']; % iradina
 endif
-str = [str num2str(sum(ipp.tally.defects.Implantations(:,1)),4)]; % iradina++
+str = [str num2str(sum(ipp.tally.defects.Implantations(:,1)),4) '\n']; % iradina++
 disp(sprintf(str))
 
-% Total Phonons
+%  Phonons
+% phonons by ions
+disp(sprintf('Quantity\tSRIM\t\tiradina\t\tiradina++'))
+str1 = 'Phon/ Ion\t';
+str1 = [str1 num2str(sum(S.EPi*cellsize*10),4) '\t\t']; % srim
+str1 = [str1 '\t\t']; %iradina
+str1 = [str1 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)))]; %iradina++
+disp(sprintf(str1))
 
+% phonons by recoils
+str2 = 'Phon/rec\t';
+str2 = [str2 num2str(sum(S.EPr*cellsize*10),4) '\t\t']; % srim
+str2 = [str2 '\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str2 = [str2 num2str(sum(sum(ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3))),4) '\t']; % iradina++
+else
+  str2 = [str2 num2str(sum(ipp.tally.energy_deposition.Phonons(:,2)),4) '\t']; % iradina++
+endif
+disp(sprintf(str2))
 
+%total phonons
+str3 = 'Phon/TOT\t';
+str3 = [str3 num2str(sum((S.EPr+S.EPi)*cellsize*10),4) '\t']; % srim
+str3 = [str3 num2str(sum(phonons),4) '\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3)),4) '\n']; % iradina++
+else
+  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)),4) '\n']; % iradina++
+endif
+disp(sprintf(str3))
+
+%  Ionization
+% ionization by ions
+%disp(sprintf('Quantity\tSRIM\tiradina\tiradina++'))
+str1 = 'Ioniz/ion\t';
+str1 = [str1 num2str(sum(S.EIi*cellsize*10),4) '\t\t']; % srim
+str1 = [str1 '\t']; %iradina
+str1 = [str1 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)))]; %iradina++
+disp(sprintf(str1))
+
+% ionization by recoils
+str2 = 'Ioniz/rec\t';
+str2 = [str2 num2str(sum(S.EIr*cellsize*10),4) '\t\t']; % srim
+str2 = [str2 '\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str2 = [str2 num2str(sum(sum(ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3))),4) '\t']; % iradina++
+else
+  str2 = [str2 num2str(sum(ipp.tally.energy_deposition.Ionization(:,2)),4) '\t']; % iradina++
+endif
+disp(sprintf(str2))
+
+%total ionization
+str3 = 'Ioniz/TOT\t';
+str3 = [str3 num2str(sum((S.EIr+S.EIi)*cellsize*10),4) '\t']; % srim
+str3 = [str3 num2str(sum(ionization),4) '\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)),4) '\n']; % iradina++
+else
+  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)),4) '\n']; % iradina++
+endif
+disp(sprintf(str3))
+
+%%% DE %%%
+disp(sprintf('Quantity\tSRIM\t\tiradina\t\tiradina++'))
+str = 'E_c\t\t';
+str = [str num2str(sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10),4) '\t']; % srim
+str = [str num2str(sum(ionization+phonons),4) '\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str = [str num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+...
+  ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)+...
+  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
+  +ipp.tally.energy_deposition.Phonons(:,3)),4) '\t']; % iradina++
+else
+  str = [str num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)...
+  +ipp.tally.energy_deposition.Ionization(:,2)+...
+  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)),4) '\t']; % iradina++
+endif
+disp(sprintf(str))
+
+str = 'DE\t\t';
+str = [str num2str(((E0 - sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10))./E0)*100,4) '\t\t']; % srim
+str = [str num2str((E0 - sum(ionization+phonons))./E0*100,4) '\t\t']; %iradina
+if (nb == 3 )||(nb == 4)||(nb == 5),
+  str = [str num2str((E0 - sum(ipp.tally.energy_deposition.Ionization(:,1)+...
+  ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)+...
+  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
+  +ipp.tally.energy_deposition.Phonons(:,3)))./E0*100,4) '\t']; % iradina++
+else
+  str = [str num2str((E0 - sum(ipp.tally.energy_deposition.Ionization(:,1)...
+  +ipp.tally.energy_deposition.Ionization(:,2)+...
+  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)))./E0*100,4) '\t']; % iradina++
+endif
+disp(sprintf(str))
