@@ -3,7 +3,7 @@ clf
 
 ## !!!!! EDIT REGION - EDITABLE VALUES  !!!!
 # Benchmark Number
-nb = 3;
+nb = 1;
 # !!!!! END OF EDIT REGION !!!!!
 
 # Number of ions run
@@ -22,7 +22,7 @@ S = srim2mat(['../srim/b' num2str(nb) '/']);
 
 #Load data from iradina
 path = ['../iradina/b' num2str(nb) '/output/'];
-quantities = {'.ions.total'; '.ions.replacements'; ...
+quantities = {'.ions.total'; '.repl.sum'; ...
   '.vac.sum'; '.energy.electronic'; '.energy.phonons'};
 
 for i=1:size(quantities,1),
@@ -38,11 +38,11 @@ for i=1:size(quantities,1),
         B = load('-ascii',[path 'b' num2str(nb) '.vac.z92.m238.029.mat0.elem0']);
         C = load('-ascii',[path 'b' num2str(nb) '.vac.z8.m15.999.mat0.elem1']);
         D = load('-ascii',[path 'b' num2str(nb) '.ions_vac']);
-        %vac(:,1) = D(:,5).*5.05e6/Nions; % vac by ions
-        vac(:,2) = B(:,4)./Nions; % vac by U
-        vac(:,3) = C(:,4)./Nions; % vac by O
-        vac(:,4) = A(:,4)/Nions; % vac_sum
-        vac(:,1) = vac(:,4)-(vac(:,2)+vac(:,3)); % vac by ions
+        %vac(:,1) = D(:,5).*5.05e6/Nions;
+        vac(:,1) = B(:,4)./Nions; % vac U
+        vac(:,2) = C(:,4)./Nions; % vac O
+        vac(:,3) = A(:,4)/Nions; % vac_sum
+        %vac(:,1) = vac(:,4)-(vac(:,2)+vac(:,3));
         %%%
         %for iradina++
         Vac_plus = ipp.tally.defects.Vacancies;
@@ -68,13 +68,9 @@ titlestr = ipp.Title;
 x = ipp.grid.cell_xyz(:,1);
 
 figure 1
-plot(x,ipp.tally.defects.Implantations(:,1),'-o;iradina++;')
+plot(x,(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)),'-o;iradina++;')
 hold on
-if (nb == 3 ) || (nb == 4) || (nb == 5),
-  plot(xx,ions_total,'-^;iradina;')
-else
-  plot(xx,implants,'-^;iradina;')
-endif
+plot(xx,ions_total,'-^;iradina;')
 plot(S.x./10,S.Ri.*cellsize*10e-8,'-d;srim;')
 hold off
 title([titlestr ' - Impl/I'])
@@ -98,14 +94,14 @@ hold off
 title([titlestr ' - Vacancies'])
 
 figure 3
-%if (nb == 3 )|(nb == 4) | (nb == 5),
-%  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)+ipp.tally.defects.Replacements(:,3)),'-o;iradina++;')
-%elseif
-%  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)),'-o;iradina++;')
-%end
-plot(x,ipp.tally.defects.Replacements(:,1),'-o;iradina++;')
+if (nb == 3 )|(nb == 4) | (nb == 5),
+  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)+ipp.tally.defects.Replacements(:,3)),'-o;iradina++;')
+elseif
+  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)),'-o;iradina++;')
+end
+%plot(x,ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2),'-o;iradina++;')
 hold on
-plot(S.x./10,S.RC*cellsize./Nions,'-d;srim;')
+plot(S.x./10,S.RC*cellsize*10,'-d;srim;')
 plot(xx,replmnts,'-^;iradina;')
 hold off
 title([titlestr ' - Replacements/I'])

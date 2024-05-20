@@ -3,7 +3,7 @@ clf
 
 ## !!!!! EDIT REGION - EDITABLE VALUES  !!!!
 # Benchmark Number
-nb = 7;
+nb = 1;
 # !!!!! END OF EDIT REGION !!!!!
 
 # Number of ions run
@@ -25,7 +25,7 @@ S = srim2mat(['../srim/b' num2str(nb) '/']);
 
 #Load data from iradina
 path = ['../iradina/b' num2str(nb) '/output/'];
-quantities = {'.ions.total'; '.ions.replacements'; ...
+quantities = {'.ions.total'; '.repl.sum'; ...
   '.vac.sum'; '.energy.electronic'; '.energy.phonons'};
 
 for i=1:size(quantities,1),
@@ -41,11 +41,11 @@ for i=1:size(quantities,1),
         B = load('-ascii',[path 'b' num2str(nb) '.vac.z92.m238.029.mat0.elem0']);
         C = load('-ascii',[path 'b' num2str(nb) '.vac.z8.m15.999.mat0.elem1']);
         D = load('-ascii',[path 'b' num2str(nb) '.ions_vac']);
-        %vac(:,1) = D(:,5).*5.05e6/Nions; % vac by ions
-        vac(:,2) = B(:,4)./Nions; % vac by U
-        vac(:,3) = C(:,4)./Nions; % vac by O
-        vac(:,4) = A(:,4)/Nions; % vac_sum
-        vac(:,1) = vac(:,4)-(vac(:,2)+vac(:,3)); % vac by ions
+        %vac(:,1) = D(:,5).*5.05e6/Nions;
+        vac(:,1) = B(:,4)./Nions; % vac by U
+        vac(:,2) = C(:,4)./Nions; % vac by O
+        vac(:,3) = A(:,4)/Nions; % vac_sum
+        %vac(:,1) = vac(:,4)-(vac(:,2)+vac(:,3));
         %%%
         %for iradina++
         Vac_plus = ipp.tally.defects.Vacancies;
@@ -62,140 +62,194 @@ for i=1:size(quantities,1),
   endswitch
 end
 
+ener = ipp.tally.energy_deposition;
+
 disp(sprintf('Quantity\tSRIM      \tiradina   \tiradina++'))
 
 % Implanted Ions
 str = 'Impl. Ions';
 X(1) = sum(S.Ri.*cellsize*10e-8);  % srim
-if (nb == 3 )||(nb == 4)||(nb == 5),
-  X(2) = sum(ions_total); % iradina
-else
-  X(2) = sum(implants); % iradina
-endif
-X(3) = sum(ipp.tally.defects.Implantations(:,1));
-disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,X))
+X(2) = sum(ions_total); % iradina
+X(3) = sum(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)); %iradina++
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,X))
 
 disp(' ')
 
 %  Phonons
 % phonons by ions
-str1 = 'Phon/ Ion\t';
-str1 = [str1 num2str(sum(S.EPi*cellsize*10),4) '\t\t']; % srim
-str1 = [str1 '\t\t']; %iradina
-str1 = [str1 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)),4)]; %iradina++
-disp(sprintf(str1))
+str = 'Phon/Ion';
+Pi(1) = sum(S.EPi*cellsize*10); % srim
+Pi(2) = NaN; %iradina
+Pi(3) = sum(ener.Phonons(:,1)); %iradina++
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Pi))
 
 % phonons by recoils
-str2 = 'Phon/rec\t';
-str2 = [str2 num2str(sum(S.EPr*cellsize*10),4) '\t\t']; % srim
-str2 = [str2 '\t']; %iradina
+str = 'Phon/rec';
+Pr(1) = sum(S.EPr*cellsize*10); % srim
+Pr(2) = NaN; %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str2 = [str2 num2str(sum(sum(ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3))),4) '\t']; % iradina++
+  Pr(3) = sum(ener.Phonons(:,2)+ener.Phonons(:,3)); % iradina++
 else
-  str2 = [str2 num2str(sum(ipp.tally.energy_deposition.Phonons(:,2)),4) '\t']; % iradina++
+  Pr(3) = sum(ener.Phonons(:,2)); % iradina++
 endif
-disp(sprintf(str2))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Pr))
 
 %total phonons
-str3 = 'Phon/TOT\t';
-str3 = [str3 num2str(sum((S.EPr+S.EPi)*cellsize*10),4) '\t']; % srim
-str3 = [str3 num2str(sum(phonons),4) '\t']; %iradina
+str = 'Phon Total';
+Pt(1) = sum((S.EPr+S.EPi)*cellsize*10); % srim
+Pt(2) = sum(phonons); %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3)),4)]; % iradina++
+  Pt(3) = sum(ener.Phonons(:,1)+ener.Phonons(:,2)+ener.Phonons(:,3)); % iradina++
 else
-  str3 = [str3 ...
-    num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+...
-    ipp.tally.energy_deposition.Phonons(:,2)),4)]; % iradina++
+  Pt(3) = sum(ener.Phonons(:,1)+ener.Phonons(:,2)); % iradina++
 endif
-disp(sprintf(str3))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Pt))
 
 %total phonons
-str3 = 'Phon/TOT(%%)\t';
-str3 = [str3 num2str(sum((S.EPr+S.EPi)*cellsize*10)/E0*100,4) '   \t']; % srim
-str3 = [str3 num2str(sum(phonons)/E0*100,4) '   \t']; %iradina
+str = 'Phon/Tot(%)';
+Ptp(1) = sum((S.EPr+S.EPi)*cellsize*10)/E0*100; % srim
+Ptp(2) = sum(phonons)/E0*100; %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3))/E0*100,4)]; % iradina++
+  Ptp(3) = sum(ener.Phonons(:,1)+ener.Phonons(:,2)+ener.Phonons(:,3))/E0*100; % iradina++
 else
-  str3 = [str3 ...
-    num2str(sum(ipp.tally.energy_deposition.Phonons(:,1)+...
-    ipp.tally.energy_deposition.Phonons(:,2))/E0*100,4)]; % iradina++
+  Ptp(3) = sum(ener.Phonons(:,1)+ener.Phonons(:,2))/E0*100; % iradina++
 endif
-disp(sprintf(str3))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Ptp))
 
 disp(' ')
 
 %  Ionization
 % ionization by ions
 %disp(sprintf('Quantity\tSRIM\tiradina\tiradina++'))
-str1 = 'Ioniz/ion\t';
-str1 = [str1 num2str(sum(S.EIi*cellsize*10),4) '\t\t']; % srim
-str1 = [str1 '\t']; %iradina
-str1 = [str1 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)),4)]; %iradina++
-disp(sprintf(str1))
+str = 'Ioniz/ion';
+Ii(1) = sum(S.EIi*cellsize*10); % srim
+Ii(2) = NaN; %iradina
+Ii(3) = sum(ener.Ionization(:,1)); %iradina++
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Ii))
 
 % ionization by recoils
-str2 = 'Ioniz/rec\t';
-str2 = [str2 num2str(sum(S.EIr*cellsize*10),4) '\t\t']; % srim
-str2 = [str2 '\t']; %iradina
+str = 'Ioniz/rec';
+Ir(1) = sum(S.EIr*cellsize*10); % srim
+Ir(2) = NaN; %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str2 = [str2 num2str(sum(sum(ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3))),4) '\t']; % iradina++
+  Ir(3) = sum(ener.Ionization(:,2)+ener.Ionization(:,3)); % iradina++
 else
-  str2 = [str2 num2str(sum(ipp.tally.energy_deposition.Ionization(:,2)),4) '\t']; % iradina++
+  Ir(3) = sum(ener.Ionization(:,2)); % iradina++
 endif
-disp(sprintf(str2))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,Ir))
 
 %total ionization
-str3 = 'Ioniz/TOT\t';
-str3 = [str3 num2str(sum((S.EIr+S.EIi)*cellsize*10),4) '\t']; % srim
-str3 = [str3 num2str(sum(ionization),4) '\t']; %iradina
+str = 'Ioniz/Tot';
+It(1) = sum((S.EIr+S.EIi)*cellsize*10); % srim
+It(2) = sum(ionization); %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)),4)]; % iradina++
+  It(3) = sum(ener.Ionization(:,1)+ener.Ionization(:,2)+ener.Ionization(:,3)); % iradina++
 else
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)),4)]; % iradina++
+  It(3) = sum(ener.Ionization(:,1)+ener.Ionization(:,2)); % iradina++
 endif
-disp(sprintf(str3))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,It))
 
 %total ionization as %
-str3 = 'Ioniz/TOT(%%)\t';
-str3 = [str3 num2str(sum((S.EIr+S.EIi)*cellsize*10/E0*100),4) '   \t']; % srim
-str3 = [str3 num2str(sum(ionization)/E0*100,4) '   \t']; %iradina
+str = 'Ion/Tot(%)';
+Itp(1) = sum((S.EIr+S.EIi)*cellsize*10)/E0*100; % srim
+Itp(2) = sum(ionization)/E0*100; %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3))/E0*100,4) '\n']; % iradina++
+  Itp(3) = sum(ener.Ionization(:,1)+ener.Ionization(:,2)+ener.Ionization(:,3))/E0*100; % iradina++
 else
-  str3 = [str3 num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2))/E0*100,4) '\n']; % iradina++
+  Itp(3) = sum(ener.Ionization(:,1)+ener.Ionization(:,2))/E0*100; % iradina++
 endif
-disp(sprintf(str3))
+disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Itp))
 
 disp(' ')
 
 %%% DE %%%
-disp(sprintf('Quantity\tSRIM\t\tiradina\t\tiradina++'))
-str = 'E_c\t\t';
-str = [str num2str(sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10),4) '\t']; % srim
-str = [str num2str(sum(ionization+phonons),4) '\t']; %iradina
+%disp(sprintf('Quantity\tSRIM\t\tiradina\t\tiradina++'))
+str = 'Total ener';
+de1(1) = sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10); % srim
+de1(2) = sum(ionization+phonons); %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str = [str num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)+...
-  ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)+...
-  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
-  +ipp.tally.energy_deposition.Phonons(:,3)),4) '\t']; % iradina++
+  de1(3) = sum(ener.Ionization(:,1)+...
+  ener.Ionization(:,2)+ener.Ionization(:,3)+...
+  ener.Phonons(:,1)+ener.Phonons(:,2)...
+  +ener.Phonons(:,3)); % iradina++
 else
-  str = [str num2str(sum(ipp.tally.energy_deposition.Ionization(:,1)...
-  +ipp.tally.energy_deposition.Ionization(:,2)+...
-  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)),4) '\t']; % iradina++
+  de1(3) = sum(ener.Ionization(:,1)...
+  +ener.Ionization(:,2)+...
+  ener.Phonons(:,1)+ener.Phonons(:,2)); % iradina++
 endif
-disp(sprintf(str))
+disp(sprintf("%s\t%-10.4e\t%-10.4e\t%-10.4e",str,de1))
 
-str = 'DE\t\t';
-str = [str num2str(((E0 - sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10))./E0)*100,4) '\t\t']; % srim
-str = [str num2str((E0 - sum(ionization+phonons))./E0*100,4) '\t\t']; %iradina
+str = 'EnerDif(%)';
+de(1) = ((E0 - sum((S.EIr+S.EIi+S.EPi+S.EPr)*cellsize*10))./E0)*100; % srim
+de(2) = (E0 - sum(ionization+phonons))./E0*100; %iradina
 if (nb == 3 )||(nb == 4)||(nb == 5),
-  str = [str num2str((E0 - sum(ipp.tally.energy_deposition.Ionization(:,1)+...
-  ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)+...
-  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
-  +ipp.tally.energy_deposition.Phonons(:,3)))./E0*100,4) '\t']; % iradina++
+  de(3) = (E0 - sum(ener.Ionization(:,1)+...
+  ener.Ionization(:,2)+ener.Ionization(:,3)+...
+  ener.Phonons(:,1)+ener.Phonons(:,2)...
+  +ener.Phonons(:,3)))./E0*100; % iradina++
 else
-  str = [str num2str((E0 - sum(ipp.tally.energy_deposition.Ionization(:,1)...
-  +ipp.tally.energy_deposition.Ionization(:,2)+...
-  ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)))./E0*100,4) '\t']; % iradina++
+  de(3) = (E0 - sum(ener.Ionization(:,1)...
+  +ener.Ionization(:,2)+...
+  ener.Phonons(:,1)+ener.Phonons(:,2)))/E0*100; % iradina++
 endif
-disp(sprintf(str))
+disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,de))
+
+disp(' ')
+%%% Annotation
+% X = Implanted Ions
+% Pi = Phonon energy by ions (eV)
+% Pr = Phonon energy by recoils (eV)
+% Pt = total phonon energy (eV)
+% Ptp = persentage of total energy difference from E0
+% Ietc... equivalent for ionization energy
+
+%Vacancies
+%Vac by ions
+defects = ipp.tally.defects;
+if (nb == 3 ) || (nb == 4) || (nb == 5),
+  str = 'Vac U/ion';
+  Vaci(1) = sum(S.Vr(:,1))*cellsize*10;% U srim
+  Vaci(2) = sum(vac(:,1)); % U iradina
+  Vaci(3) = sum(defects.Vacancies(:,2));% % U iradina++
+  disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Vaci))
+
+  % O vacancies
+  str = 'Vac O/ion';
+  Vaci(1) = sum(S.Vr(:,2))*cellsize*10;% O srim
+  Vaci(2) = sum(vac(:,2)); % O iradina
+  Vaci(3) = sum(defects.Vacancies(:,3));% % O iradina++
+  disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Vaci))
+
+    % sum vacancies
+  str = 'Vac sum/ion';
+  Vaci(1) = sum(S.Vr(:,2)+S.Vr(:,1))*cellsize*10;% sum srim
+  Vaci(2) = sum(vac(:,3)); % sum iradina
+  Vaci(3) = sum(defects.Vacancies(:,3)+defects.Vacancies(:,2));% % sum iradina++
+  disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Vaci))
+elseif
+  str = 'Vac sum/ion';
+  Vaci(1) = sum(S.Vr*cellsize*10); %srim
+  Vaci(2) = sum(vac); % iradina
+  Vaci(3) = sum(defects.Vacancies(:,2));% iradina ++
+  disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Vaci))
+endif
+
+%% replacements
+str = 'repl/ion';
+Repl(1) = sum(S.RC*cellsize*10);% srim
+Repl(2) = sum(replmnts);% iradina
+if (nb == 3 )|(nb == 4) | (nb == 5),
+  Repl(3) = sum(defects.Replacements(:,1)+defects.Replacements(:,2)+defects.Replacements(:,3)); %iradina++
+elseif
+  Repl(3) = sum(defects.Replacements(:,1)+defects.Replacements(:,2)) %iradina++
+end
+disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,Repl))
+
+% repl/vac ratio
+for i=1:3,
+ratio(i) = Repl(i)./Vaci(i);
+end
+disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f",str,ratio))
+
+
+
