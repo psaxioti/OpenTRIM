@@ -3,7 +3,7 @@ clf
 
 ## !!!!! EDIT REGION - EDITABLE VALUES  !!!!
 # Benchmark Number
-nb = 1;
+nb = 3;
 # !!!!! END OF EDIT REGION !!!!!
 
 # Number of ions run
@@ -68,64 +68,68 @@ titlestr = ipp.Title;
 x = ipp.grid.cell_xyz(:,1);
 
 figure 1
-plot(x,(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)),'-o;iradina++;')
+plot(S.x./10,S.Ri.*cellsize*10e-8,'-dc;srim;')
 hold on
-plot(xx,ions_total,'-^;iradina;')
-plot(S.x./10,S.Ri.*cellsize*10e-8,'-d;srim;')
+plot(xx,ions_total,'-^r;iradina;')
+plot(x,(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)),'-ob;iradina++;')
 hold off
 title([titlestr ' - Impl/I'])
 
 
 figure 2
 if (nb == 3 ) || (nb == 4) || (nb == 5),
-  plot(x,ipp.tally.defects.Vacancies,'-o;iradina++;',x,Vac_all,'-o;iradina++;')
+  plot(S.x./10,S.Vr(:,1)*cellsize*10,'-dc;srim - U ions;')
   hold on
-  %plot(S.x./10,S.Vi*cellsize*10,'-d;srim - Xe ions;')
-  plot(S.x./10,S.Vr(:,1)*cellsize*10,'-d;srim - U ions;')
-  plot(S.x./10,S.Vr(:,2)*cellsize*10,'-d;srim - O ions;')
-  plot(S.x./10,(S.Vi+S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-d;srim - sum all vacancies;')
+  plot(S.x./10,S.Vr(:,2)*cellsize*10,'-dc;srim - O ions;')
+  plot(S.x./10,(S.Vi+S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-dc;srim - sum all vacancies;')
+  plot(xx,vac,'-^r;iradina;')
+  plot(x,ipp.tally.defects.Vacancies,'-ob;iradina++;',x,Vac_all,'-ob;iradina++;')
 elseif
-  plot(x,(ipp.tally.defects.Vacancies(:,1)+ipp.tally.defects.Vacancies(:,2)),'-o;iradina++;')
+  plot(S.x./10,(S.Vi+S.Vr)*cellsize*10,'-dc;srim - sum all vacancies;')
   hold on
-  plot(S.x./10,(S.Vi+S.Vr)*cellsize*10,'-d;srim - sum all vacancies;')
+  plot(xx,vac,'-^r;iradina;')
+  plot(x,(ipp.tally.defects.Vacancies(:,1)+ipp.tally.defects.Vacancies(:,2)),'-ob;iradina++;')
 endif
-plot(xx,vac,'-^;iradina;')
 hold off
 title([titlestr ' - Vacancies'])
 
 figure 3
-if (nb == 3 )|(nb == 4) | (nb == 5),
-  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)+ipp.tally.defects.Replacements(:,3)),'-o;iradina++;')
-elseif
-  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)),'-o;iradina++;')
-end
-%plot(x,ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2),'-o;iradina++;')
+plot(S.x./10,S.RC*cellsize*10,'-dc;srim;')
 hold on
-plot(S.x./10,S.RC*cellsize*10,'-d;srim;')
-plot(xx,replmnts,'-^;iradina;')
+plot(xx,replmnts,'-^r;iradina;')
+if (nb == 3 )|(nb == 4) | (nb == 5),
+  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)...
+  +ipp.tally.defects.Replacements(:,3)),'-ob;iradina++;')
+elseif
+  plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)),'-ob;iradina++;')
+end
 hold off
 title([titlestr ' - Replacements/I'])
 
 figure 4
-if (nb == 3 ) || (nb == 4) || (nb == 5),
-  plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)+ipp.tally.energy_deposition.Ionization(:,3)),'-o;Iradina++;')
-elseif
-  plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)),'-o;Iradina++;')
-end
+plot(S.x./10,(S.EIi+S.EIr)*cellsize*10,'-dc;srim;')
 hold on
-plot(S.x./10,(S.EIi+S.EIr)*cellsize*10,'-d;srim;')
-plot(xx,ionization,'-^;iradina;')
+plot(xx,ionization,'-^r;iradina;')
+if (nb == 3 ) || (nb == 4) || (nb == 5),
+  plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)...
+  +ipp.tally.energy_deposition.Ionization(:,3)),'-ob;Iradina++;')
+elseif
+  plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+...
+  ipp.tally.energy_deposition.Ionization(:,2)),'-ob;Iradina++;')
+end
 hold off
 title([titlestr ' - Ionization total'])
 
 figure 5
-if (nb == 3 ) || (nb == 4) || (nb == 5),
-  plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)+ipp.tally.energy_deposition.Phonons(:,3)),'-o;Iradina++;')
-elseif
-  plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)),'-o;Iradina++;')
-end
+plot(S.x./10,(S.EPi+S.EPr)*cellsize*10,'-dc;srim;')
 hold on
-plot(S.x./10,(S.EPi+S.EPr)*cellsize*10,'-d;srim;')
-plot(xx,phonons,'-^;iradina;')
+plot(xx,phonons,'-^r;iradina;')
+if (nb == 3 ) || (nb == 4) || (nb == 5),
+  plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
+  +ipp.tally.energy_deposition.Phonons(:,3)),'-ob;Iradina++;')
+elseif
+  plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2))...
+  ,'-ob;Iradina++;')
+end
 hold off
 title([titlestr ' - Phonons total'])
