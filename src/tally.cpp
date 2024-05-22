@@ -1,8 +1,5 @@
 #include "tally.h"
 
-#include "ion.h"
-#include "target.h"
-
 const char* tally::arrayName(int i)
 {
     static const char* names[] = {
@@ -20,6 +17,8 @@ const char* tally::arrayName(int i)
         "Tdam_LSS",
         "Vnrt",
         "Vnrt_LSS",
+        "flight_path",
+        "collisions",
         "X"
     };
 
@@ -43,6 +42,8 @@ const char* tally::arrayDescription(int i)
         "Damage energy estimated by the LSS approximation [eV]",
         "Vacancies per the NRT model using Tdam",
         "Vacancies per the NRT model using Tdam_LSS",
+        "flight path [nm]",
+        "ion collisions",
         "X"
     };
 
@@ -56,8 +57,8 @@ const char* tally::arrayGroup(int i)
         "defects",
         "defects",
         "defects",
-        "defects",
-        "defects",
+        "ion_stat",
+        "ion_stat",
         "energy_deposition",
         "energy_deposition",
         "energy_deposition",
@@ -66,6 +67,8 @@ const char* tally::arrayGroup(int i)
         "damage",
         "damage",
         "damage",
+        "ion_stat",
+        "ion_stat",
         "X"
     };
 

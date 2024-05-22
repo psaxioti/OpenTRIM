@@ -128,6 +128,8 @@ public:
         float flight_path_const{0.1};
         /// Minimum energy cutoff for ion transport [eV]
         float min_energy{1.f};
+        /// Minimum recoil energy
+        float min_recoil_energy{1.f};
     };
 
 

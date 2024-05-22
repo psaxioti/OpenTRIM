@@ -171,7 +171,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
                                    scattering_calculation,
                                    flight_path_type, straggling_model,
                                    nrt_calculation,
-                                   flight_path_const, min_energy)
+                                   flight_path_const, min_energy, min_recoil_energy)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
                                           max_no_ions,

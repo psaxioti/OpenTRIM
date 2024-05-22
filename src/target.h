@@ -170,7 +170,7 @@ class material : public target_item
     std::vector<float> X_;
     std::vector<float> cumX_;
 
-    float atomicDistance_; // nm
+    float atomicRadius_; // nm
     float sqrtAtomicDistance_;
     float layerDistance_;
 
@@ -229,7 +229,7 @@ public:
     /// Returns the mass density [g/cm^3]
     float massDensity() const { return massDensity_; }
     /// Returns the atomic radius \f$ (4\pi N/3)^{-1/3} \f$ [nm]
-    float atomicDistance() const { return atomicDistance_; }
+    float atomicRadius() const { return atomicRadius_; }
     /// Returns the monolayer distance \f$ N^{-1/3} \f$ [nm]
     float layerDistance() const { return layerDistance_; }
 

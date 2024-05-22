@@ -81,12 +81,12 @@ void material::init()
     }
     //static const float AvogadroNum = 6.02214076e23;
     // atomicDensity_ = atomicDensityNM_*1e21f; // at/cm^3
-    atomicDistance_ = 1.0/std::pow(4.0*M_PI*atomicDensityNM_/3, 1.0/3); /* for conversion from cm to nm */
+    atomicRadius_ = 1.0/std::pow(4.0*M_PI*atomicDensityNM_/3, 1.0/3); /* for conversion from cm to nm */
     layerDistance_ = 1.0/std::pow(atomicDensityNM_, 1.0/3); /* for conversion from cm to nm */
-    sqrtAtomicDistance_ = std::sqrt(atomicDistance_);
+    sqrtAtomicDistance_ = std::sqrt(atomicRadius_);
     sqrtRecFlDensity_   = 1.0 / std::sqrt(M_PI * atomicDensityNM_); // TODO  x 1 / sqrt(flight_length_constant)
 
-    meanImpactPar_ = 1.0 / std::sqrt(M_PI*atomicDensityNM_*atomicDistance_);
+    meanImpactPar_ = 1.0 / std::sqrt(M_PI*atomicDensityNM_*atomicRadius_);
 
     // LSS & NRT
     lss_Kd_ = 0.1334f * std::pow (1.f*meanZ_, 2.0f / 3.0f ) / std::sqrt( meanM_ );

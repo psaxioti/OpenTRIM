@@ -77,7 +77,7 @@ int mccore::init() {
     auto materials = target_->materials();
     sqrtfp_const.resize(materials.size());
     for(int i=0; i<materials.size(); i++)
-        sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicDistance());
+        sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicRadius());
 
     /*
      * create dedx tables for all ion - material
@@ -176,7 +176,7 @@ int mccore::init() {
             const float* dedx = &dedx_(z1,im,0);
             const float* dedxH = &dedx1(im,0);
             float* p = &de_strag_(z1,im,0);
-            float Nl0 = mat->atomicDensity()*mat->atomicDistance(); // at/nm^2
+            float Nl0 = mat->atomicDensity()*mat->atomicRadius(); // at/nm^2
             for(const atom* z2 : mat->atoms())
                 calcStraggling(dedx,dedxH,Z1,M1,z2->Z(),
                                Nl0*z2->X(),
@@ -217,33 +217,42 @@ int mccore::init() {
     }
 
     /*
-     * create tables of parameters for flight path selection
+     * create tables of parameters for flight path selection, pairs of (mfp, ipmax)
      *
-     * - Set a low cutoff recoil energy T0
+     * - Set a low cutoff recoil energy T0 (min_recoil_energy)
+     * - T0 = min(min_recoil_energy, 0.01*Tm)
      * - Scattering events with T<T0 are not considered in the MC
      * - T0/Tm = sin(th0/2)^2, th0 : low cutoff scattering angle
      * - ipmax = ip(e,th0) : max impact parameter
      * - sig0 = pi*ipmax^2 : total xs for events T>T0
      * - mfp = 1/(N*sig0) : mean free path
      *
-     * Additionally
+     * Additional conditions:
      *
-     * - mfp < Δxmax for el. energy loss below 1% or 5%
-     * - mfp > interatomic distance L = N^(-1/3)
+     * - El. energy loss
+     *   - Δxmax for el. energy loss below 5%
+     *   - mfp = min(mfp, Dxmax)
+     *
+     * - Allow flight path < atomic radius Rat ??
+     *   - if not then mfp = min(mfp, Rat)
+     *
+     * Finally:
+     *
+     * - ipmax = 1/(pi*mfp*N)^(1/2)
      *
      */
     mfp_   = ArrayNDf(natoms,nmat,nerg);
     ipmax_ = ArrayNDf(natoms,nmat,nerg);
-    dedxn_ = ArrayNDf(natoms,nmat,nerg);
     float delta_dedx = 0.05f; /// @TODO: should be user option
-    float Tmin = 0.000001; //par_.min_energy; /// @TODO: this should be user option
+    float Tmin = par_.min_recoil_energy;
+    float Tmin_rel = 0.01f; /// @TODO: make it user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
         {
             const material* m = materials[im];
             const float & N = m->atomicDensity();
-            const float & L = m->atomicDistance();
+            const float & Rat = m->atomicRadius();
             for(dedx_index ie; ie!=ie.end(); ie++) {
                 float & mfp = mfp_(z1,im,ie);
                 float & ipmax = ipmax_(z1,im,ie);
@@ -255,7 +264,7 @@ int mccore::init() {
                 for(const atom* a : m->atoms()) {
                     int z2 = a->id();
                     float Tm = E*scattering_matrix_(z1,z2)->gamma();
-                    if (T0 > 0.5*Tm) T0 = 0.5*Tm;
+                    if (T0 > Tmin_rel*Tm) T0 = Tmin_rel*Tm;
                 }
 
                 // Calc mfp corresponding to T0, mfp = 1/(N*sig0), sig0 = pi*sum_i{ X_i * [P_i(E,T0)]^2 }
@@ -272,7 +281,7 @@ int mccore::init() {
                 if (mfp > dx) mfp = dx;
 
                 // ensure mfp not smaller than interatomic distance
-                if (mfp < L) mfp = L;
+                // if (mfp < Rat) mfp = Rat;
 
                 // this is the max impact parameter ip = (N*pi*mfp)^(-1/2)
                 ipmax = std::sqrt(1.f/M_PI/mfp/N);
@@ -436,8 +445,6 @@ float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, co
 
 int mccore::transport(ion* i, tally &t, pka_event *pka)
 {
-    float xxx;
-
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
     // get the corresponding dEdx & straggling table for ion/material combination
@@ -456,6 +463,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
         // decide flight path fp & impact par
         float fp, ip, sqrtfp;
         flightPath(i, mat, fp, ip, sqrtfp);
+        t(Event::NewFP,*i,&fp);
 
         // if we are inside a material, calc stopping + straggling
         if (mat) {
@@ -506,40 +514,25 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
             // select collision partner
             const atom* z2 = mat->selectAtom(rng);
 
-            /*
-             * IRADINA
-             * If impact parameter much larger than interatomic distance:
-             * assume collision has missed
-             * Is this valid? Yes: tests have shown, that increasing the
-             * limit to 10 times the atomic distance yields practically
-             * the same distribution of implanted ions and damage!
-             *
-             * This is not done for SRIM KP mode
-             */
-            if (par_.flight_path_type != SRIMlike &&
-                ip > 2.f*mat->layerDistance()) {
-                // TODO: register missed collision
-                continue;
-            }
-
+            // get the cross-section and calculate scattering
             auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
             float T; // recoil energy
             float sintheta, costheta; // scattering angle in Lab sys
-            assert(i->erg() > 0);
             xs->scatter(i->erg(), ip, T, sintheta, costheta);
-            if (T>1000) {
-                xxx = T;
-            }
-            float nx, ny; // azimuthial dir
-            rng.azimuth(nx,ny);
 
+            // get random azimuthal dir
+            float nx, ny;
+            rng.azimuth(nx,ny);
+            t(Event::Scattering,*i);
+
+            // apply to ion direction & energy
             vector3 dir0 = i->dir(); // store initial dir
             i->deflect(
                 vector3(nx*sintheta, ny*sintheta, costheta)
                 );
             i->erg() -= T;
 
-            // TODO: special treatment of surface effects (sputtering etc.)
+            /// @TODO: special treatment of surface effects (sputtering etc.)
 
             if (T >= z2->Ed()) { // displacement
 
@@ -604,7 +597,7 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
     float d, ipmax;
     switch (par_.flight_path_type) {
     case AtomicSpacing:
-        fp = m->atomicDistance();
+        fp = m->atomicRadius();
         sqrtfp = 1.f;
         ip = m->meanImpactPar()*std::sqrt(rng.u01d_lopen());
         break;
@@ -620,20 +613,20 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
             float bmax = 1.f/(xsi + std::sqrt(xsi) + 0.125*std::pow(xsi,.1f));
             ipmax = bmax * m->meanA();
             fp = 1./(M_PI * m->atomicDensity() * ipmax * ipmax);
-            sqrtfp = std::sqrt(fp/m->atomicDistance());
+            sqrtfp = std::sqrt(fp/m->atomicRadius());
             ip = ipmax*std::sqrt(rng.u01d_lopen());
         }
         break;
     case MendenhallWeller:
         ipmax = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        if (ipmax < m->atomicDistance()) // TODO: check def of impact par
+        if (ipmax < m->atomicRadius()) // TODO: check def of impact par
         {
-            sqrtfp = std::sqrt(fp/m->atomicDistance());
+            sqrtfp = std::sqrt(fp/m->atomicRadius());
             ip = ipmax*std::sqrt(-std::log(rng.u01s_open()));
             if (ip > ipmax) ip = INFINITY;
         } else { // atomic spacing
-            fp = m->atomicDistance();
+            fp = m->atomicRadius();
             sqrtfp = 1.f;
             ip = ipmax*std::sqrt(rng.u01d_lopen());
         }
@@ -641,7 +634,7 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
     case MyFFP:
         fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         fp *= (-std::log(rng.u01s_open()));
-        sqrtfp = std::sqrt(fp/m->atomicDistance());
+        sqrtfp = std::sqrt(fp/m->atomicRadius());
         ip = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         ip = ip*std::sqrt(rng.u01d_lopen());
         break;
