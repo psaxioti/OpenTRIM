@@ -16,14 +16,15 @@ enum class Event {
     Replacement,
     Vacancy,
     NRT_LSS_damage,
-    NRT_damage
+    NRT_damage,
+    NewFP
 };
 
 class tally {
 
 public:
 
-    static const int std_tallies = 14;
+    static const int std_tallies = 16;
     static const char* arrayName(int i);
     static const char* arrayDescription(int i);
     static const char* arrayGroup(int i);
@@ -67,7 +68,9 @@ protected:
         dpTdam = 10,
         dpTdam_LSS = 11,
         dpVnrt = 12,
-        dpVnrt_LSS = 13
+        dpVnrt_LSS = 13,
+        csFP = 14,
+        csCollision = 15
     };
 
 public:
@@ -173,7 +176,12 @@ public:
             A[dpTdam](i.myAtom()->id(),i.cellid()) += p[0];
             A[dpVnrt](i.myAtom()->id(),i.cellid()) += p[1];
             break;
+        case Event::NewFP:
+            A[csFP](i.myAtom()->id(),i.cellid()) += p[0];
+            break;
         case Event::Scattering:
+            A[csCollision](i.myAtom()->id(),i.cellid())++;
+            break;
         default:
             break;
         }

@@ -79,10 +79,9 @@ void material::init()
     } else if (massDensity_ <= 0) {
         massDensity_ = atomicDensityNM_ * meanM_ / AvogadroNum;
     }
-    //static const float AvogadroNum = 6.02214076e23;
-    // atomicDensity_ = atomicDensityNM_*1e21f; // at/cm^3
-    atomicRadius_ = 1.0/std::pow(4.0*M_PI*atomicDensityNM_/3, 1.0/3); /* for conversion from cm to nm */
-    layerDistance_ = 1.0/std::pow(atomicDensityNM_, 1.0/3); /* for conversion from cm to nm */
+
+    atomicRadius_ = 1.0/std::pow(4.0*M_PI*atomicDensityNM_/3, 1.0/3);
+    layerDistance_ = 1.0/std::pow(atomicDensityNM_, 1.0/3);
     sqrtAtomicDistance_ = std::sqrt(atomicRadius_);
     sqrtRecFlDensity_   = 1.0 / std::sqrt(M_PI * atomicDensityNM_); // TODO  x 1 / sqrt(flight_length_constant)
 
