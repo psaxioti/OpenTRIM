@@ -40,7 +40,7 @@ mccore::mccore(const mccore &s) :
     dedx_(s.dedx_),
     de_strag_(s.de_strag_),
     scattering_matrix_(s.scattering_matrix_),
-    mfp_(s.mfp_), ipmax_(s.ipmax_), dedxn_(s.dedxn_),
+    mfp_(s.mfp_), ipmax_(s.ipmax_),
     rng(),
     pka(s.pka)
 {
@@ -256,7 +256,7 @@ int mccore::init() {
             for(dedx_index ie; ie!=ie.end(); ie++) {
                 float & mfp = mfp_(z1,im,ie);
                 float & ipmax = ipmax_(z1,im,ie);
-                float & dedxn = dedxn_(z1,im,ie);
+                // float & dedxn = dedxn_(z1,im,ie);
                 float E = *ie;
                 float T0 = Tmin;
 

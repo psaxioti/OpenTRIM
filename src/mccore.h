@@ -169,7 +169,7 @@ protected:
     ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
 
     // flight path selection par
-    ArrayNDf mfp_, ipmax_, dedxn_;
+    ArrayNDf mfp_, ipmax_;
 
 public:
     mccore();
@@ -219,7 +219,6 @@ public:
     // Tables of flight path selection parameters 
     ArrayNDf mfp() const { return mfp_; }
     ArrayNDf ipmax() const { return ipmax_; }
-    ArrayNDf dedxn() const { return dedxn_; }
 
     /**
      * @brief Initialize internal variables of the mccore object
