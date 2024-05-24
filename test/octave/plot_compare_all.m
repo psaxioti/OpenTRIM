@@ -1,7 +1,7 @@
 clear
 clf
 
-nb = 6;
+nb = 1;
 [ipp, S, ions_total, replmnts, implants, vac,ionization, phonons, pkai, titlestr,...
  x, cellsize, Eb, S1] = load_files(nb);
 
@@ -35,17 +35,17 @@ if (nb == 3 ) || (nb == 4) || (nb == 5),
   plot(x,S.Vr(:,1)*cellsize*10,'-dc;srim - U ions;')
   hold on
   plot(x,S.Vr(:,2)*cellsize*10,'-dc;srim - O ions;')
-  plot(x,(S.Vi+S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-dc;srim - sum all vacancies;')
+  plot(x,(S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-dc;srim - sum all vacancies;')
   plot(x,vac,'-^r;iradina;')
   plot(x,ipp.tally.defects.Vacancies(:,2:end),'-ob;iradina++;',x,Vac_all,'-ob;iradina++;')
 elseif
-  plot(x,(S.Vi+S.Vr)*cellsize*10,'-dc;srim - sum all vacancies;')
+  plot(x,(S.Vr)*cellsize*10,'-dc;srim - sum all vacancies;')
   hold on
   plot(x,vac,'-^r;iradina;')
   plot(x,(ipp.tally.defects.Vacancies(:,1)+ipp.tally.defects.Vacancies(:,2)),'-ob;iradina++;')
 endif
 if ~isempty(S1)
-    plot(x,(S1.Vi+S1.Vr)*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+    plot(x,(S1.Vr)*cellsize*10,'-dk;srim mnl;');  % srim monolayer
 endif
 hold off
 title([titlestr ' - Vacancies'])
