@@ -1,7 +1,7 @@
 clear
 clf
 
-nb = 7;
+nb = 6;
 [ipp, S, ions_total, replmnts, implants, vac,ionization, phonons, pkai, titlestr,...
  x, cellsize, Eb, S1] = load_files(nb);
 
