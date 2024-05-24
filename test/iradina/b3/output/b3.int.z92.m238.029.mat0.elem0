@@ -1,6 +1,6 @@
 #NAME: output/b3.int.z92.m238.029.mat0.elem0 
 #TITLE: Interstitials of type Z=92   iondose= 1e+14 
-#DATE: Mon Apr 29 17:18:22 2024
+#DATE: Thu May 16 12:00:23 2024
 #COLUMN_NAMES: xc | yc | zc | iZ92  
 #COLUMN_TITLES: Depth | y width | z width| Interstitials 
 #COLUMN_UNITS: nm | nm | nm |  

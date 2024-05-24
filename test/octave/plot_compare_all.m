@@ -1,76 +1,22 @@
 clear
 clf
 
-## !!!!! EDIT REGION - EDITABLE VALUES  !!!!
-# Benchmark Number
-nb = 3;
-# !!!!! END OF EDIT REGION !!!!!
+nb = 6;
+[ipp, S, ions_total, replmnts, implants, vac,ionization, phonons, pkai, titlestr,...
+ x, cellsize, Eb, S1] = load_files(nb);
 
-# Number of ions run
-Nions_all = [20000 20 8000 20000 20000 20000 20000];
-Nions = Nions_all(nb);
+E_init = [2e6 2e6 3e6 1e6 3e5 3e6 1e6];
+E0 = E_init(nb);
 
-# Size of the cell
-cellsize_all = [12 6 12 6 3 500 100];
-cellsize = cellsize_all(nb) ;
-
-# Load HDF5 Results from iradina++
-ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
-
-#Load data from srim
-S = srim2mat(['../srim/b' num2str(nb) '/']);
-
-#Load data from iradina
-path = ['../iradina/b' num2str(nb) '/output/'];
-quantities = {'.ions.total'; '.repl.sum'; ...
-  '.vac.sum'; '.energy.electronic'; '.energy.phonons'};
-
-for i=1:size(quantities,1),
-  A = load('-ascii',[path 'b' num2str(nb) quantities{i}]);
-  switch i,
-    case 1
-      ions_total = A(:,4)./Nions;
-    case 2
-      replmnts = A(:,4)./Nions;
-      implants = ions_total-replmnts;
-    case 3
-      if (nb == 3 ) || (nb == 4) || (nb == 5),
-        B = load('-ascii',[path 'b' num2str(nb) '.vac.z92.m238.029.mat0.elem0']);
-        C = load('-ascii',[path 'b' num2str(nb) '.vac.z8.m15.999.mat0.elem1']);
-        D = load('-ascii',[path 'b' num2str(nb) '.ions_vac']);
-        %vac(:,1) = D(:,5).*5.05e6/Nions;
-        vac(:,1) = B(:,4)./Nions; % vac U
-        vac(:,2) = C(:,4)./Nions; % vac O
-        vac(:,3) = A(:,4)/Nions; % vac_sum
-        %vac(:,1) = vac(:,4)-(vac(:,2)+vac(:,3));
-        %%%
-        %for iradina++
-        Vac_plus = ipp.tally.defects.Vacancies;
-        Vac_all = Vac_plus(:,2) + Vac_plus(:,3); %vacancies by U and O
-      else
-        vac = A(:,4)/Nions;
-      end
-    case 4
-      ionization = A(:,4)./Nions;
-    case 5
-      phonons = A(:,4)./Nions;
-    otherwise
-      error('i case not handled');
-  endswitch
-end
-
-#iradina position
-xx = A(:,1)*cellsize;
-
-# Title
-titlestr = ipp.Title;
+Vac_plus = ipp.tally.defects.Vacancies;
+Vac_all = sum(Vac_plus,2); %vacancies by U and O
 # x axis = cell centers
 x = ipp.grid.cell_xyz(:,1);
 
 figure 1
-plot(S.x./10,S.Ri.*cellsize*10e-8,'-dc;srim;')
+plot(x,S.Ri.*cellsize*10e-8,'-dc;srim;')
 hold on
-plot(xx,ions_total,'-^r;iradina;')
+plot(x,ions_total,'-^r;iradina;')
 plot(x,(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)),'-ob;iradina++;')
 hold off
 title([titlestr ' - Impl/I'])
@@ -78,26 +24,26 @@ title([titlestr ' - Impl/I'])
 
 figure 2
 if (nb == 3 ) || (nb == 4) || (nb == 5),
-  plot(S.x./10,S.Vr(:,1)*cellsize*10,'-dc;srim - U ions;')
+  plot(x,S.Vr(:,1)*cellsize*10,'-dc;srim - U ions;')
   hold on
-  plot(S.x./10,S.Vr(:,2)*cellsize*10,'-dc;srim - O ions;')
-  plot(S.x./10,(S.Vi+S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-dc;srim - sum all vacancies;')
-  plot(xx,vac,'-^r;iradina;')
-  plot(x,ipp.tally.defects.Vacancies,'-ob;iradina++;',x,Vac_all,'-ob;iradina++;')
+  plot(x,S.Vr(:,2)*cellsize*10,'-dc;srim - O ions;')
+  plot(x,(S.Vi+S.Vr(:,1)+S.Vr(:,2))*cellsize*10,'-dc;srim - sum all vacancies;')
+  plot(x,vac,'-^r;iradina;')
+  plot(x,ipp.tally.defects.Vacancies(:,2:end),'-ob;iradina++;',x,Vac_all,'-ob;iradina++;')
 elseif
-  plot(S.x./10,(S.Vi+S.Vr)*cellsize*10,'-dc;srim - sum all vacancies;')
+  plot(x,(S.Vi+S.Vr)*cellsize*10,'-dc;srim - sum all vacancies;')
   hold on
-  plot(xx,vac,'-^r;iradina;')
+  plot(x,vac,'-^r;iradina;')
   plot(x,(ipp.tally.defects.Vacancies(:,1)+ipp.tally.defects.Vacancies(:,2)),'-ob;iradina++;')
 endif
 hold off
 title([titlestr ' - Vacancies'])
 
 figure 3
-plot(S.x./10,S.RC*cellsize*10,'-dc;srim;')
+plot(x,S.RC*cellsize*10,'-dc;srim;')
 hold on
-plot(xx,replmnts,'-^r;iradina;')
-if (nb == 3 )|(nb == 4) | (nb == 5),
+plot(x,replmnts,'-^r;iradina;')
+if (nb == 3 )||(nb == 4) || (nb == 5),
   plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)...
   +ipp.tally.defects.Replacements(:,3)),'-ob;iradina++;')
 elseif
@@ -107,9 +53,9 @@ hold off
 title([titlestr ' - Replacements/I'])
 
 figure 4
-plot(S.x./10,(S.EIi+S.EIr)*cellsize*10,'-dc;srim;')
+plot(x,(S.EIi+S.EIr)*cellsize*10,'-dc;srim;')
 hold on
-plot(xx,ionization,'-^r;iradina;')
+plot(x,ionization,'-^r;iradina;')
 if (nb == 3 ) || (nb == 4) || (nb == 5),
   plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+ipp.tally.energy_deposition.Ionization(:,2)...
   +ipp.tally.energy_deposition.Ionization(:,3)),'-ob;Iradina++;')
@@ -121,9 +67,9 @@ hold off
 title([titlestr ' - Ionization total'])
 
 figure 5
-plot(S.x./10,(S.EPi+S.EPr)*cellsize*10,'-dc;srim;')
+plot(x,(S.EPi+S.EPr)*cellsize*10,'-dc;srim;')
 hold on
-plot(xx,phonons,'-^r;iradina;')
+plot(x,phonons,'-^r;iradina;')
 if (nb == 3 ) || (nb == 4) || (nb == 5),
   plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2)...
   +ipp.tally.energy_deposition.Phonons(:,3)),'-ob;Iradina++;')
@@ -133,3 +79,18 @@ elseif
 end
 hold off
 title([titlestr ' - Phonons total'])
+
+% damage energy
+Tdam = dam_ener(ipp, S, cellsize, E0, S1);
+
+% PKA
+figure 8
+plot(x,(S.Vi)*cellsize*10,'-dc;srim;'); % srim pka/ion
+hold on
+%plot(x,pkai,'-^r;iradina;');
+plot(x, sum(ipp.tally.defects.PKAs,2), '-ob;Iradina++;');
+if ~isempty(S1)
+    plot(x,S1.Vi*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+endif
+hold off
+
