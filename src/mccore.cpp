@@ -322,18 +322,10 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
     f1 = std::sqrt(f1+1);
     j->dir() = (f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio;
 
-    // adjust recoil atom type and energy
+    // adjust recoil atom type, energy, increase recoil generation id
     j->myAtom() = target;
     j->erg() = recoil_erg;
-
-    // check momentum cons.
-//    {
-//        vector3 p0 = dir0*std::sqrt(2*(j->erg()+proj->erg())*proj->myAtom()->M());
-//        vector3 p1 = proj->dir()*std::sqrt(2*proj->erg()*proj->myAtom()->M());
-//        vector3 p2 = j->dir()*std::sqrt(2*j->erg()*j->myAtom()->M());
-//        vector3 p = (p0-p1-p2)/p0.norm();
-//        assert(p.x() < 1e-6f && p.y() < 1e-6f && p.z() < 1e-6f);
-//    }
+    j->recoil_id()++;
 
     // tally the recoil
     t(Event::NewRecoil,*j);
@@ -347,13 +339,11 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
     // add lattice energy recoil to pka Tdam
     if (pka) pka->Tdam() += target->El();
 
-    // adjust recoil id and store in respective queue
-    j->recoil_id()++;
+    // store recoil in respective queue
     if (j->recoil_id()==1) q_.push_pka(j);
     else q_.push_recoil(j);
 
     return j;
-
 }
 
 int mccore::run()
