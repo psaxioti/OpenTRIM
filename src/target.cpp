@@ -6,6 +6,10 @@
 #include <sstream>
 #include <stdexcept>
 
+atom::atom(const parameters& p) :
+    target_item(nullptr),
+    id_(0), mat_(nullptr), p_(p)
+{}
 
 
 atom::atom(target *t, class material* m, int id) :
@@ -26,6 +30,11 @@ float atom::NRT(float Tdam) const
     return (v < 1.f) ? 1.f : v;
 }
 
+material::material(const char* name) :
+    target_item(nullptr), id_(0),
+    name_(name)
+{}
+
 material::material(target *t, const char* name, int id) :
     target_item(t),
     id_(id), name_(name)
@@ -33,8 +42,13 @@ material::material(target *t, const char* name, int id) :
 
 atom* material::addAtom(const atom::parameters& p, float x)
 {
-    atom* a = new atom(target_, this, target_->atoms_.size());
-    target_->atoms_.push_back(a);
+    atom* a;
+    if (target_) {
+        a = new atom(target_, this, target_->atoms_.size());
+        target_->atoms_.push_back(a);
+    } else {
+        a = new atom(nullptr, this, atoms_.size());
+    }
     this->atoms_.push_back(a);
     a->p_ = p;
     a->X_ = x;
@@ -67,11 +81,13 @@ void material::init()
      * we calculate the mean screening length and
      * energy reduction factor (as in ZBL85)
      */
-    int ionZ = target_->projectile()->Z();
-    float ionM = target_->projectile()->M();
-    meanA_ = screening_function<Screening::ZBL>::screeningLength(ionZ, meanZ_); // nm
-    meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
-    meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
+    if (target_) {
+        int ionZ = target_->projectile()->Z();
+        float ionM = target_->projectile()->M();
+        meanA_ = screening_function<Screening::ZBL>::screeningLength(ionZ, meanZ_); // nm
+        meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
+        meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
+    }
 
     static const float AvogadroNum = 6.02214076e2f; // note the nm^3
     if (atomicDensityNM_ <= 0) {

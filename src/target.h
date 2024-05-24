@@ -99,6 +99,8 @@ private:
     float nrt_L_;
 
 public:
+    explicit atom(const parameters& p);
+
     /**
      * @brief Return the unique id of this atom
      *
@@ -206,6 +208,8 @@ public:
         std::vector<float> Er;
     };
 
+    explicit material(const char* name);
+
     /**
      * @brief Set atomic density of the material
      *
@@ -305,7 +309,6 @@ public:
     const std::vector<atom*>& atoms() const { return atoms_; }
 
 private:
-    material();
     material(target* t, const char* name, int id);
 
     friend class target;
