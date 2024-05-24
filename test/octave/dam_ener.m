@@ -58,6 +58,7 @@ disp(sprintf("%s\t%-10.5e\t%-10.5e\t%-10.5e\t%-10.5e",str,Tdam.difff5))
 smb = '^vs*d';
 
 figure 6
+clf
 %plot sum Tdam
 tst ={'D1', 'D2', 'D3', 'D1*', 'D2**'};
 clr=get(gca,'colororder');
@@ -84,6 +85,7 @@ ylabel(['$T_{dam}^{Srim} (keV) $'], ...
 
 
 figure 7
+clf
 %plot difference with Tdref
 tst ={'D1', 'D2', 'D3', 'D1*', 'D2**'};
 clr=get(gca,'colororder');
