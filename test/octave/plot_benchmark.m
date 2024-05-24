@@ -1,7 +1,7 @@
 clear
 
 # Benchmark Number
-nb = 3;
+nb = 1;
 
 # Load HDF5 Results
 ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
@@ -17,23 +17,23 @@ x = ipp.grid.cell_xyz(:,1);
 figure 1
 clf
 subplot(2,2,1)
-plot(x,ipp.tally.defects.Implantations)
-title([titlestr ' - Impl/I'])
-legend(ipp.atom.label)
+plot(x,ipp.tally.defects.Implantations(:,1))
+title([titlestr ' - Implanted Ions'])
+legend(ipp.atom.label(1,:))
 xlabel('x (nm)')
 subplot(2,2,2)
+plot(x,ipp.tally.defects.Implantations(:,2:end))
+title([titlestr ' - I'])
+legend(ipp.atom.label(2:end,:))
+xlabel('x (nm)')
+subplot(2,2,3)
 plot(x,ipp.tally.defects.Vacancies)
 title([titlestr ' - V'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
-subplot(2,2,3)
+subplot(2,2,4)
 plot(x,ipp.tally.defects.Replacements)
 title([titlestr ' - R'])
-legend(ipp.atom.label)
-xlabel('x (nm)')
-subplot(2,2,4)
-plot(x,ipp.tally.defects.PKAs)
-title([titlestr ' - PKAs'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
 
@@ -59,7 +59,7 @@ legend(ipp.atom.label)
 xlabel('x (nm)')
 ylabel('eV')
 subplot(2,2,4)
-plot(x,(ipp.tally.energy_deposition.PKA)./(ipp.tally.defects.PKAs))
+plot(x,(ipp.tally.energy_deposition.PKA)./(ipp.tally.ion_stat.PKAs))
 title([titlestr ' - Er/PKA'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
@@ -102,7 +102,7 @@ for i=2:size(ipp.atom.label,1),
   lbls = { lbls{:}, [strtrim(ipp.atom.label(i,:)) ' FC-NRT']};
 end
 lbls = { lbls{:}, 'Total FC-NRT', 'Total FC' };
-pka = ipp.tally.defects.PKAs(:,2:end);
+pka = ipp.tally.ion_stat.PKAs(:,2:end);
 
 subplot(2,2,3)
 plot(x,ipp.tally.damage.Tdam(:,2:end)./pka, ...
@@ -123,14 +123,25 @@ xlabel('x (nm)')
 # Figure 4 = Lost ions/energy vs. x
 figure 4
 clf
-subplot(2,1,1)
-plot(x,ipp.tally.energy_deposition.Lost)
-title([titlestr ' - Lost E'])
+subplot(2,2,1)
+plot(x,ipp.tally.ion_stat.collisions)
+title([titlestr ' - Collisions'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
-ylabel('eV')
-subplot(2,1,2)
-plot(x,ipp.tally.defects.Lost)
+subplot(2,2,2)
+plot(x,ipp.tally.ion_stat.PKAs)
+title([titlestr ' - PKAs'])
+legend(ipp.atom.label)
+xlabel('x (nm)')
+
+subplot(2,2,3)
+plot(x,ipp.tally.ion_stat.flight_path./ipp.tally.ion_stat.collisions)
+title([titlestr ' - mfp'])
+legend(ipp.atom.label)
+xlabel('x (nm)')
+ylabel('nm')
+subplot(2,2,4)
+plot(x,ipp.tally.ion_stat.Lost)
 title([titlestr ' - Lost ions'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
