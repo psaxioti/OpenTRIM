@@ -1,7 +1,6 @@
 clear
-clf
 
-nb = 1;
+nb = 6;
 [ipp, S, ions_total, replmnts, implants, vac,ionization, phonons, pkai, titlestr,...
  x, cellsize, Eb, S1] = load_files(nb);
 
@@ -14,6 +13,7 @@ Vac_all = sum(Vac_plus,2); %vacancies by U and O
 x = ipp.grid.cell_xyz(:,1);
 
 figure 1
+clf
 plot(x,S.Ri.*cellsize*10e-8,'-dc;srim;')
 hold on
 plot(x,ions_total,'-^r;iradina;')
@@ -31,6 +31,7 @@ box on
 
 
 figure 2
+clf
 if (nb == 3 ) || (nb == 4) || (nb == 5),
   plot(x,S.Vr(:,1)*cellsize*10,'-dc;srim - U ions;')
   hold on
@@ -55,6 +56,7 @@ ylabel(['Vacancies per ion'], ...
 box on
 
 figure 3
+clf
 plot(x,S.RC*cellsize*10,'-dc;srim;')
 hold on
 plot(x,replmnts,'-^r;iradina;')
@@ -75,6 +77,7 @@ ylabel(['replacements per ion'], ...
 box on
 
 figure 4
+clf
 plot(x,(S.EIi+S.EIr)*cellsize*10,'-dc;srim;')
 hold on
 plot(x,ionization,'-^r;iradina;')
@@ -96,6 +99,7 @@ ylabel(['Ionization energy (eV)'], ...
 box on
 
 figure 5
+clf
 plot(x,(S.EPi+S.EPr)*cellsize*10,'-dc;srim;')
 hold on
 plot(x,phonons,'-^r;iradina;')
@@ -121,6 +125,7 @@ Tdam = dam_ener(ipp, S, cellsize, E0, S1);
 
 % PKA
 figure 8
+clf
 plot(x,(S.Vi)*cellsize*10,'-dc;srim;'); % srim pka/ion
 hold on
 %plot(x,pkai,'-^r;iradina;');
