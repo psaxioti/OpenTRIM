@@ -18,8 +18,16 @@ plot(x,S.Ri.*cellsize*10e-8,'-dc;srim;')
 hold on
 plot(x,ions_total,'-^r;iradina;')
 plot(x,(ipp.tally.defects.Implantations(:,1)+ipp.tally.defects.Replacements(:,1)),'-ob;iradina++;')
+if ~isempty(S1)
+    plot(x,S1.Ri.*cellsize*10e-8,'-dk;srim mnl;');  % srim monolayer
+endif
 hold off
 title([titlestr ' - Impl/I'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['Implants per ion'], ...
+        'interpreter','latex')
+box on
+
 
 
 figure 2
@@ -36,8 +44,15 @@ elseif
   plot(x,vac,'-^r;iradina;')
   plot(x,(ipp.tally.defects.Vacancies(:,1)+ipp.tally.defects.Vacancies(:,2)),'-ob;iradina++;')
 endif
+if ~isempty(S1)
+    plot(x,(S1.Vi+S1.Vr)*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+endif
 hold off
 title([titlestr ' - Vacancies'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['Vacancies per ion'], ...
+        'interpreter','latex')
+box on
 
 figure 3
 plot(x,S.RC*cellsize*10,'-dc;srim;')
@@ -49,8 +64,15 @@ if (nb == 3 )||(nb == 4) || (nb == 5),
 elseif
   plot(x,(ipp.tally.defects.Replacements(:,1)+ipp.tally.defects.Replacements(:,2)),'-ob;iradina++;')
 end
+if ~isempty(S1)
+    plot(x,S1.RC*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+endif
 hold off
 title([titlestr ' - Replacements/I'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['replacements per ion'], ...
+        'interpreter','latex')
+box on
 
 figure 4
 plot(x,(S.EIi+S.EIr)*cellsize*10,'-dc;srim;')
@@ -63,8 +85,15 @@ elseif
   plot(x,(ipp.tally.energy_deposition.Ionization(:,1)+...
   ipp.tally.energy_deposition.Ionization(:,2)),'-ob;Iradina++;')
 end
+if ~isempty(S1)
+    plot(x,(S1.EIi+S1.EIr)*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+endif
 hold off
 title([titlestr ' - Ionization total'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['Ionization energy (eV)'], ...
+        'interpreter','latex')
+box on
 
 figure 5
 plot(x,(S.EPi+S.EPr)*cellsize*10,'-dc;srim;')
@@ -77,8 +106,15 @@ elseif
   plot(x,(ipp.tally.energy_deposition.Phonons(:,1)+ipp.tally.energy_deposition.Phonons(:,2))...
   ,'-ob;Iradina++;')
 end
+if ~isempty(S1)
+    plot(x,(S1.EPi+S1.EPr)*cellsize*10,'-dk;srim mnl;');  % srim monolayer
+endif
 hold off
 title([titlestr ' - Phonons total'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['Phonon energy (eV)'], ...
+        'interpreter','latex')
+box on
 
 % damage energy
 Tdam = dam_ener(ipp, S, cellsize, E0, S1);
