@@ -134,4 +134,8 @@ if ~isempty(S1)
     plot(x,S1.Vi*cellsize*10,'-dk;srim mnl;');  % srim monolayer
 endif
 hold off
-
+box on
+title([titlestr ' - PKAs/Ion'])
+xlabel('x (nm)','interpreter','latex')
+ylabel(['Number of PKAs per ion'], ...
+        'interpreter','latex')
