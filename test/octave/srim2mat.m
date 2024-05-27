@@ -25,6 +25,15 @@ function out = srim2mat(folder)
 %   Ri  :  range distribution of ions (atoms/cm3) / (atoms/cm2)
 %   Rr  :  range distribution of recoils (atoms/cm3) / (atoms/cm2)
 %
+%   Dis:   displacement 3d Displacements/(Angstrom-Ion)
+%   EI3:   ionization energy eV/(Angstrom-Ion)
+%   EP3:   phonon energy eV /(Angstrom-Ion)
+%   Ri3:   rande distribution ions
+%   Rr3:   range distribution recoils
+%   RC3:   replacement collision Replacements/(Angstrom-Ion)
+%   V3r:
+%
+%
 
   % Check input
   if ~isfolder(folder)
@@ -48,6 +57,18 @@ function out = srim2mat(folder)
     end
   end
 
+  fname = file_in_path(folder,'Vacancy-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.V3r = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Vacancy-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Vacancy-3D.txt'};
+    end
+  end
+
   fname = file_in_path(folder,'IONIZ.txt');
   if length(fname),
     A = read_array(fname);
@@ -58,7 +79,20 @@ function out = srim2mat(folder)
       out.parsedFiles = {out.parsedFiles{:}, 'IONIZ.txt'};
     else
       out.failedFiles = {out.failedFiles{:}, 'IONIZ.txt'};
-    end  end
+    end
+  end
+
+  fname = file_in_path(folder,'Ioniz-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.EI3 = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Ioniz-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Ioniz-3D.txt'};
+    end
+  end
 
   fname = file_in_path(folder,'PHONON.txt');
   if length(fname),
@@ -70,6 +104,18 @@ function out = srim2mat(folder)
       out.parsedFiles = {out.parsedFiles{:}, 'PHONON.txt'};
     else
       out.failedFiles = {out.failedFiles{:}, 'PHONON.txt'};
+    end
+  end
+
+  fname = file_in_path(folder,'Phonon-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.EP3 = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Phonon-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Phonon-3D.txt'};
     end
   end
 
@@ -86,6 +132,18 @@ function out = srim2mat(folder)
     end
   end
 
+  fname = file_in_path(folder,'Displace-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.Dis = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Displace-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Displace-3D.txt'};
+    end
+  end
+
   fname = file_in_path(folder,'RANGE.txt');
   if length(fname),
     A = read_array(fname);
@@ -96,6 +154,18 @@ function out = srim2mat(folder)
       out.parsedFiles = {out.parsedFiles{:}, 'RANGE.txt'};
     else
       out.failedFiles = {out.failedFiles{:}, 'RANGE.txt'};
+    end
+  end
+
+  fname = file_in_path(folder,'Range-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.Ri3 = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Range-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Range-3D.txt'};
     end
   end
 
@@ -110,6 +180,31 @@ function out = srim2mat(folder)
       out.failedFiles = {out.failedFiles{:}, 'NOVAC.txt'};
     end
   end
+
+  fname = file_in_path(folder,'Recoil-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.Rr3 = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Recoil-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Recoil-3D.txt'};
+    end
+  end
+
+  fname = file_in_path(folder,'Replace-3D.txt');
+  if length(fname),
+    A = read_array(fname);
+    if ~isempty(A)
+      out.x = A(:,1);
+      out.RC3 = A(:,2:end);
+      out.parsedFiles = {out.parsedFiles{:}, 'Replace-3D.txt'};
+    else
+      out.failedFiles = {out.failedFiles{:}, 'Replace-3D.txt'};
+    end
+  end
+
 end
 
 function A = read_array(fname,nrow)

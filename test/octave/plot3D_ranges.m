@@ -1,9 +1,10 @@
 clear
 clf
 
+%% only nb=6,7 of interest
 nb = 7;
 path = ['../srim/b' num2str(nb) '/'];
-S = srim2mat2(path);
+S = srim2mat(path);
 
 %   Dis:   displacement 3d Displacements/(Angstrom-Ion)
 %   EI3:   ionization energy eV/(Angstrom-Ion)
