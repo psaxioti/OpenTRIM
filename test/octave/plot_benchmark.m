@@ -1,7 +1,7 @@
 clear
 
 # Benchmark Number
-nb = 1;
+nb = 3;
 
 # Load HDF5 Results
 ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
@@ -59,7 +59,7 @@ legend(ipp.atom.label)
 xlabel('x (nm)')
 ylabel('eV')
 subplot(2,2,4)
-plot(x,(ipp.tally.energy_deposition.PKA)./(ipp.tally.ion_stat.PKAs))
+plot(x,(ipp.tally.energy_deposition.PKA)./(ipp.tally.defects.PKAs))
 title([titlestr ' - Er/PKA'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
@@ -102,7 +102,7 @@ for i=2:size(ipp.atom.label,1),
   lbls = { lbls{:}, [strtrim(ipp.atom.label(i,:)) ' FC-NRT']};
 end
 lbls = { lbls{:}, 'Total FC-NRT', 'Total FC' };
-pka = ipp.tally.ion_stat.PKAs(:,2:end);
+pka = ipp.tally.defects.PKAs(:,2:end);
 
 subplot(2,2,3)
 plot(x,ipp.tally.damage.Tdam(:,2:end)./pka, ...
@@ -129,7 +129,7 @@ title([titlestr ' - Collisions'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
 subplot(2,2,2)
-plot(x,ipp.tally.ion_stat.PKAs)
+plot(x,ipp.tally.defects.PKAs)
 title([titlestr ' - PKAs'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
@@ -141,7 +141,7 @@ legend(ipp.atom.label)
 xlabel('x (nm)')
 ylabel('nm')
 subplot(2,2,4)
-plot(x,ipp.tally.ion_stat.Lost)
+plot(x,ipp.tally.defects.Lost)
 title([titlestr ' - Lost ions'])
 legend(ipp.atom.label)
 xlabel('x (nm)')
