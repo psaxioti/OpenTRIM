@@ -229,7 +229,7 @@ int mccore::init() {
      *
      * Additional conditions:
      *
-     * - El. energy loss
+     * - Electron energy loss
      *   - Δxmax for el. energy loss below 5%
      *   - mfp = min(mfp, Dxmax)
      *
@@ -281,7 +281,7 @@ int mccore::init() {
                 if (mfp > dx) mfp = dx;
 
                 // ensure mfp not smaller than interatomic distance
-                // if (mfp < Rat) mfp = Rat;
+                if (mfp < Rat) mfp = Rat;
 
                 // this is the max impact parameter ip = (N*pi*mfp)^(-1/2)
                 ipmax = std::sqrt(1.f/M_PI/mfp/N);
@@ -463,7 +463,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
         // decide flight path fp & impact par
         float fp, ip, sqrtfp;
         flightPath(i, mat, fp, ip, sqrtfp);
-        t(Event::NewFP,*i,&fp);
+        t(Event::NewFlightPath,*i,&fp);
 
         // if we are inside a material, calc stopping + straggling
         if (mat) {

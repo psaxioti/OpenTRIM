@@ -17,7 +17,7 @@ enum class Event {
     Vacancy,
     NRT_LSS_damage,
     NRT_damage,
-    NewFP
+    NewFlightPath
 };
 
 class tally {
@@ -69,8 +69,8 @@ protected:
         dpTdam_LSS = 11,
         dpVnrt = 12,
         dpVnrt_LSS = 13,
-        csFP = 14,
-        csCollision = 15
+        isFlightPath = 14,
+        isCollision = 15
     };
 
 public:
@@ -176,11 +176,11 @@ public:
             A[dpTdam](i.myAtom()->id(),i.cellid()) += p[0];
             A[dpVnrt](i.myAtom()->id(),i.cellid()) += p[1];
             break;
-        case Event::NewFP:
-            A[csFP](i.myAtom()->id(),i.cellid()) += p[0];
+        case Event::NewFlightPath:
+            A[isFlightPath](i.myAtom()->id(),i.cellid()) += p[0];
             break;
         case Event::Scattering:
-            A[csCollision](i.myAtom()->id(),i.cellid())++;
+            A[isCollision](i.myAtom()->id(),i.cellid())++;
             break;
         default:
             break;
