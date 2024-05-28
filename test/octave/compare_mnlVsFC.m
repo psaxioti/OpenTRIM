@@ -38,17 +38,27 @@ title('monolayer mode')
 figure 2
 clf
 subplot(1,2,1)
-contour(x,x,S.Ri3.*cellsize*10e-8,100)
+contour(x-25000,x-35500,S.Ri3.*cellsize*10e-8,[0:0.002:0.01 0.015 0.02 0.025])
 colorbar
 xlabel('y (nm)');
 ylabel('x (nm)');
+xlim([-1 1]*7500)
+ylim([-1 1]*7500)
+caxis([0 0.08])
+axis equal
 colormap('jet')
 title('FC mode')
+grid
 subplot(1,2,2)
-contour(x,x,S1.Ri3.*cellsize*10e-8,100)
+contour(x-25000,x-35500,S1.Ri3.*cellsize*10e-8,[0:0.0025:0.01 0.02 0.04 0.06])
 colorbar
 xlabel('y (nm)');
 ylabel('x (nm)');
+xlim([-1 1]*7500)
+ylim([-1 1]*7500)
+caxis([0 0.08])
+axis equal
 colormap('jet')
 title('monolayer mode')
+grid
 
