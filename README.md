@@ -53,7 +53,8 @@ The JSON configuration input has the following self-explanatory structure:
         "straggling_model": "YangStraggling",   // NoStraggling|BohrStraggling|ChuStraggling|YangStraggling
         "nrt_calculation": "NRT_element",       // NRT_element|NRT_average
         "flight_path_const": 0.1,   // [nm], used if "flight_path_type"=Constant        
-        "min_energy": 1.0           // [eV], transport cutoff energy.  
+        "min_energy": 1.0,           // [eV], transport cutoff energy.
+        "min_recoil_energy" : 1.0    // [eV], recoil energy cutoff, MendenhallWeller flight path selection   
     },
     "IonBeam": {
         "ion_distribution": "SurfaceCentered", // SurfaceRandom|SurfaceCentered|FixedPos|VolumeCentered|VolumeRandom
@@ -152,8 +153,8 @@ The main output file has the following structure with the data organized in fold
     - `damage/` : damage quantities
       - `Tdam` : damage energy per pka [eV] [cells x atoms]
       - `Tdam_LSS` : LSS damage energy per pka [eV] [cells x atoms]
-      - `Vnrt` : NRT vacancies from Tdam [eV] [cells x atoms]
-      - `Vnrt_LSS` : NRT vacancies from Tdam_LSS [eV] [cells x atoms]
+      - `Vnrt` : NRT vacancies from Tdam [cells x atoms]
+      - `Vnrt_LSS` : NRT vacancies from Tdam_LSS [cells x atoms]
     - `defects/`
       - `Implantations` : Implanted ions and interstitials [cells x atoms]
       - `Replacements` : Replacements [cells x atoms]
@@ -165,18 +166,21 @@ The main output file has the following structure with the data organized in fold
       - `Phonons` : Ion energy deposited to phonons [cells x atoms]
       - `PKAs` : PKA recoil energy [cells x atoms]
       - `Lost`  : Energy lost due to ion exit [cells x atoms]
+    - `ion_stat/` : Ion statistics
+      - `flight_path` : ion path [nm] [cells x atoms]
+      - `collisions` : # of ion collisions [cells x atoms]
 
 To reach a variable in the file use the complete path, e.g. `/tally/damage/Tdam`.
 
 The tallies give the mean values over all histories.
 For each tally variable there is an additional entry corresponding to the standard deviation of the mean. The name of this entry is the same as the variable plus `_std` at the end, e.g.   `/tally/damage/Tdam_std`.
 
-Specifically, if $x_i$ is the contribution to quantity $x$ from the $i$-th ion history, then the mean and std given in the output file are calculated as:
+Specifically, if $x_i$ is the contribution to quantity $x$ from the $i$-th ion history, then the mean and std deviation given in the output file are calculated as:
 $$
 \bar{x} = \frac{1}{N_h} \sum_i {x_i}
 $$
 $$
-\sigma_{\bar{x}} = \frac{1}{N_h(N_h-1)} \sum_i { (x_i - \bar{x})^2 }
+\sigma_{\bar{x}}^2 = \frac{1}{N_h(N_h-1)} \sum_i { (x_i - \bar{x})^2 }
 $$
 
 ## Code Documentation
