@@ -77,6 +77,9 @@ void ion::deflect(const vector3 &n)
     dir_.y() = m.y()*n.z() + (m.y()*m.z()*n.x() + m.x()*n.y())/smz;
     dir_.z() = m.z()*n.z() - n.x()*smz;
 
+    // normalize
+    dir_.normalize();
+
 }
 
 /*
