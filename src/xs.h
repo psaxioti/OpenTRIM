@@ -938,11 +938,36 @@ struct xs_corteo_index {
     }
 };
 
-const float* corteo4bitdata();
-const float* corteo6bitdata();
+const float* xs_zbl_data();
+const float* xs_krc_data();
+const float* xs_lj_data();
+const float* xs_moliere_data();
+// Returns a pointer to the pre-computed table
+template<Screening ScreeningType>
+struct corteo4bitdata {
+   static const float* data() { return nullptr; }
+};
+template<>
+struct corteo4bitdata<Screening::ZBL> {
+    static const float* data() { return xs_zbl_data(); }
+};
+template<>
+struct corteo4bitdata<Screening::LenzJensen> {
+    static const float* data() { return xs_lj_data(); }
+};
+template<>
+struct corteo4bitdata<Screening::KrC> {
+    static const float* data() { return xs_krc_data(); }
+};
+template<>
+struct corteo4bitdata<Screening::Moliere> {
+    static const float* data() { return xs_moliere_data(); }
+};
+
+
 
 /**
- * @brief 4-bit corteo-tabulated ZBL screened potential scattering integral
+ * @brief 4-bit corteo-tabulated screened potential scattering integral
  *
  * A 2-dimensional pre-caclulated table of \f$ \sin^2\theta/2 \f$ as a function of reduced energy
  * and reduced impact parameter, where \f$ \theta \f$ is
@@ -957,8 +982,12 @@ const float* corteo6bitdata();
  *
  * @ingroup XS
  */
-struct xs_zbl_corteo4bit : public screening_function< Screening::ZBL >
+template<Screening ScreeningType>
+struct xs_corteo4bit : public screening_function< ScreeningType >,
+                       public corteo4bitdata< ScreeningType >
 {
+    using corteo4bitdata< ScreeningType >::data;
+
     /// The 2D corteo index type
     typedef xs_corteo_index<4> corteo_idx_t;
     /// Number of table rows (energy values)
@@ -979,52 +1008,7 @@ struct xs_zbl_corteo4bit : public screening_function< Screening::ZBL >
         const float* p = data();
         return p[ie*cols + is];
     }
-    /// Returns a pointer to the pre-computed table
-    static const float* data() {
-        return corteo4bitdata();
-    }
-};
 
-/**
- * @brief 6-bit corteo-tabulated ZBL screened potential scattering integral
- *
- * A 2-dimensional pre-caclulated table of \f$ \sin^2\theta/2 \f$ as a function of reduced energy
- * and reduced impact parameter, where \f$ \theta \f$ is
- * the center-of-mass scattering angle for the ZBL screened potential
- * pre-calculated by Gauss–Chebyshev quadrature.
- *
- * The tabulated values are calculated at log-spaced energy
- * and impact factor values as documented in \ref xs_corteo_index.
- *
- *
- * @ingroup XS
- */
-struct xs_zbl_corteo6bit : public screening_function< Screening::ZBL >
-{
-    /// The 2D corteo index type
-    typedef xs_corteo_index<6> corteo_idx_t;
-    /// Number of table rows (energy values)
-    constexpr const static int rows = corteo_idx_t::rows;
-    /// Number of table columns (impact parameter values)
-    constexpr const static int cols = corteo_idx_t::cols;
-
-    /// Returns the tabulated value of \f$ \sin^2\theta(\epsilon,s)/2 \f$
-    static double sin2Thetaby2(const double& e, const double& s)
-    {
-        const float* p = data();
-        int i = corteo_idx_t::table_index(e,s);
-        return p[i];
-    }
-    /// Returns the tabulated value of \f$ \sin^2\theta(i,j)/2 \f$
-    static float sin2Thetaby2(int ie, int is)
-    {
-        const float* p = data();
-        return p[ie*cols + is];
-    }
-    /// Returns a pointer to the pre-computed table
-    static const float* data() {
-        return corteo6bitdata();
-    }
 };
 
 /**
@@ -1204,9 +1188,11 @@ public:
 
 
 // implementation of XSlab for corteo-tabulated center-of-mass XS
-template<class _XS>
+template<Screening ScreeningType>
 class xs_corteo_impl_ : public abstract_xs_lab
 {
+    typedef xs_quad<ScreeningType> _XSQ;
+    typedef xs_corteo4bit<ScreeningType> _XS;
     typedef typename _XS::corteo_idx_t _My_t;
     std::array<float, _My_t::rows * _My_t::cols > sinTable, cosTable;
 public:
@@ -1283,7 +1269,7 @@ public:
         if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
         if (thetaCM == 1.0) return 0.f;
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<Screening::ZBL>::findS(E*red_E_conv_,thetaCM)*screening_length_;
+        return _XSQ::findS(E*red_E_conv_,thetaCM)*screening_length_;
 
     }
     virtual float crossSection(float E, float T) const override
@@ -1291,18 +1277,18 @@ public:
         double thetaCM = 1.0*T/E/gamma_;
         if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
-        return xs_quad<Screening::ZBL>::crossSection(E*red_E_conv_,thetaCM)*4*sig0_/E/gamma_;
+        return _XSQ::crossSection(E*red_E_conv_,thetaCM)*4*sig0_/E/gamma_;
     }
     virtual float stoppingPower(float E) const override
     {
-        return xs_quad<Screening::ZBL>::stoppingPower(E*red_E_conv_)*sig0_*gamma_/red_E_conv_;
+        return _XSQ::stoppingPower(E*red_E_conv_)*sig0_*gamma_/red_E_conv_;
     }
     virtual float stoppingPower(float E, float T1) const override
     {
         double theta_max = 1.0*T1/E/gamma_;
         if (theta_max >= 1.0) return stoppingPower(E);
         theta_max = 2.*std::asin(std::sqrt(theta_max));
-        return xs_quad<Screening::ZBL>::stoppingPower(E*red_E_conv_,theta_max)*sig0_*gamma_/red_E_conv_;
+        return _XSQ::stoppingPower(E*red_E_conv_,theta_max)*sig0_*gamma_/red_E_conv_;
     }
 };
 
@@ -1317,13 +1303,10 @@ typedef xs_lab<xs_zbl_magic> xs_lab_zbl_magic;
  *
  * @ingroup XS
  */
-typedef xs_corteo_impl_< xs_zbl_corteo4bit > xs_lab_zbl_corteo4bit;
-/**
- * @brief xs_lab implementation with ZBL potential and 6-bit corteo tabulated center-of-mass scattering angle
- *
- * @ingroup XS
- */
-typedef xs_corteo_impl_< xs_zbl_corteo6bit > xs_lab_zbl_corteo6bit;
+typedef xs_corteo_impl_< Screening::ZBL > xs_lab_zbl;
+typedef xs_corteo_impl_< Screening::LenzJensen > xs_lab_lj;
+typedef xs_corteo_impl_< Screening::KrC > xs_lab_krc;
+typedef xs_corteo_impl_< Screening::Moliere > xs_lab_moliere;
 
 
 #endif
