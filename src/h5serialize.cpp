@@ -1,8 +1,8 @@
-#include "out_file.h"
 #include "mccore.h"
 #include "dedx.h"
 #include "mcdriver.h"
 
+#include <iomanip>
 #include <iostream>
 #include <H5Cpp.h>
 
@@ -280,23 +280,14 @@ int save_array_normalized(H5File* f, const char* name, const char* dname,
     return save_array(f, name, a.data(), dims) + save_array(f, dname, da.data(), dims);
 }
 
-out_file::out_file(const mccore *s) :
-    sim_(s), h5f(nullptr)
+int mcdriver::save()
 {
-
-}
-
-out_file::~out_file()
-{
-    close();
-    if (h5f) delete h5f;
-}
-
-int out_file::open(const char* fname)
-{
+    std::string fname(out_opts_.OutputFileBaseName);
+    fname += ".h5";
+    H5::H5File* h5f(nullptr);
     try
     {
-       h5f = new H5File(fname, H5F_ACC_TRUNC);
+        h5f = new H5File(fname, H5F_ACC_TRUNC);
     }  // end of try block
     // catch failure caused by the H5File operations
     catch( FileIException error )
@@ -306,12 +297,9 @@ int out_file::open(const char* fname)
         return -1;
     }
 
-    return 0;  // successfully terminated
+    options opt;
+    getOptions(opt);
 
-}
-
-int out_file::save(const options &opt)
-{
     // variable list
     std::stringstream var_list;
 
@@ -320,15 +308,40 @@ int out_file::save(const options &opt)
     var_list << "Title" << '\t' << "string" <<  endl;
 
     // save options
-    std::stringstream ss;
-    opt.printJSON(ss);
-    save_string(h5f, "config_json", ss.str());
+    {
+        std::stringstream ss;
+        opt.printJSON(ss);
+        save_string(h5f, "config_json", ss.str());
+    }
     var_list << "config_json" << '\t' << "string" << '\t' << "JSON formatted simulation options" << endl;
+    var_list << endl;
+
+
+    // save run statistics
+    var_list << "Run statistics" << endl;
+    const tally& t = s_->getTally();
+    const tally& dt = s_->getTallyVar();
+    save_scalar(h5f, "/run_stat/Nh", t.Nions());
+    var_list << "/run_stat/Nh" << '\t' << "Scalar" << '\t' << "# of histories" << endl;
+    save_scalar(h5f, "/run_stat/ips", ips_);
+    var_list << "/run_stat/ips" << '\t' << "Scalar" << '\t' << "ions/s" << endl;
+    {
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&start_time_), "%c %Z");
+        save_string(h5f, "/run_stat/start_time", ss.str());
+    }
+    var_list << "/run_stat/start_time" << '\t' << "string" << '\t' << "start time/date" << endl;
+    {
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&end_time_), "%c %Z");
+        save_string(h5f, "/run_stat/end_time", ss.str());
+    }
+    var_list << "/run_stat/end_time" << '\t' << "string" << '\t' << "start time/date" << endl;
     var_list << endl;
 
     // save grid
     var_list << "Spatial Grid" << endl;
-    auto grid = sim_->getTarget().grid();
+    auto grid = s_->getTarget().grid();
     save_array<float, grid1D>(h5f, "/grid/X", grid.x());
     var_list << "/grid/X" << '\t' << "1x" << grid.x().size() << '\t' << "x-axis grid" << endl;
     save_array<float, grid1D>(h5f, "/grid/Y", grid.y());
@@ -357,7 +370,7 @@ int out_file::save(const options &opt)
     var_list << endl;
 
     // save atoms & materials
-    auto atoms = sim_->getTarget().atoms();
+    auto atoms = s_->getTarget().atoms();
     std::vector<std::string> atom_labels(atoms.size());
     for(int i=0; i<atoms.size(); i++) {
         std::string& s = atom_labels[i];
@@ -372,17 +385,15 @@ int out_file::save(const options &opt)
     var_list << "/atom/label" << '\t' << "string array" << endl;
 
 
+
+
+
     // save tallys
     var_list << "Tallies" << endl;
     var_list << "  Results are mean values over the ion histories. " << endl
              << "  [VarName]_std is the standard error of the mean." << endl;
-    const tally& t = sim_->getTally();
-    const tally& dt = sim_->getTallyVar();
-    uint N = t.Nions();
-    save_scalar(h5f, "Nh", t.Nions());
-    var_list << "Nh" << '\t' << "Scalar" << '\t' << "# of histories" << endl;
-
     // PKAs
+    uint N = t.Nions();
     double vm = t.Npkas()/N, dvm = std::sqrt((dt.Npkas()/N-vm*vm)/(N-1));
     save_scalar(h5f, "/tally/totals/Npkas", vm);
     var_list << "/tally/totals/Npkas" << '\t' << "Scalar" << '\t' << "# of PKAs" << endl;
@@ -464,22 +475,19 @@ int out_file::save(const options &opt)
     }
 
     if (opt.Output.store_dedx) {
-        save_array_nd(h5f,"/eels/dEdx",sim_->dedx());
-        save_array_nd(h5f,"/eels/dEstrag",sim_->de_strag());
+        save_array_nd(h5f,"/eels/dEdx",s_->dedx());
+        save_array_nd(h5f,"/eels/dEstrag",s_->de_strag());
         ArrayND<float> dedx_erg(dedx_index::size);
         for(dedx_index i; i<i.end(); i++) dedx_erg(i) = *i;
         save_array_nd(h5f,"/eels/dEdx_erg",dedx_erg);
-        save_array_nd(h5f,"/eels/mfp",sim_->mfp());
-        save_array_nd(h5f,"/eels/ipmax",sim_->ipmax());
+        save_array_nd(h5f,"/eels/mfp",s_->mfp());
+        save_array_nd(h5f,"/eels/ipmax",s_->ipmax());
     }
 
 
     save_string(h5f, "Variable_List", var_list.str());
 
-    return 0;
-}
+    h5f->close();
 
-void out_file::close()
-{
-    if (h5f) h5f->close();
+    return 0;
 }

@@ -3,6 +3,8 @@
 
 #include "mccore.h"
 
+#include <ctime>
+
 /**
  * \defgroup Driver Driver
  *
@@ -41,7 +43,7 @@ public:
     struct output_options {
         /// Simulation title
         std::string title{"Ion Simulation"};
-        std::string OutputFileBaseName{"iradina++"};
+        std::string OutputFileBaseName{"out"};
         int storage_interval{1000};
         int store_transmitted_ions{0};
         int store_range_3d{0};
@@ -61,6 +63,7 @@ protected:
 
     // timing
     double ips_; // ions/s
+    std::time_t start_time_, end_time_;
 
     parameters par_;
     output_options out_opts_;

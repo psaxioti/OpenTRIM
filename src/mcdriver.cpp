@@ -1,5 +1,4 @@
 #include "mcdriver.h"
-#include "out_file.h"
 #include "elements.h"
 
 #include <iostream>
@@ -32,19 +31,6 @@ mcdriver::mcdriver() :
 mcdriver::~mcdriver()
 {
     if (s_) delete s_;
-}
-
-int mcdriver::save()
-{
-    out_file of(s_);
-    std::string fname(out_opts_.OutputFileBaseName);
-    fname += ".h5";
-    if (of.open(fname.c_str())!=0) return -1;
-    options opt;
-    getOptions(opt);
-    of.save(opt);
-    of.close();
-    return 0;
 }
 
 std::string mcdriver::outFileName(const char* type, int thread_id)
@@ -84,6 +70,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     if (nthreads < 1) nthreads = 1;
 
     // TIMING
+    start_time_ = std::time(nullptr);
     struct timespec t_start, t_end;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_start);
 
@@ -182,6 +169,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
     double t_secs = 1. * (t_end.tv_sec - t_start.tv_sec) / nthreads;
     t_secs += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec) / nthreads;
     ips_ = s_->getTally().Nions()/t_secs;
+    end_time_ = std::time(nullptr);
 
     return 0;
 }
