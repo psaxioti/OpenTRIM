@@ -4,7 +4,7 @@ project(iradina++ C CXX)
 
 set (IRADINAPP_MAJOR_VERSION "0")
 set (IRADINAPP_MINOR_VERSION "1")
-set (IRADINAPP_BUGFIX_VERSION "3")
+set (IRADINAPP_BUGFIX_VERSION "4")
 set (IRADINAPP_VERSION_STRING ${IRADINAPP_MAJOR_VERSION}.${IRADINAPP_MINOR_VERSION}.${IRADINAPP_BUGFIX_VERSION})
 message (STATUS "iradina++ version ${IRADINAPP_VERSION_STRING}")
 
@@ -50,17 +50,17 @@ add_executable(gencorteo
     src/corteo.h
     src/xs.h)
 
-add_custom_command(
-    OUTPUT  corteo4bitdata.cpp corteo6bitdata.cpp
-    COMMAND gencorteo
-    DEPENDS gencorteo
-)
+target_include_directories(gencorteo PRIVATE
+    extern/cxxopts-3.1.1/include)
 
-add_library(corteo4bit SHARED
-    ${CMAKE_CURRENT_BINARY_DIR}/corteo4bitdata.cpp)
-
-add_library(corteo6bit SHARED
-    ${CMAKE_CURRENT_BINARY_DIR}/corteo6bitdata.cpp)
+add_custom_command(OUTPUT xs_zbl_data.cpp COMMAND gencorteo -s zbl DEPENDS gencorteo)
+add_library(xs_zbl SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_zbl_data.cpp)
+add_custom_command(OUTPUT xs_lj_data.cpp COMMAND gencorteo -s lj DEPENDS gencorteo)
+add_library(xs_lj SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_lj_data.cpp)
+add_custom_command(OUTPUT xs_krc_data.cpp COMMAND gencorteo -s krc DEPENDS gencorteo)
+add_library(xs_krc SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_krc_data.cpp)
+add_custom_command(OUTPUT xs_moliere_data.cpp COMMAND gencorteo -s moliere DEPENDS gencorteo)
+add_library(xs_moliere SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_moliere_data.cpp)
 
 set (IRADINAPP_HEADERS
     src/dedx.h
@@ -75,7 +75,6 @@ set (IRADINAPP_HEADERS
     src/ion_beam.h 
     src/arrays.h
     src/event_stream.h 
-    src/out_file.h
     src/tally.h 
     src/mcdriver.h 
   )
@@ -89,7 +88,7 @@ add_library(iradinapp SHARED
     src/ion_beam.cpp
     src/straggling.cpp    
     src/event_stream.cpp
-    src/out_file.cpp
+    src/h5serialize.cpp
     src/tally.cpp
     src/parse_json.cpp    
     src/mcdriver.cpp)
@@ -98,7 +97,7 @@ set(IRADINAPP_LIBS
     "-lm"
     Eigen3::Eigen
     iondedx
-    corteo4bit  corteo6bit
+    xs_zbl xs_lj xs_krc xs_moliere
     ${HDF5_LIBRARIES})
 
 target_link_libraries(iradinapp ${IRADINAPP_LIBS})
@@ -121,8 +120,7 @@ target_link_libraries(iradina++
 
 set(installable_libs
     iondedx
-    corteo4bit
-    corteo6bit
+    xs_zbl xs_lj xs_krc xs_moliere
     iradinapp )
 install(TARGETS ${installable_libs} DESTINATION lib)
 install(FILES ${IRADINAPP_HEADERS} DESTINATION include)
