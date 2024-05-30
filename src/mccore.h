@@ -67,9 +67,7 @@ public:
      */
     enum scattering_calculation_t {
         Corteo4bitTable = 0,     /**< Using 4bit corteo-tabulated scattering integrals */
-        Corteo6bitTable = 1,     /**< Using 6bit corteo-tabulated scattering integrals */
-        ZBL_MAGICK = 2,     /**< Using the MAGIC formula for the scattering integrals (as in SRIM) */
-        GCQuad,  /**< Using Gauss-Chebyshev quadrature to calculate the scattering integrals */
+        ZBL_MAGICK = 1,     /**< Using the MAGIC formula for the scattering integrals (as in SRIM) */
         InvalidScatteringOption = -1
     };
 
@@ -130,6 +128,10 @@ public:
         float min_energy{1.f};
         /// Minimum recoil energy
         float min_recoil_energy{1.f};
+        /// Scattering at shorter distances than interatomic distance
+        bool allow_sub_ml_scattering{false};
+        /// Max mfp
+        float max_mfp{std::numeric_limits<float>::max()};
     };
 
 

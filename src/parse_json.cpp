@@ -132,13 +132,9 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
 NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {
                                 {mccore::InvalidScatteringOption, nullptr},
                                 {mccore::Corteo4bitTable, "Corteo4bitTable"},
-                                {mccore::Corteo6bitTable, "Corteo6bitTable"},
                                 {mccore::ZBL_MAGICK, "ZBL_MAGICK"},
-                                {mccore::GCQuad, "GCQuad"},
                                 {mccore::Corteo4bitTable, 0},
-                                {mccore::Corteo6bitTable, 1},
-                                {mccore::ZBL_MAGICK, 2},
-                                {mccore::GCQuad, 3}
+                                {mccore::ZBL_MAGICK, 1},
                             })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(Screening, {
@@ -171,7 +167,8 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
                                    scattering_calculation,
                                    flight_path_type, straggling_model,
                                    nrt_calculation,
-                                   flight_path_const, min_energy, min_recoil_energy)
+                                   flight_path_const, min_energy, min_recoil_energy,
+                                   allow_sub_ml_scattering, max_mfp)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
                                           max_no_ions,

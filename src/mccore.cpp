@@ -198,16 +198,29 @@ int mccore::init() {
         {
             switch (par_.scattering_calculation) {
             case Corteo4bitTable:
-                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo4bit;
-                break;
-            case Corteo6bitTable:
-                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo6bit;
+                switch (par_.screening_type) {
+                case Screening::ZBL:
+                    scattering_matrix_(z1,z2) = new xs_lab_zbl;
+                    break;
+                case Screening::LenzJensen:
+                    scattering_matrix_(z1,z2) = new xs_lab_lj;
+                    break;
+                case Screening::KrC:
+                    scattering_matrix_(z1,z2) = new xs_lab_krc;
+                    break;
+                case Screening::Moliere:
+                    scattering_matrix_(z1,z2) = new xs_lab_moliere;
+                    break;
+                default:
+                    scattering_matrix_(z1,z2) = new xs_lab_zbl;
+                    break;
+                }
                 break;
             case ZBL_MAGICK:
                 scattering_matrix_(z1,z2) = new xs_lab_zbl_magic;
                 break;
             default:
-                scattering_matrix_(z1,z2) = new xs_lab_zbl_corteo4bit;
+                scattering_matrix_(z1,z2) = new xs_lab_zbl;
                 break;
             }
 
@@ -234,8 +247,11 @@ int mccore::init() {
      *   - mfp = min(mfp, Dxmax)
      *
      * - Allow flight path < atomic radius Rat ??
-     *   - if not then mfp = min(mfp, Rat)
+     *   - if not then mfp = max(mfp, Rat)
      *
+     * - User selected max_mfp
+     *   - mfp = min(mfp, max_mfp)
+
      * Finally:
      *
      * - ipmax = 1/(pi*mfp*N)^(1/2)
@@ -243,8 +259,9 @@ int mccore::init() {
      */
     mfp_   = ArrayNDf(natoms,nmat,nerg);
     ipmax_ = ArrayNDf(natoms,nmat,nerg);
-    float delta_dedx = 0.05f; /// @TODO: should be user option
+    float delta_dedx = 0.01f; /// @TODO: should be user option
     float Tmin = par_.min_recoil_energy;
+    float mfp_ub = par_.max_mfp;
     float Tmin_rel = 0.01f; /// @TODO: make it user option
     for(int z1 = 0; z1<natoms; z1++)
     {
@@ -253,6 +270,7 @@ int mccore::init() {
             const material* m = materials[im];
             const float & N = m->atomicDensity();
             const float & Rat = m->atomicRadius();
+            float mfp_lb = par_.allow_sub_ml_scattering ? 0.f : Rat;
             for(dedx_index ie; ie!=ie.end(); ie++) {
                 float & mfp = mfp_(z1,im,ie);
                 float & ipmax = ipmax_(z1,im,ie);
@@ -278,10 +296,13 @@ int mccore::init() {
 
                 // ensure mfp below 1% energy loss
                 float dx = delta_dedx*E/dedx_(z1,im,ie);
-                if (mfp > dx) mfp = dx;
+                mfp = std::min(mfp,dx);
 
-                // ensure mfp not smaller than interatomic distance
-                if (mfp < Rat) mfp = Rat;
+                // ensure mfp not smaller than lower bound
+                mfp = std::max(mfp,mfp_lb);
+
+                // ensure mfp not larger than upper bound
+                mfp = std::min(mfp,mfp_ub);
 
                 // this is the max impact parameter ip = (N*pi*mfp)^(-1/2)
                 ipmax = std::sqrt(1.f/M_PI/mfp/N);
