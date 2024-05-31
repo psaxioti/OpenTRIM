@@ -266,6 +266,13 @@ public:
     /// Return the rectangular box containing the whole 3D grid
     const box3D& box() const { return box_; }
 
+    /// Return the i-th cell rectangular box
+    box3D box(const ivector3& i) const {
+        vector3 X0(x_[i.x()],y_[i.y()],z_[i.z()]);
+        vector3 X1(x_[i.x()+1],y_[i.y()+1],z_[i.z()+1]);
+        return box3D(X0, X1);
+    }
+
     /// Return true if v is within the grid
     bool contains(const vector3& v) const {
         return x_.contains(v.x()) &&

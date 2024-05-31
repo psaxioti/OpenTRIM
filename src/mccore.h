@@ -80,9 +80,8 @@ public:
     enum flight_path_type_t {
         AtomicSpacing = 1,  /**< Constant, equal to interatomic distance */
         Constant = 2,       /**< Constant, equal to user supplied value */
-        SRIMlike = 3,        /**< Algorithm similar to SRIM */
-        MendenhallWeller = 4, /**< Algorithm from Mendenhall-Weller NIMB2005*/
-        MyFFP = 5,            /**< Other algorithm */
+        MendenhallWeller = 3, /**< Algorithm from Mendenhall-Weller NIMB2005*/
+        MyFFP = 4,            /**< Other algorithm */
         InvalidPath = -1
     };
 
@@ -132,6 +131,8 @@ public:
         bool allow_sub_ml_scattering{false};
         /// Max mfp
         float max_mfp{std::numeric_limits<float>::max()};
+        /// Max dE/E per mfp, dE = dEdx*mfp
+        float max_rel_eloss{0.05f};
     };
 
 

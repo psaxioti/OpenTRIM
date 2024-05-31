@@ -23,6 +23,11 @@ class atom;
  *
  */
 
+enum class BoundaryCrossing {
+    None,
+    Internal, // an internal cell boundary has been crossed. ion changes cell
+    External // the external boundary has been crossed. ion exits simulation
+};
 
 /**
  * @brief The ion class represents a moving ion in the simulation.
@@ -126,7 +131,7 @@ public:
 
     void deflect(const vector3& n);
     float distance2boundary(const box3D& b);
-    void propagate(const float& s);
+    BoundaryCrossing propagate(float& s);
 };
 
 /**

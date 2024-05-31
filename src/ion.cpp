@@ -12,33 +12,72 @@ int ion::setPos(const vector3 &x)
 }
 
 /**
- * @brief Propagate the ion for a distance s [nm]
+ * @brief Propagate the ion for a distance s [nm] taking care of boundary crossing
  *
- * The function first advances the position of the ion by
- * a distance s along its direction of motion.
+ * The function first checks if the new ion position would be within the
+ * simulation volume (taking periodic bc into account).
  *
- * It then checks if the ion is still inside the simulation volume.
- * If not, the cell id is set to -1 (invalid) and the function returns.
+ * If not, then it propagates the ion to just beyond its cell boundary and checks
+ * if indeed the ion escapes the simulation. If yes then the ion exits. Otherwise, it
+ * just changes cell.
  *
- * Otherwise, the function checks if the ion is
- * still in the same cell.
+ * If the new position is within the simulation volume, the function checks
+ * if it is in the same cell.
  * If not, the new cell is found and
  * the index vector and cell id of the ion are updated.
  *
+ * In all cases of boundary crossing, s is adjusted to the minimum travel needed to just
+ * overcome the boundary.
+ *
  * @param s the distance to propagate the ion [nm]
+ * @return the type of boundary crossing (none, internal (cell change), external (ion left simulation))
  */
-void ion::propagate(const float& s)
+BoundaryCrossing ion::propagate(float& s)
 {
-    pos_ += s*dir_;  // advance ion position
-    if (grid_->contains_with_bc(pos_)) { // is ion still inside the target ?
-
-        if (!grid_->contains(icell_,pos_)) { // did the ion change cell ?
-            icell_ = grid_->pos2cell(pos_); // TODO: improve algorithm (e.g. search nn cells)
-            //assert(!grid3D::isNull(icell_));
+    vector3 x = pos_ + s*dir_;  // calc new ion position
+    if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
+        if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
+            box3D b = grid_->box(icell_);
+            s = distance2boundary(b);
+            float ds = std::max(s,1.f)*std::numeric_limits<float>::epsilon()*10;
+            ivector3 ix;
+            do {
+                s += ds;
+                x = pos_ + s*dir_;
+                ix = grid_->pos2cell(x);
+            } while (icell_ == ix); // TODO: improve algorithm (e.g. search nn cells)
+            pos_ = x;
+            icell_ = ix;
             cellid_ = grid_->cellid(icell_);
+            return BoundaryCrossing::Internal;
+        } else {
+            pos_ = x;
+            return BoundaryCrossing::None;
         }
-    } else {
-        cellid_ = -1;
+    } else { // ion is bound to exit simulation
+        // 1. Reduce s to just cross the boundary
+        box3D b = grid_->box(icell_);
+        s = distance2boundary(b);
+        float ds = std::max(s,1.f)*std::numeric_limits<float>::epsilon()*10;
+        s += ds;
+        x = pos_ + s*dir_;
+        // 2. still exiting ?
+        if (!grid_->contains_with_bc(x)) {
+            pos_ = x;
+            cellid_ = -1;
+            return BoundaryCrossing::External;
+        } else { // ion is still in target. just change the cell
+            ivector3 ix = grid_->pos2cell(x);
+            while (icell_ == ix) {
+                s += ds;
+                x = pos_ + s*dir_;
+                ix = grid_->pos2cell(x);
+            }
+            pos_ = x;
+            icell_ = ix; // TODO: improve algorithm (e.g. search nn cells)
+            cellid_ = grid_->cellid(icell_);
+            return BoundaryCrossing::Internal;
+        }
     }
 }
 

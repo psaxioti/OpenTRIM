@@ -119,14 +119,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
                                 {mccore::InvalidPath, nullptr},
                                 {mccore::AtomicSpacing, "AtomicSpacing"},
                                 {mccore::Constant, "Constant"},
-                                {mccore::SRIMlike, "SRIMlike"},
                                 {mccore::MendenhallWeller, "MendenhallWeller"},
                                 {mccore::MyFFP, "MyFFP"},
                                 {mccore::AtomicSpacing, 1},
                                 {mccore::Constant, 2},
-                                {mccore::SRIMlike, 3},
-                                {mccore::MendenhallWeller, 4},
-                                {mccore::MyFFP, 5}
+                                {mccore::MendenhallWeller, 3},
+                                {mccore::MyFFP, 4}
                             })   
 
 NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {
@@ -168,7 +166,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
                                    flight_path_type, straggling_model,
                                    nrt_calculation,
                                    flight_path_const, min_energy, min_recoil_energy,
-                                   allow_sub_ml_scattering, max_mfp)
+                                   allow_sub_ml_scattering, max_mfp, max_rel_eloss)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
                                           max_no_ions,

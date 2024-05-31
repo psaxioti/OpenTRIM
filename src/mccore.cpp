@@ -259,7 +259,7 @@ int mccore::init() {
      */
     mfp_   = ArrayNDf(natoms,nmat,nerg);
     ipmax_ = ArrayNDf(natoms,nmat,nerg);
-    float delta_dedx = 0.01f; /// @TODO: should be user option
+    float delta_dedx = par_.max_rel_eloss;
     float Tmin = par_.min_recoil_energy;
     float mfp_ub = par_.max_mfp;
     float Tmin_rel = 0.01f; /// @TODO: make it user option
@@ -294,7 +294,7 @@ int mccore::init() {
                 }
                 mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
 
-                // ensure mfp below 1% energy loss
+                // ensure mfp*dEdx/E is below max_rel_eloss
                 float dx = delta_dedx*E/dedx_(z1,im,ie);
                 mfp = std::min(mfp,dx);
 
@@ -304,7 +304,7 @@ int mccore::init() {
                 // ensure mfp not larger than upper bound
                 mfp = std::min(mfp,mfp_ub);
 
-                // this is the max impact parameter ip = (N*pi*mfp)^(-1/2)
+                // Find the max impact parameter ipmax = (N*pi*mfp)^(-1/2)
                 ipmax = std::sqrt(1.f/M_PI/mfp/N);
 
                 // Calc dedxn for  T<T0 = N*sum_i { X_i * Sn(E,T0) }
@@ -476,58 +476,66 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
     while (1) {
 
-        // decide flight path fp
-        // sqrtfp, pmax variables depend on fp algorithm
-        //float sqrtfp, pmax;
-        //float fp = flightPath(i, mat, sqrtfp, pmax);
-
         // decide flight path fp & impact par
         float fp, ip, sqrtfp;
         flightPath(i, mat, fp, ip, sqrtfp);
-        t(Event::NewFlightPath,*i,&fp);
 
-        // if we are inside a material, calc stopping + straggling
-        if (mat) {
-            float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
-            if (de > 0.f) {
-                i->erg() -= de;
-                t(Event::Ioniz,*i,&de);
+        // propagate
+        ion i0(*i);
+        BoundaryCrossing crossing = i->propagate(fp);
+
+        switch(crossing) {
+        case BoundaryCrossing::None:
+            // register flightpath
+            t(Event::NewFlightPath,*i,&fp);
+            // if we are inside a material, calc stopping + straggling
+            if (mat) {
+                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+                if (de > 0.f) {
+                    i->erg() -= de;
+                    t(Event::Ioniz,*i,&de);
+                }
             }
-        }
-
-        int cellid0 = i->cellid();
-        i->propagate(fp); // apply any periodic boundary
-
-        // check if ion left the target
-        if (i->cellid() < 0) {
-
-            // ion left the target - exit event
-            i->cellid() = cellid0; // put the last cellid
-            t(Event::IonExit,*i);
-            if (exit_stream_.is_open()) {
-                exit_ev.set(i,cellid0,fp);
-                exit_stream_.write(&exit_ev);
+            break;
+        case BoundaryCrossing::Internal:
+            // register flightpath with old cell
+            t(Event::NewFlightPath,i0,&fp);
+            // if we were inside a material, calc stopping + straggling in old cell
+            if (mat) {
+                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+                if (de > 0.f) {
+                    i->erg() -= de;
+                    t(Event::Ioniz,i0,&de);
+                }
             }
-            if (pka) pka->Tdam() += i->erg();
-
-            break; // history ends!
-        }
-
-        // check if the ion changed cell
-        if (i->cellid() != cellid0) {
-
             // get new material and dEdx tables
             mat = target_->cell(i->cellid());
             if (mat) getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-
-            /* IRADINA
-             * TODO: if material changed we should correct stopping.
-             * However, since the flightlengths are significantly smaller
-             * than the cell dimensions, this can only cause very small
-             * errors and only in cases where the material changes and
-             * also the stopping powers are very different!
-             */
+            break;
+        case BoundaryCrossing::External:
+            // register flightpath with old cell
+            t(Event::NewFlightPath,i0,&fp);
+            // if we were inside a material, calc stopping + straggling
+            if (mat) {
+                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+                if (de > 0.f) {
+                    i0.erg() -= de;
+                    t(Event::Ioniz,i0,&de);
+                }
+            }
+            // register ion exit event
+            t(Event::IonExit,i0);
+            if (exit_stream_.is_open()) {
+                exit_ev.set(i,i0.cellid(),fp);
+                exit_stream_.write(&exit_ev);
+            }
+            if (pka) pka->Tdam() += i0.erg();
+            break;
         }
+
+        if (crossing == BoundaryCrossing::External) break; // history ends!
+
+        if (crossing == BoundaryCrossing::Internal) continue; // start new fp in new cell
 
         // if mat!=0 (not vacuum) and ion E>min. energy threshold -> collision
         if (mat && std::isfinite(ip) && (i->erg() >= par_.min_energy)) {
@@ -609,8 +617,12 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
 int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
 {
-    if (!m) {  // Vacuum. TODO: change this! ion should go to next boundary {???}
-        fp = 0.3f;
+    if (!m) {  // Vacuum.
+        // set a long flight path (1mm)
+        // to intentionally hit a boundary
+        // Then the boundary crossing algorithm
+        // will take care of things
+        fp = 1e6f;
         ip = 0.f;
         return 0;
     }
