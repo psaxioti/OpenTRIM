@@ -34,7 +34,9 @@ int main(int argc, char* argv[])
             return 0;
         }
         if (result.count("version")) {
-            cout << "iradina++ v0.1.4" << endl;
+            cout << "iradina++ version " << IRADINAPP_VERSION << endl;
+            cout << "Build time: " << BUILD_TIME << endl;
+            cout << "Compiler: " << COMPILER_ID << " v" << COMPILER_VERSION << " on " SYSTEM_ID << endl;
             return 0;
         }
         if (result.count("n")) n = result["n"].as<int>();

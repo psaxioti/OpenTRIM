@@ -1,5 +1,6 @@
-#include "corteo.h"
 #include "xs.h"
+#include "corteo.h"
+#include "corteo_xs.h"
 
 #include <iostream>
 #include <fstream>
@@ -22,7 +23,6 @@ int main(int argc, char* argv[])
 
     cli_options.add_options()
         ("s,screening","Screening type: one of ZBL, LJ, KrC, Moliere", cxxopts::value<std::string>())
-        ("v,version","Display version information")
         ("h,help","Display short help message");
 
     Screening s(Screening::ZBL);
@@ -33,10 +33,6 @@ int main(int argc, char* argv[])
 
         if (result.count("help")) {
             cout << cli_options.help() << endl;
-            return 0;
-        }
-        if (result.count("version")) {
-            cout << "gencorteo v0.1.4" << endl;
             return 0;
         }
 

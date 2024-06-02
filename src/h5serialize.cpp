@@ -243,7 +243,17 @@ struct array_traits<double, ArrayND<double> > {
     typedef h5traits<double> scalar_traits;
 };
 
-template<typename T, class _ArrT>
+template <typename T>
+struct array_traits<T, std::vector<T> > {
+    static std::vector<hsize_t> dims(const std::vector<T>& A) {
+        std::vector<hsize_t> d(1);
+        d[0] = A.size();
+        return d;
+    }
+    typedef h5traits<T> scalar_traits;
+};
+
+template<typename T, class _ArrT = std::vector<T> >
 int save_array(H5File* f, const char* name, const _ArrT& A) {
     std::vector<hsize_t> dims = array_traits<T, _ArrT>::dims(A);
     return save_array(f, name, A.data(), dims);
@@ -316,6 +326,19 @@ int mcdriver::save()
     var_list << "config_json" << '\t' << "string" << '\t' << "JSON formatted simulation options" << endl;
     var_list << endl;
 
+    // save iradina++ version info
+    var_list << "Version Info" << endl;
+    save_string(h5f, "/version_info/version", IRADINAPP_VERSION);
+    save_string(h5f, "/version_info/compiler", COMPILER_ID);
+    save_string(h5f, "/version_info/compiler_version", COMPILER_VERSION);
+    save_string(h5f, "/version_info/build_system", SYSTEM_ID);
+    save_string(h5f, "/version_info/build_time", BUILD_TIME);
+    var_list << "/version_info/version" << '\t' << "string" << '\t' << "iradina++ version" << endl;
+    var_list << "/version_info/compiler" << '\t' << "string" << '\t' << "compiler" << endl;
+    var_list << "/version_info/compiler_version" << '\t' << "string" << '\t' << "compiler version" << endl;
+    var_list << "/version_info/build_system" << '\t' << "string" << '\t' << "build system" << endl;
+    var_list << "/version_info/build_time" << '\t' << "string" << '\t' << "build timestamp" << endl;
+    var_list << endl;
 
     // save run statistics
     var_list << "Run statistics" << endl;
@@ -325,6 +348,8 @@ int mcdriver::save()
     var_list << "/run_stat/Nh" << '\t' << "Scalar" << '\t' << "# of histories" << endl;
     save_scalar(h5f, "/run_stat/ips", ips_);
     var_list << "/run_stat/ips" << '\t' << "Scalar" << '\t' << "ions/s" << endl;
+    save_scalar(h5f, "/run_stat/cpu_time", t.Nions()/ips_);
+    var_list << "/run_stat/cpu_time" << '\t' << "Scalar" << '\t' << "total cpu time [s]" << endl;
     {
         std::stringstream ss;
         ss << std::put_time(std::localtime(&start_time_), "%c %Z");
@@ -364,12 +389,13 @@ int mcdriver::save()
                     buff(2,l) = 0.5f*(grid.z()[k] + grid.z()[k+1]);
                 }
 
-        save_array_nd(h5f, "grid/cell_xyz", buff);
-        var_list << "grid/cell_xyz" << '\t' << "[3x" << rows << "]\t" << "cell center coordinates" << endl;
+        save_array_nd(h5f, "/grid/cell_xyz", buff);
+        var_list << "/grid/cell_xyz" << '\t' << "[3x" << rows << "]\t" << "cell center coordinates" << endl;
     }
     var_list << endl;
 
     // save atoms & materials
+    var_list << "Atom data" << endl;
     auto atoms = s_->getTarget().atoms();
     std::vector<std::string> atom_labels(atoms.size());
     for(int i=0; i<atoms.size(); i++) {
@@ -382,9 +408,37 @@ int mcdriver::save()
         } else s += " ion";
     }
     save_string(h5f, "/atom/label", atom_labels);
-    var_list << "/atom/label" << '\t' << "string array" << endl;
+    var_list << "/atom/label" << '\t' << "string array" << "\t" << "label = [Atom] in [Material]" << endl;
+    for(int i=0; i<atoms.size(); i++) atom_labels[i] = atoms[i]->name();
+    save_string(h5f, "/atom/name", atom_labels);
+    var_list << "/atom/name" << '\t' << "string array" << "\t" << "chemical names" << endl;
+    {
+        std::vector<float> A(atoms.size());
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Z();
+        save_array<float>(h5f, "/atom/Z", A);
+        var_list << "/atom/Z" << '\t' << "array" << "\t" << "atomic numbers" << endl;
 
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->M();
+        save_array<float>(h5f, "/atom/M", A);
+        var_list << "/atom/M" << '\t' << "array" << "\t" << "atomic masses" << endl;
 
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Ed();
+        save_array<float>(h5f, "/atom/Ed", A);
+        var_list << "/atom/Ed" << '\t' << "array" << "\t" << "displacement energies" << endl;
+
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->El();
+        save_array<float>(h5f, "/atom/El", A);
+        var_list << "/atom/El" << '\t' << "array" << "\t" << "lattice binding energies" << endl;
+
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Es();
+        save_array<float>(h5f, "/atom/Es", A);
+        var_list << "/atom/Es" << '\t' << "array" << "\t" << "surface binding energies" << endl;
+
+        for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Er();
+        save_array<float>(h5f, "/atom/Er", A);
+        var_list << "/atom/Er" << '\t' << "array" << "\t" << "replacement energies" << endl;
+    }
+    var_list << endl;
 
 
 
@@ -451,7 +505,7 @@ int mcdriver::save()
                                                t.at(k), dt.at(k), t.Nions())==0;
             if (ret) {
                 auto dim = t.at(k).dim();
-                var_list << tally::arrayName(k) << '\t' << '[' << dim[0];
+                var_list << name << '\t' << '[' << dim[0];
                 for(int i=1; i<dim.size(); ++i)
                     var_list << 'x' << dim[i];
                 var_list << ']' << '\t' << tally::arrayDescription(k) << endl;
@@ -475,17 +529,24 @@ int mcdriver::save()
     }
 
     if (opt.Output.store_dedx) {
-        save_array_nd(h5f,"/eels/dEdx",s_->dedx());
+        ArrayNDf A(dedx_index::size);
+        for(dedx_index i; i<i.end(); i++) A(i) = *i;
+        save_array_nd(h5f,"/eels/dEdx_erg",A);
+
+        ArrayND<mccore::dedx_interp_t*> D = s_->dedx();
+        A = ArrayNDf(D.dim()[0],D.dim()[1],dedx_index::size);
+        for(int i=0; i<A.dim()[0]; i++)
+            for(int j=0; j<A.dim()[1]; j++)
+                memcpy(&A(i,j,0),D(i,j)->data(),dedx_index::size);
+
+        save_array_nd(h5f,"/eels/dEdx",A);
         save_array_nd(h5f,"/eels/dEstrag",s_->de_strag());
-        ArrayND<float> dedx_erg(dedx_index::size);
-        for(dedx_index i; i<i.end(); i++) dedx_erg(i) = *i;
-        save_array_nd(h5f,"/eels/dEdx_erg",dedx_erg);
         save_array_nd(h5f,"/eels/mfp",s_->mfp());
         save_array_nd(h5f,"/eels/ipmax",s_->ipmax());
     }
 
 
-    save_string(h5f, "Variable_List", var_list.str());
+    save_string(h5f, "variable_list", var_list.str());
 
     h5f->close();
 

@@ -9,6 +9,7 @@
 #include "tally.h"
 #include "event_stream.h"
 #include "dedx.h"
+#include "corteo_interp.h"
 
 #include <atomic>
 
@@ -135,7 +136,8 @@ public:
         float max_rel_eloss{0.05f};
     };
 
-
+    // interpolator type for dedx tables
+    typedef corteo_log_interp1D< dedx_index > dedx_interp_t;
 
 protected:
 
@@ -168,7 +170,7 @@ protected:
     ArrayND< abstract_xs_lab* > scattering_matrix_;
 
     // Electronic Stopping & Straggling Tables
-    ArrayNDf dedx_; // stopping data (atoms x materials x energy)
+    ArrayND< dedx_interp_t* > dedx_; // stopping data (atoms x materials x energy)
     ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
 
     // flight path selection par
@@ -214,9 +216,8 @@ public:
     /// Removes stream files from the filesystem
     void remove_stream_files();
 
-    /// Return the table of dEdx values [eV/nm] for all atom/target combinations
-    ArrayNDf dedx() const { return dedx_; }
-    /// Return the table of electronic straggling dE values [eV/sqrt{nm}] for all atom/target combinations
+    // dedx interpolators
+    ArrayND<dedx_interp_t*> dedx() const { return dedx_; }
     ArrayNDf de_strag() const { return de_strag_; }
 
     // Tables of flight path selection parameters 
@@ -358,11 +359,11 @@ protected:
      * @return the energy loss [eV]
      */
     float doDedx(const ion* i, const material* m, float fp, float sqrtfp,
-                 const float* stopping_tbl, const float* straggling_tbl);
+                 const dedx_interp_t* stopping_tbl, const float* straggling_tbl);
 
     /// Get pointers to electronic loss and straggling tables for a specific ion/material combination
     int getDEtables(const atom* z1, const material* m,
-                    const float *&dedx, const float *&de_stragg) const;
+                    const dedx_interp_t *&dedx, const float *&de_stragg) const;
 
     /**
      * @brief Perform interpolation of tabulated energy loss data
@@ -374,28 +375,18 @@ protected:
      * @param data the interpolation table
      * @return the interpolated value
      */
-    static float interp_dedx(float E, const float* data);
+    //static float interp_dedx(float E, const float* data);
 
     void NRT(const ion* i, tally &t, const pka_event &pka);
 
 };
 
-inline float mccore::interp_dedx(float E, const float* data)
-{
-    if (E <= dedx_index::minVal) return data[0];
-    if (E >= dedx_index::maxVal) return data[dedx_index::size - 1];
-    dedx_index i(E);
-    float y1 = data[i], x1 = *i++;
-    float y2 = data[i], x2 = *i;
-    return y1 + (y2-y1)*(E-x1)/(x2-x1);
-}
-
 inline int mccore::getDEtables(const atom* z1, const material* m,
-                            const float* &dedx, const float* &de_stragg) const
+                            const dedx_interp_t *&dedx, const float *&de_stragg) const
 {
     int ia = z1->id();
     int im = m->id();
-    dedx = &dedx_(ia,im,0);
+    dedx = dedx_(ia,im);
     de_stragg = &de_strag_(ia,im,0);
     return 0;
 }

@@ -146,13 +146,16 @@ struct num_detail<long double>
  *
  * @ingroup CorteoIdx
  */
-template<class RealType,
-         class IntType,
-         IntType _Nb,
-         IntType _minExp,
-         IntType _maxExp>
+template<class _RealType,
+         class _IntType,
+         _IntType _Nb,
+         _IntType _minExp,
+         _IntType _maxExp>
 struct corteo_index
 {
+    typedef _RealType RealType;
+    typedef _IntType IntType;
+
     // compile-time checks
     static_assert(std::numeric_limits<RealType>::is_iec559,
                   "floating-point type is not IEC559/IEEE754 conformant");
@@ -304,7 +307,5 @@ public:
 private:
     IntType i_;
 };
-
-
 
 #endif

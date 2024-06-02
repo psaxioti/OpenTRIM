@@ -2,7 +2,7 @@
 #include "random_vars.h"
 #include "dedx.h"
 #include "event_stream.h"
-
+#include "corteo_xs.h"
 #include <iostream>
 #include <type_traits>
 
@@ -58,6 +58,10 @@ mccore::~mccore()
     if (ref_count_.use_count() == 1) {
         delete source_;
         delete target_;
+        if (!dedx_.isNull()) {
+            dedx_interp_t** p = dedx_.data();
+            for (int i=0; i<dedx_.size(); i++) delete p[i];
+        }
         if (!scattering_matrix_.isNull()) {
             abstract_xs_lab** xs = scattering_matrix_.data();
             for (int i=0; i<scattering_matrix_.size(); i++) delete xs[i];
@@ -89,14 +93,16 @@ int mccore::init() {
     int natoms = atoms.size();
     int nmat = materials.size();
     int nerg = dedx_index::size;
-    dedx_ = ArrayNDf(natoms,nmat,nerg);
+    dedx_ = ArrayND< dedx_interp_t* >(natoms,nmat);
+    std::vector<float> buff(nerg);
     for(atom* at1 : atoms) {
         float amuRatio = elements::mostAbundantIsotope(at1->Z())/at1->M();
         int iat1 = at1->id();
         for(const material* mat : materials)
         {
             int im = mat->id();
-            float* p = &dedx_(iat1,im,0);
+            //float* p = &dedx_(iat1,im,0);
+            float* p = buff.data();
             for(atom* at2 : mat->atoms())
             {
                 /*
@@ -109,7 +115,7 @@ int mccore::init() {
                 float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
                 for(dedx_index i; i<i.end(); i++) {
                     float erg = (*i) * amuRatio;
-                    p[i] += interp_dedx(erg,q)*w;
+                    p[i] += w*corteo_lin_interp<float,dedx_index>(q,erg);
                 }
 
 
@@ -123,6 +129,7 @@ int mccore::init() {
                    }
                 */
             }
+            dedx_(iat1,im) = new dedx_interp_t(p);
         }
     }
 
@@ -173,17 +180,19 @@ int mccore::init() {
         for(const material* mat : materials)
         {
             int im = mat->id();
-            const float* dedx = &dedx_(z1,im,0);
+            const dedx_interp_t* dedx = dedx_(z1,im);
             const float* dedxH = &dedx1(im,0);
             float* p = &de_strag_(z1,im,0);
             float Nl0 = mat->atomicDensity()*mat->atomicRadius(); // at/nm^2
             for(const atom* z2 : mat->atoms())
-                calcStraggling(dedx,dedxH,Z1,M1,z2->Z(),
+                calcStraggling(dedx->data(),
+                               dedxH,
+                               Z1,M1,z2->Z(),
                                Nl0*z2->X(),
                                par_.straggling_model,p);
             for(dedx_index ie; ie!=ie.end(); ie++)
                 p[ie] = std::sqrt(p[ie]);
-        }
+        }        
     }
 
     /*
@@ -295,7 +304,7 @@ int mccore::init() {
                 mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
 
                 // ensure mfp*dEdx/E is below max_rel_eloss
-                float dx = delta_dedx*E/dedx_(z1,im,ie);
+                float dx = delta_dedx*E / dedx_(z1,im)->data()[ie];
                 mfp = std::min(mfp,dx);
 
                 // ensure mfp not smaller than lower bound
@@ -427,11 +436,12 @@ int mccore::run()
     return 0;
 }
 
-float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp, const float* stopping_tbl, const float* straggling_tbl)
+float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp,
+                     const dedx_interp_t *stopping_tbl, const float *straggling_tbl)
 {
     dedx_index ie(i->erg());
 
-    float de_stopping = fp * interp_dedx(i->erg(), stopping_tbl);
+    float de_stopping = fp * (*stopping_tbl)(i->erg());
     if (par_.straggling_model != NoStraggling) {
 
         float de_straggling = straggling_tbl[ie] * rng.normal() * sqrtfp;
@@ -469,7 +479,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
     // get the corresponding dEdx & straggling table for ion/material combination
-    const float* de_stopping_tbl = nullptr;
+    const dedx_interp_t* de_stopping_tbl = nullptr;
     const float* de_straggling_tbl = nullptr;
     if (mat)
         getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
@@ -639,17 +649,6 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         sqrtfp = sqrtfp_const[m->id()];
         ip = m->meanImpactPar()/sqrtfp_const[m->id()]*std::sqrt(rng.u01d_lopen());
         break;
-    case SRIMlike:
-        {
-            float epsilon = i->erg() * m->meanF();
-            float xsi = std::sqrt(epsilon * m->meanMinRedTransfer());
-            float bmax = 1.f/(xsi + std::sqrt(xsi) + 0.125*std::pow(xsi,.1f));
-            ipmax = bmax * m->meanA();
-            fp = 1./(M_PI * m->atomicDensity() * ipmax * ipmax);
-            sqrtfp = std::sqrt(fp/m->atomicRadius());
-            ip = ipmax*std::sqrt(rng.u01d_lopen());
-        }
-        break;
     case MendenhallWeller:
         ipmax = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
         fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
@@ -669,7 +668,7 @@ int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, fl
         fp *= (-std::log(rng.u01s_open()));
         sqrtfp = std::sqrt(fp/m->atomicRadius());
         ip = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        ip = ip*std::sqrt(rng.u01d_lopen());
+        ip *= std::sqrt(rng.u01d_lopen());
         break;
     default:
         fp = ip = 0.f;

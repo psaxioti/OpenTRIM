@@ -1,12 +1,20 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.12.0)
     
-project(iradina++ C CXX)
+project(iradina++ 
+        VERSION 0.1.4
+        LANGUAGES C CXX)
 
-set (IRADINAPP_MAJOR_VERSION "0")
-set (IRADINAPP_MINOR_VERSION "1")
-set (IRADINAPP_BUGFIX_VERSION "4")
-set (IRADINAPP_VERSION_STRING ${IRADINAPP_MAJOR_VERSION}.${IRADINAPP_MINOR_VERSION}.${IRADINAPP_BUGFIX_VERSION})
-message (STATUS "iradina++ version ${IRADINAPP_VERSION_STRING}")
+message (STATUS "iradina++ version ${PROJECT_VERSION}")
+
+string(TIMESTAMP CMAKE_BUILD_TIME UTC)
+
+message (STATUS "Build time ${CMAKE_BUILD_TIME}")
+
+add_compile_definitions(IRADINAPP_VERSION="${PROJECT_VERSION}"
+                        SYSTEM_ID="${CMAKE_CXX_PLATFORM_ID}"
+                        COMPILER_ID="${CMAKE_CXX_COMPILER_ID}"
+                        COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}"
+                        BUILD_TIME="${CMAKE_BUILD_TIME}")
 
 include (GNUInstallDirs)
 
@@ -48,6 +56,7 @@ add_library(iondedx SHARED
 add_executable(gencorteo
     src/gencorteo.cpp
     src/corteo.h
+    src/corteo_xs.h
     src/xs.h)
 
 target_include_directories(gencorteo PRIVATE
@@ -64,7 +73,9 @@ add_library(xs_moliere SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_moliere_data.cpp)
 
 set (IRADINAPP_HEADERS
     src/dedx.h
-    src/corteo.h
+    src/corteo.h   
+    src/corteo_interp.h
+    src/corteo_xs.h
     src/xs.h
     src/elements.h
     src/ion.h 
@@ -91,7 +102,8 @@ add_library(iradinapp SHARED
     src/h5serialize.cpp
     src/tally.cpp
     src/parse_json.cpp    
-    src/mcdriver.cpp)
+    src/mcdriver.cpp
+)
 
 set(IRADINAPP_LIBS
     "-lm"
