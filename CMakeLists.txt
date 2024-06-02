@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0)
     
 project(iradina++ 
-        VERSION 0.1.4
+        VERSION 0.1.5
         LANGUAGES C CXX)
 
 message (STATUS "iradina++ version ${PROJECT_VERSION}")
