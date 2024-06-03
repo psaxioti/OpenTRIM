@@ -29,9 +29,9 @@ T corteo_log_interp(const T* y, const T& x) {
     if (x <= idx_t::minVal) return y[0];
     if (x >= idx_t::maxVal) return y[idx_t::size-1];
     idx_t i(x), j(i+1);
-    T t = std::log(*i);
-    t = (std::log(x)-t)/(std::log(*j)-t);
-    return std::exp(std::log(y[i])*(1-t) + std::log(y[j])*t);
+    T t = std::log2(*i);
+    t = (std::log2(x)-t)/(std::log2(*j)-t);
+    return std::exp2(std::log2(y[i])*(1-t) + std::log2(y[j])*t);
 }
 
 template<class idx_t>
@@ -79,13 +79,13 @@ public:
 
     corteo_log_interp1D()
     {
-        for(idx_t i; i<i.end(); i++) logx_[i] = std::log(*i);
+        for(idx_t i; i<i.end(); i++) logx_[i] = std::log2(*i);
     }
 
     template<class Cont>
     explicit corteo_log_interp1D(const Cont& y)
     {
-        for(idx_t i; i<i.end(); i++) logx_[i] = std::log(*i);
+        for(idx_t i; i<i.end(); i++) logx_[i] = std::log2(*i);
         set(y);
     }
 
@@ -93,11 +93,11 @@ public:
     void set(const Cont& y) {
         for(idx_t i,j(1); i<i.end()-1; i++,j++) {
             y_[i] = y[i];
-            logy_[i] = std::log(y[i]);
-            dydx_[i] = (std::log(y[j]) - std::log(y[i])) /
+            logy_[i] = std::log2(y[i]);
+            dydx_[i] = (std::log2(y[j]) - std::log2(y[i])) /
                        (logx_[j] - logx_[i]);
         }
-        logy_[idx_t::size-1] = log(y[idx_t::size-1]);
+        logy_[idx_t::size-1] = std::log2(y[idx_t::size-1]);
         y_[idx_t::size-1] = y[idx_t::size-1];
     }
 
@@ -106,7 +106,7 @@ public:
         if (x <= idx_t::minVal) return y_.front();
         if (x >= idx_t::maxVal) return y_.back();
         idx_t i(x);
-        return std::exp(logy_[i] + dydx_[i]*(std::log(x)-logx_[i]));
+        return std::exp2(logy_[i] + dydx_[i]*(std::log2(x)-logx_[i]));
     }
 
     const RealType* data() const { return &y_[0]; }

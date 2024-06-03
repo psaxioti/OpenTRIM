@@ -7,7 +7,7 @@
 #include <Eigen/Dense>
 
 /**
- * @brief The xs_corteo_index struct provides N-bit indexing for tabulated screened Coulomb cross-sections
+ * @brief The xs_corteo_index struct provides corteo indexing for tabulated screened Coulomb cross-sections
  *
  * Quantities are tabulated as a function of reduced energy and impact parameter
  *
@@ -15,18 +15,16 @@
  *   - e_index for the reduced energy with [21-(-19)]*2^N + 1 points (rows) from \f$ 2^{-19} \f$ to \f$ 2^{21} \f$
  *   - s_index for the reduced impact parameter with [6-(-26)]*2^N + 1 points (columns) from \f$ 2^{-26} \f$ to \f$ 2^{6} \f$
  *
- * For typical values of N we have the following dimensions:
- *   - 4-bit: N=4, rows=641, columns=513, 32-bit float table memory = 1.25 MB
- *   - 6-bit: N=6, rows=2561, columns=2049, 32-bit float table memory = 20 MB
+ * A 4-bit indexing is used with the following characteristics:
+ *   - N=4, rows(energy points)=641, columns(impact par.)=513, 32-bit float table memory = 1.25 MB
  *
  * @ingroup XS
  */
-template<int Nb>
 struct xs_corteo_index {
     /// Corteo N-bit index for the reduced energy
-    typedef corteo_index<float, int, Nb, -19, 21> e_index;
+    typedef corteo_index<float, int, 4, -19, 21> e_index;
     /// Corteo N-bit index for the reduced impact parameter
-    typedef corteo_index<float, int, Nb, -26,  6> s_index;
+    typedef corteo_index<float, int, 4, -26,  6> s_index;
     /// number of rows (energy values)
     constexpr static const int rows = e_index::size;
     /// number of columns (impact parameter values)
@@ -99,7 +97,7 @@ struct xs_corteo4bit : public screening_function< ScreeningType >,
     using corteo4bitdata< ScreeningType >::data;
 
     /// The 2D corteo index type
-    typedef xs_corteo_index<4> corteo_idx_t;
+    typedef xs_corteo_index corteo_idx_t;
     /// Number of table rows (energy values)
     constexpr const static int rows = corteo_idx_t::rows;
     /// Number of table columns (impact parameter values)
@@ -124,9 +122,9 @@ struct xs_corteo4bit : public screening_function< ScreeningType >,
 // bilinear interp
 struct xs_corteo_lin_interp {
 
-    constexpr const static int stride = xs_corteo_index<4>::cols;
-    typedef xs_corteo_index<4>::e_index e_index;
-    typedef xs_corteo_index<4>::s_index s_index;
+    constexpr const static int stride = xs_corteo_index::cols;
+    typedef xs_corteo_index::e_index e_index;
+    typedef xs_corteo_index::s_index s_index;
     typedef Eigen::Vector4i idx_vec_t;
     typedef Eigen::Vector4f coef_vec_t;
 
@@ -146,18 +144,18 @@ struct xs_corteo_lin_interp {
 
 struct xs_corteo_log_interp {
 
-    constexpr const static int stride = xs_corteo_index<4>::cols;
-    typedef xs_corteo_index<4>::e_index e_index;
-    typedef xs_corteo_index<4>::s_index s_index;
+    constexpr const static int stride = xs_corteo_index::cols;
+    typedef xs_corteo_index::e_index e_index;
+    typedef xs_corteo_index::s_index s_index;
     typedef Eigen::Vector4i idx_vec_t;
     typedef Eigen::Vector4f coef_vec_t;
 
     xs_corteo_log_interp()
     {
         for(e_index i; i<i.end(); i++)
-            log_e_[i] = std::log(*i);
+            log_e_[i] = std::log2(*i);
         for(s_index i; i<i.end(); i++)
-            log_s_[i] = std::log(*i);
+            log_s_[i] = std::log2(*i);
     }
 
     void get_arrays(float e, float s, idx_vec_t& i,
@@ -176,8 +174,8 @@ struct xs_corteo_log_interp {
         u = (s - u)/(*is - u);
         c_lin = {(1-t)*(1-u), (1-t)*u, t*(1-u), t*u};
 
-        t1 = (std::log(e) - t1)/(log_e_[ie] - t1);
-        u1 = (std::log(s) - u1)/(log_s_[is] - u1);
+        t1 = (std::log2(e) - t1)/(log_e_[ie] - t1);
+        u1 = (std::log2(s) - u1)/(log_s_[is] - u1);
         c_log = {(1-t1)*(1-u1), (1-t1)*u1, t1*(1-u1), t1*u1};
     }
 
@@ -192,8 +190,8 @@ struct xs_corteo_log_interp {
         i[2] = k++; i[3] = k;
 
         float t1 = log_e_[ie++], u1 = log_s_[is++];
-        t1 = (std::log(e) - t1)/(log_e_[ie] - t1);
-        u1 = (std::log(s) - u1)/(log_s_[is] - u1);
+        t1 = (std::log2(e) - t1)/(log_e_[ie] - t1);
+        u1 = (std::log2(s) - u1)/(log_s_[is] - u1);
         c_log = {(1-t1)*(1-u1), (1-t1)*u1, t1*(1-u1), t1*u1};
     }
 
@@ -230,8 +228,6 @@ public:
         sinTable(x.sinTable),
         cosTable(x.cosTable),
         log_xs_(x.log_xs_)
-        //,
-        //log_xs_(x.log_xs_), log_e_(x.log_e_), log_s_(x.log_s_)
     {}
     virtual void init(float Z1, float M1, float Z2, float M2) override
     {
@@ -256,7 +252,7 @@ public:
                 int k = ie*stride + is;
                 cosTable[k] = costhetaLab;
                 sinTable[k] = sinthetaLab;
-                log_xs_[k] = std::log(s2);
+                log_xs_[k] = std::log2(s2);
 
                 /* IRADINA, C. Borschel 2011: */
                 /* In some rare cases, when cos=1, then sin becomes "Not a Number".
@@ -282,7 +278,7 @@ public:
 
         sintheta = coeff.dot(sinTable(i));
         costheta = coeff.dot(cosTable(i));
-        recoil_erg *= exp(log_coeff.dot(log_xs_(i)));
+        recoil_erg *= exp2(log_coeff.dot(log_xs_(i)));
 
     }
     virtual float impactPar(float E, float T) const override
