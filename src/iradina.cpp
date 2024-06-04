@@ -1,6 +1,7 @@
 #include "mcdriver.h"
 
 #include <cxxopts.hpp>
+#include <progressbar.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -10,6 +11,14 @@ using std::cin;
 using std::cout;
 using std::cerr;
 using std::endl;
+
+progressbar bar;
+
+void progress_callback(const mcdriver& d)
+{
+    auto v = d.thread_ion_count();
+    bar.update(v.back());
+}
 
 int main(int argc, char* argv[])
 {   
@@ -68,9 +77,11 @@ int main(int argc, char* argv[])
     /// if (s>0) opt.Driver.seeds = s;
 
     cout << "Starting simulation ..." << endl << endl;
+    bar.set_niter(opt.Driver.max_no_ions);
+    bar.update(0);
     mcdriver D;
     D.setOptions(opt);
-    D.exec();
+    D.exec(progress_callback,500);
     D.save();
 
     tally t = D.getSim()->getTally();

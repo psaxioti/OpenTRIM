@@ -1,0 +1,186 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2019 Luigi Pertoldi
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//
+// ============================================================================
+//  ___   ___   ___   __    ___   ____  __   __   ___    __    ___
+// | |_) | |_) / / \ / /`_ | |_) | |_  ( (` ( (` | |_)  / /\  | |_)
+// |_|   |_| \ \_\_/ \_\_/ |_| \ |_|__ _)_) _)_) |_|_) /_/--\ |_| \_
+//
+// Very simple progress bar for c++ loops with internal running variable
+//
+// Author: Luigi Pertoldi
+// Created: 3 dic 2016
+//
+// Notes: The bar must be used when there's no other possible source of output
+//        inside the for loop
+//
+
+#ifndef __PROGRESSBAR_HPP
+#define __PROGRESSBAR_HPP
+
+#include <iostream>
+#include <ostream>
+#include <string>
+#include <stdexcept>
+
+class progressbar {
+
+    public:
+      // default destructor
+      ~progressbar()                             = default;
+
+      // delete everything else
+      progressbar           (progressbar const&) = delete;
+      progressbar& operator=(progressbar const&) = delete;
+      progressbar           (progressbar&&)      = delete;
+      progressbar& operator=(progressbar&&)      = delete;
+
+      // default constructor, must call set_niter later
+      inline progressbar();
+      inline progressbar(int n, bool showbar=true, std::ostream& out=std::cerr);
+
+      // reset bar to use it again
+      inline void reset();
+     // set number of loop iterations
+      inline void set_niter(int iter);
+      // chose your style
+      inline void set_done_char(const std::string& sym) {done_char = sym;}
+      inline void set_todo_char(const std::string& sym) {todo_char = sym;}
+      inline void set_opening_bracket_char(const std::string& sym) {opening_bracket_char = sym;}
+      inline void set_closing_bracket_char(const std::string& sym) {closing_bracket_char = sym;}
+      // to show only the percentage
+      inline void show_bar(bool flag = true) {do_show_bar = flag;}
+      // set the output stream
+      inline void set_output_stream(const std::ostream& stream) {output.rdbuf(stream.rdbuf());}
+      // main function
+      inline void update(int iter);
+
+
+    private:
+      int progress;
+      int n_cycles;
+      int last_perc;
+      bool do_show_bar;
+      bool update_is_called;
+
+      std::string done_char;
+      std::string todo_char;
+      std::string opening_bracket_char;
+      std::string closing_bracket_char;
+
+      std::ostream& output;
+
+      void print_percentage(int p)
+      {
+          char buff[8];
+          sprintf(buff,"%3d%%",p);
+          output << buff;
+      }
+};
+
+inline progressbar::progressbar() :
+    progress(0),
+    n_cycles(0),
+    last_perc(0),
+    do_show_bar(true),
+    update_is_called(false),
+    done_char("#"),
+    todo_char(" "),
+    opening_bracket_char("["),
+    closing_bracket_char("]"),
+    output(std::cerr) {}
+
+inline progressbar::progressbar(int n, bool showbar, std::ostream& out) :
+    progress(0),
+    n_cycles(n),
+    last_perc(0),
+    do_show_bar(showbar),
+    update_is_called(false),
+    done_char("#"),
+    todo_char(" "),
+    opening_bracket_char("["),
+    closing_bracket_char("]"),
+    output(out) {}
+
+inline void progressbar::reset() {
+    progress = 0,
+    update_is_called = false;
+    last_perc = 0;
+    return;
+}
+
+inline void progressbar::set_niter(int niter) {
+    if (niter <= 0) throw std::invalid_argument(
+        "progressbar::set_niter: number of iterations null or negative");
+    n_cycles = niter;
+    return;
+}
+
+
+
+inline void progressbar::update(int iter) {
+
+    if (n_cycles == 0) throw std::runtime_error(
+            "progressbar::update: number of cycles not set");
+
+    if (!update_is_called) {
+        if (do_show_bar == true) {
+            output << opening_bracket_char;
+            for (int k = 0; k < 50; k++) output << todo_char;
+            output << closing_bracket_char;
+        }
+        print_percentage(0);
+        last_perc = 0;
+        update_is_called = true;
+    }
+
+    // compute percentage, if did not change, do nothing and return
+    int perc = iter*100./n_cycles;
+    if (perc == last_perc) return;
+
+    if (do_show_bar) {
+        output << '\r';
+        output << opening_bracket_char;
+        int n = iter*50.f/n_cycles;
+            // add 'done_char'
+            for (int j = 0; j < n; ++j) output << done_char;
+
+
+            // add 'todo_char'
+            for (int j = 0; j < 50-n; ++j) output << todo_char;
+
+            // add closing bracket & trailing percentage characters
+            output << closing_bracket_char;
+            print_percentage(perc);
+    } else {
+        // erase & rewrite percentage
+        output << "\b\b\b\b";
+        print_percentage(perc);
+    }
+    last_perc = perc;
+
+    output << std::flush;
+
+    return;
+}
+
+#endif

@@ -122,7 +122,8 @@ add_executable(iradina++
 )
 
 target_include_directories(iradina++ PRIVATE
-    extern/cxxopts-3.1.1/include)
+    extern/cxxopts-3.1.1/include
+    extern/progressbar/include)
 
 target_link_libraries(iradina++
     ${IRADINAPP_LIBS} iradinapp
