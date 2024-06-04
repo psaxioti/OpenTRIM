@@ -10,9 +10,9 @@ The Monte-Carlo simulation of particle transport typically proceeds in the follo
 
 The distance to the next collision is typically sampled from the Poisson distribution, $p(x) = e^{-N\sigma_0 x}=e^{-x/\ell}$, where $N$ is the atomic density of scattering centers, $\sigma_0$ the total cross-section and $\ell = (N\sigma_0)^{-1}$ denotes the mean free path (mfp).
 
-There is a difficulty in employing this type of flight path selection for the Coulomb and screened Coulomb interactions because the total cross-section diverges. This can be circumvented by setting a cutoff based on scattering angle or recoil energy or some other scattering parameter. Scattering events outside the cutoff are ignored. The cutoff value is selected so that the result of the calculation is not affected significantly.
+There is a difficulty in employing this type of flight path selection for the Coulomb and screened Coulomb interactions because the total cross-section diverges. This can be circumvented by setting a lower cutoff, either w.r.t. the scattering angle or the recoil energy or some other scattering parameter. Scattering events below the cutoff are ignored. The cutoff value is selected so that the result of the calculation is not affected significantly.
 
-Mendenhall & Weller 2005 set a such a lower cutoff for the recoil energy, $T_c$, which corresponds to the lowest recoil energy of interest in the problem under study. M&H suggest a value in the range of 1 - 10 eV for ion penetration in solids. 
+Mendenhall & Weller 2005 set such a lower cutoff for the recoil energy, $T_c$, which corresponds to the lowest recoil energy of interest in the problem under study. M&W suggest a value in the range of 1 - 10 eV for ion penetration in solids. 
 
 $T_c$ corresponds to a lower bound $\theta_c$ for the center-of-mass scattering angle, which can be obtained from 
 $$
@@ -27,25 +27,25 @@ $$
 
 ## Mendenhall-Weller Algorithm
 
->- For a given particle energy $\epsilon$ we know the values of $p_{max}$, $\sigma_0$ and $\ell$
+>- For a given particle energy $\epsilon$ find the values of $p_{max}$, $\sigma_0$ and $\ell$ corresponding to the recoil energy cutoff $T_c$
 >- Take a random number sample $u \in (0,1)$
 >- If $p_{max} < L$, where $L$ is half the interatomic distance, 
 >    - $p = p_{max} \sqrt{-\log u}$
->    - Propagate particle by $\ell$
 >    - If $p>p_{max}$ ignore the scattering event 
+>    - Propagate particle by $\ell$
 >- if $p_{max} \geq L$ then 
 >    - $p = \sqrt{u /(\pi N L)}$
 >    - Propagate particle by $L$ 
 
 This is essentially the same as the algorithm used by SRIM.
 
-The 2nd part of the algorithm, for $p_{max} \geq L$, ensures impact parameters larger than the interatomic distance do not occur. This is accepted in both SRIM and MH2005. MH justify it as follows:
+The 2nd part of the algorithm, for $p_{max} \geq L$, ensures that impact parameters larger than the interatomic distance do not occur. This is accepted in both SRIM and M&W2005. M&W justify it as follows:
 
 > ... impact parameters
 larger than half the lattice spacing do not occur,
 since then one is closer to the adjacent atom.
 
-while Biersack1980 and the SRIM manual (Ch.7) write 
+while Biersack1980 and the SRIM manual (Ch.7) write:
 
 > This
 procedure maintains the atomic density in the target
@@ -56,7 +56,7 @@ We believe that these propositions are not justified and one can assume a mfp sm
 
 ## Standard algorithm
 
-We propose to employ a standard procedure for path selection similar to neutron or photon transport simulations:
+We propose to employ a more "standard" procedure for path selection similar to what is done for neutron or photon transport simulations:
 
 > - For a given particle energy $\epsilon$ we have $p_{max}$, $\sigma_0=\pi p_{max}^2$ and $\ell = (N\sigma_0)^{-1}$
 > - Take 2 random samples $u_{1,2} \in (0,1)$
@@ -64,9 +64,9 @@ We propose to employ a standard procedure for path selection similar to neutron 
 > - $p = p_{max}\sqrt{u_2}$
 > - Propagate particle by $x$
 
-Although here we need 2 random numbers instead of 1 in the MH/SRIM algorithm, the penalty is not so high since no outcome is discarded. 
+Although here we need 2 random numbers instead of 1 in the MW/SRIM algorithm, the penalty is not so high since all outcomes are valid (in M&W algorithm some events are discarted). 
 
-An advantage of this method is that the average mfp of the simulated ions is exactly $\ell$, which in the MH algorithm is not true. This permits to set a particular value for the mfp, which can be useful, e.g., when simulating thin targets (setting $\ell \ll d$ ensures scattering in the target)
+An advantage of this method is that the average mfp of the simulated ions is exactly $\ell$, which in the MW algorithm is not true. This permits us to preset a value for the mfp. This can be useful, e.g., when simulating thin targets (setting $\ell \ll d$ ensures scattering in the target)
 
 ## Criteria for setting $p_{max}$, $\sigma_0$ and $\ell$
 

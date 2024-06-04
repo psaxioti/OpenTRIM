@@ -1,5 +1,10 @@
 # Benchmarks
 
+## Damage profiles
+
+Compare to Crocombette2019, Lin2023 (Fe → Fe, Xe → UO2) \
+H → Fe is for checking behaviour with light ion 
+
 1. 2 MeV Fe in Fe target, t = 1200 nm
 2. 500 keV Fe in Fe target, t = 600 nm
 3. 3 MeV Xe in UO2 target, t = 1200 nm
@@ -8,9 +13,46 @@
 6. 3 MeV H in Fe target, t = 50 μm
 7. 1 MeV H in Fe target, t = 10 μm
 
-The above should be run in QC & FC mode.
+The above should be run for comparison in 
+- SRIM QC & FC mode.
+- #6 and #7 also in SRIM ML mode (see below)
+- IRADINA
 
 N ions = 20000
+
+## Multiple scattering
+
+Compare to the data of Mendenhall-Weller 2005 for 270 keV He and H ions on a 100μg/cm2 C foil.
+
+We run the same test cases with MW2005 with the following settings:
+
+1. mfp = ML (mfp = mean free path)
+2. mfp = d/100 (d is the foil thickness)
+3. mfp = d/30
+4. mfp = d/10
+5. Mendenhall-Weller algorithm, T>1 eV
+
+The config files to run the cases are in folders 
+- `test/msc/HinC/b1 to /b5` for the H on C
+- `test/msc/HeinC/b1 to /b5` for the He on C
+
+In each case there is a `run_all` script that runs all cases.
+
+This is a  small angle multiple scattering calculation. In MW2005 they use a 1eV lower bound for the recoil energy and calculate the mfp accordingly. (for more details on flight path selection algorithms see [doc/FlightPath.md](../doc/FlightPath.md)) They report that the resulting mfp was very long and this was a problem for the calculation because there were very few scattering events.
+They improved the results by biasing the algorithm to impose scattering in the foil.
+
+In our case we use an upper bound for the mfp. Thus, we can adjust the number of events in the foil.
+As seen in the figures, at 100 scattering events/ion (MFP = d/100) the curve is very close to the "monolayer" (ML) mode, where we have approx. 3500 events/ion. With MFP=d/100 the calculation is reduced by ~30 times wrt to ML.
+
+Compared to MW2005, our calculation is "analog", i.e., no biasing/variance reduction is used. 
+
+However, our results are much different from MW2005. Why ???
+
+![270keV H in 100μg/cm2 C](octave/msc_HinC.png)
+![M-W 2005 Fig. 6](octave/MW2005-FIG6.png)
+
+![270keV He in 100μg/cm2 C](octave/msc_HeinC.png)
+![M-W 2005 Fig. 5](octave/MW2005-FIG5.png)
 
 ## SRIM monolayer mode
 

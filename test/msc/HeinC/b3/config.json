@@ -1,0 +1,53 @@
+{
+    "Driver" : {        
+        "max_no_ions" : 1000000,
+        "threads" : 8,
+        "seeds" : []
+    },
+    "Simulation" : {
+        "simulation_type" : "FullCascade",
+        "screening_type" : "ZBL",
+        "scattering_calculation" : "Corteo4bitTable",
+        "flight_path_type" : "MyFFP",   // "AtomicSpacing", "MendenhallWeller", MyFFP
+        "min_energy" : 1.0,
+        "min_recoil_energy" : 100.0,
+        "max_mfp" : 15
+    },
+    "IonBeam" : {
+        "ion_distribution" : "SurfaceCentered",
+        "ionZ" : 2,
+        "ionM" : 4.0026,
+        "ionE0" : 270000,
+        "dir" : [1,0,0]
+    },
+    "Target" : {
+        "materials" : {
+            "C" : {
+                "density" : 2.27, // g/cm^3
+                "Z" : [6],
+                "M" : [12.01],
+                "X" : [1],
+                "Ed" : [20],
+                "El" : [3],
+                "Es" : [3],
+                "Er" : [20]
+            }
+        },
+        "regions" : {
+            "R1" : {
+                "material_id" : "C",
+                "min" : [0, 0, 0],
+                "max" : [1000, 10000, 10000]
+            }
+        },
+        "cell_count" : [1, 1, 1],
+        "cell_size" : [440, 10000, 10000],
+        "periodic_bc" : [0, 1, 1]
+    },
+    "Output" : {
+        "title" : "270keV H in 100μm/cm^2 C foil",
+        "store_pka" : 0,
+        "store_dedx" : 1,
+        "store_transmitted_ions" : 1
+    }
+}
