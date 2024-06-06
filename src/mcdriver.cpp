@@ -1,7 +1,6 @@
 #include "mcdriver.h"
 #include "elements.h"
 
-#include <iostream>
 #include <thread>
 #include <chrono>
 #include <stdexcept>
@@ -62,7 +61,7 @@ void mcdriver::setOptions(const options& o)
     s_->init();
 }
 
-int mcdriver::exec(progress_callback cb, uint msInterval)
+int mcdriver::exec(progress_callback cb, uint msInterval, void *callback_user_data)
 {
     using namespace std::chrono_literals;
 
@@ -121,17 +120,16 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
 
     // report progress if callback function is given
     if (cb) {
-        thread_ion_count_.assign(nthreads+1,0);
-        unsigned int n = 0;
-        while(n < par_.max_no_ions) {
+        thread_ion_count_.assign(nthreads,0);
+        ion_count_ = 0;
+        while(ion_count_ < par_.max_no_ions) {
             std::this_thread::sleep_for(std::chrono::milliseconds(msInterval));
             int i=0;
             for(; i<nthreads; i++) {
                 thread_ion_count_[i] = sims[i]->ions_done();
-                n += thread_ion_count_[i];
+                ion_count_ += thread_ion_count_[i];
             }
-            thread_ion_count_[i] = n;
-            cb(*this);
+            cb(*this,callback_user_data);
         }
     }
 
@@ -173,29 +171,6 @@ int mcdriver::exec(progress_callback cb, uint msInterval)
 
     return 0;
 }
-
-void mcdriver::def_progress_callback(const mcdriver& d)
-{
-    static int i = 0;
-
-    auto v = d.thread_ion_count();
-
-    if (i==0) {
-        for(int k=0; k<v.size()-1; k++)
-            std::cout << "#" << k+1 << '\t';
-        std::cout << "Total" << std::endl;
-        for(int k=0; k<v.size()-1; k++)
-            std::cout << "-------" << '\t';
-        std::cout << "-------" << std::endl;
-    }
-
-    for(int k=0; k<v.size(); k++)
-        std::cout << v[k] << '\t';
-    std::cout << std::endl;
-
-    i++;
-}
-
 
 int options::validate()
 {

@@ -14,10 +14,9 @@ using std::endl;
 
 progressbar bar;
 
-void progress_callback(const mcdriver& d)
+void progress_callback(const mcdriver& d, void* )
 {
-    auto v = d.thread_ion_count();
-    bar.update(v.back());
+    bar.update(d.ion_count());
 }
 
 int main(int argc, char* argv[])

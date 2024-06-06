@@ -55,9 +55,7 @@ public:
         int store_dedx{1};
     };
 
-    typedef void (*progress_callback)(const mcdriver& v);
-
-    static void def_progress_callback(const mcdriver& d);
+    typedef void (*progress_callback)(const mcdriver& v, void* p);
 
 protected:
 
@@ -73,6 +71,7 @@ protected:
     std::string outFileName(const char* type, int thread_id);
 
     std::vector<uint> thread_ion_count_;
+    uint ion_count_;
 
 
 
@@ -96,8 +95,9 @@ public:
     int save();
 
     const std::vector<uint>& thread_ion_count() const { return thread_ion_count_; }
+    uint ion_count() const { return ion_count_; }
 
-    int exec(progress_callback cb = def_progress_callback, uint msInterval = 1000);
+    int exec(progress_callback cb = nullptr, uint msInterval = 1000, void* callback_user_data = 0);
 
 };
 
