@@ -84,6 +84,17 @@ const char* preample = "/*\n"
                        " * do not edit \n"
                        " */\n";
 
+// print out a 32bit float so that it is read back the same
+std::ostream& printfloat(std::ostream& os, float x)
+{
+    char buff[32];
+    // get number of digits for a float -> text -> float round-trip
+    static constexpr auto d = std::numeric_limits<float>::max_digits10;
+    std::sprintf(buff,"%.*g", d, x);
+    os << buff;
+    return os;
+}
+
 template<Screening ScreeningType>
 int gencorteo4bit(const std::string& short_screening_name)
 {
@@ -113,8 +124,7 @@ int gencorteo4bit(const std::string& short_screening_name)
         }
 
         for(corteo4bit::s_index is; is<is.end(); is++) {
-            float sin2ThetaBy2 = xs.sin2Thetaby2(*ie, *is);
-            ofs << sin2ThetaBy2;
+            printfloat(ofs, xs.sin2Thetaby2(*ie, *is));
             if (k!=klast) ofs << ',';
             k++;
             if (k % 16 ==0) ofs << endl;
