@@ -37,7 +37,7 @@ find_package(Eigen3 3.4 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 include ${EIGEN3_INCLUDE_DIR}")
 
-find_package(HDF5 REQUIRED COMPONENTS C CXX)
+find_package(HDF5 REQUIRED COMPONENTS C)
 include_directories(${HDF5_INCLUDE_DIRS})
 message(STATUS "HDF5 include: ${HDF5_INCLUDE_DIRS}")
 message(STATUS "HDF5 libs: ${HDF5_LIBRARIES}")
@@ -115,7 +115,8 @@ set(IRADINAPP_LIBS
 target_link_libraries(iradinapp ${IRADINAPP_LIBS})
 
 target_include_directories(iradinapp PRIVATE
-    extern/json-3.11.3/single_include/ )
+    extern/json-3.11.3/single_include/ 
+    extern/HighFive-2.9.0/include)
 
 add_executable(iradina++
     src/iradina.cpp
