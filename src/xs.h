@@ -481,7 +481,7 @@ struct xs_quad : public xs_base< ScreeningType >
      * @param s the reduced impact parameter
      * @return the value of \f$ \sin^2(\theta/2) \f$
      */
-    double sin2Thetaby2(const double& e, const double& s)
+    static double sin2Thetaby2(const double& e, const double& s)
     {
         double v = std::sin(0.5*theta(e,s));
         return v*v;
@@ -1052,6 +1052,7 @@ public:
     virtual float crossSection(float E, float T) const override
     {
         double thetaCM = T/E/gamma_;
+        if (thetaCM > 1.0) return std::numeric_limits<float>::quiet_NaN();
         thetaCM = 2.*std::asin(std::sqrt(thetaCM));
         return xs_cm::crossSection(E*red_E_conv_,thetaCM)*4*sig0_/E/gamma_;
     }
