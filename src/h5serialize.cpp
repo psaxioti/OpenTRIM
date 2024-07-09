@@ -4,308 +4,179 @@
 
 #include <iomanip>
 #include <iostream>
-#include <H5Cpp.h>
+#include <highfive/H5Easy.hpp>
+#include <highfive/highfive.hpp>
 
-using namespace H5;
+namespace h5e = H5Easy;
+namespace h5= HighFive;
 
 using std::cerr;
 using std::endl;
 
-template <typename T> struct h5traits;
-
-template<>
-struct h5traits<double> {
-    static const PredType& predType() { return PredType::NATIVE_DOUBLE; }
-};
-template<>
-struct h5traits<float> {
-    static const PredType& predType() { return PredType::NATIVE_FLOAT; }
-};
-template<>
-struct h5traits<unsigned int> {
-    static const PredType& predType() { return PredType::NATIVE_UINT; }
-};
-template<>
-struct h5traits<int> {
-    static const PredType& predType() { return PredType::NATIVE_INT; }
-};
-
-template<typename T>
-int save_scalar(H5File* f, const char* name, const T& data)
-{
-    try
-    {   
-        DataSpace fspace; // default = scalar
-        LinkCreatPropList lcpl;
-        lcpl.setCreateIntermediateGroup(true);
-        DataSet dataset = f->createDataSet(name, h5traits<T>::predType(), fspace,
-                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
-                                           lcpl );
-        dataset.write( &data, h5traits<T>::predType() );
-
-    }  // end of try block
-
-    // catch failure caused by the H5File operations
-    catch( FileIException error )
+// create string describing the dataspace size, e.g. [10x20]
+std::string shapeStr(const h5::DataSpace& dspace) {
+    std::string ret;
+    switch (H5Sget_simple_extent_type(dspace.getId()))
     {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
+    case H5S_SIMPLE:
+        {
+            std::vector<size_t> dims = dspace.getDimensions();
+            ret = "[";
+            ret += std::to_string(dims[0]);
+            for(int i=1; i<dims.size(); i++) { ret += "x"; ret += std::to_string(dims[i]); }
+            ret += "]";
+        }
+        break;
+    case H5S_SCALAR:
+        ret = "Scalar";
+        break;
+    case H5S_NULL:
+        ret = "Empty";
+        break;
+    default:
+        ret = "[?]";
+        break;
     }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
+    return ret;
+}
+
+// dump data using H5Easy, create attribute with the description and write description to var_list
+template <class T>
+int dump(h5::File& file, const std::string& path, const T& data, 
+         std::stringstream& var_list, const std::string& desc) {
+    h5::DataSet dset = h5e::dump(file,path,data);
+    dset.createAttribute("description",desc);
+    var_list << path << '\t'
+             << shapeStr(dset.getSpace()) << '\t'
+             << dset.getDataType().string() << '\t'
+             << desc << endl;
     return 0;
 }
 
-int save_string(H5File* f, const char* name, const std::string& data)
-{
-    int len = data.size();
-    if (len==0) return 0;
-
-    try
-    {
-        //Exception::dontPrint();
-        hsize_t dims = 1;
-        DataSpace fspace(1,&dims); // default = scalar
-        StrType type(PredType::C_S1, len);
-        LinkCreatPropList lcpl;
-        lcpl.setCreateIntermediateGroup(true);
-        DataSet dataset = f->createDataSet(name, type, fspace,
-                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
-                                           lcpl);
-        dataset.write( data.c_str(), type );
-    }
-    catch( FileIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    return 0;
-}
-
-int save_string(H5File* f, const char* name, const std::vector<std::string>& strvec)
-{
-    int n = strvec.size();
-    int stride = strvec[0].size();
-    for (int i=0; i<n; ++i)
-        if (strvec[i].size()> stride) stride = strvec[i].size();
-    stride++; // +1 for the null term
-    std::vector<char> buff(n*stride,'\0');
-    for (int i=0; i<n; ++i)
-        memcpy(buff.data() + i*stride,
-               strvec[i].data(),
-               strvec[i].size());
-
-    try
-    {
-        //Exception::dontPrint();
-        hsize_t dims = n;
-        DataSpace fspace(1,&dims); // default = scalar
-        StrType type(PredType::C_S1, stride);
-        //type.setStrpad(H5T_STR_NULLPAD);
-        LinkCreatPropList lcpl;
-        lcpl.setCreateIntermediateGroup(true);
-        DataSet dataset = f->createDataSet(name, type, fspace,
-                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
-                                           lcpl);
-
-        dataset.write( buff.data(), type );
-    }
-    catch( FileIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
+// dump data using H5Easy, create attribute with the description and write description to var_list
+template <class T>
+int dump(h5::File& file, const std::string& path, const T& data, const T& sem,
+         std::stringstream& var_list, const std::string& desc) {
+    h5::DataSet dset = h5e::dump(file,path,data);
+    dset.createAttribute("description",desc);
+    std::string buff = shapeStr(dset.getSpace());
+    buff += '\t';
+    buff += dset.getDataType().string();
+    var_list << path << '\t'
+             << buff << '\t'
+             << desc << endl;
+    dset = h5e::dump(file,path + "_sem", sem);
+    dset.createAttribute("description",std::string("(SEM) ")+desc);
+    var_list << path << "_sem" << '\t'
+             << buff << '\t'
+             << "(SEM) " << desc << endl;
     return 0;
 }
 
 template<typename T>
-int save_array(H5File* f, const char* name,
-               const T* data,
-               const std::vector<hsize_t>& dims)
+int dump_array(h5::File& file, const std::string& path,
+               const ArrayND<T>& A, std::stringstream& var_list, 
+               const std::string& desc,
+               const uint& N = 1)
 {
-    try
-    {
-        DataSpace fspace( dims.size(), dims.data() );
-        LinkCreatPropList lcpl;
-        lcpl.setCreateIntermediateGroup(true);
-        DataSet dataset = f->createDataSet(name, h5traits<T>::predType(), fspace,
-                                           DSetCreatPropList::DEFAULT, DSetAccPropList::DEFAULT,
-                                           lcpl);
+    auto dset = file.createDataSet<T>(path, h5::DataSpace(A.dim()));
+    dset.createAttribute("description",desc);
+    const T* p = A.data();
+    std::vector<T> a;
+    if (N>1) {
+        a.resize(A.size());
+        for(size_t i=0; i<A.size(); i++) a[i] = A[i]/N;
+        p = a.data();
+    }
+    dset.write_raw(p);
 
-        dataset.write( data, h5traits<T>::predType() );
-
-    }  // end of try block
-
-    // catch failure caused by the H5File operations
-    catch( FileIException error )
-    {
-        error.printErrorStack();
-        cerr << error.getDetailMsg() << endl;
-        return -1;
-    }
-    // catch failure caused by the DataSet operations
-    catch( GroupIException error )
-    {
-        cerr << error.getDetailMsg() << endl;
-        error.printErrorStack();
-        return -1;
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
-    {
-        cerr << error.getDetailMsg() << endl;
-        error.printErrorStack();
-        return -1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
-    {
-        cerr << error.getDetailMsg() << endl;
-        error.printErrorStack();
-        return -1;
-    }
+    var_list << path << '\t'
+             << shapeStr(dset.getSpace()) << '\t'
+             << dset.getDataType().string() << '\t'
+             << desc << endl;
     return 0;
 }
 
-template <typename T, class _A> struct array_traits;
-
-
-template <>
-struct array_traits<float, grid1D > {
-    static std::vector<hsize_t> dims(const grid1D& A) {
-        std::vector<hsize_t> d(1);
-        d[0] = A.size();
-        return d;
-    }
-    typedef h5traits<float> scalar_traits;
-};
-
-template <>
-struct array_traits<float, ArrayND<float> > {
-    static std::vector<hsize_t> dims(const ArrayND<float>& A) {
-        std::vector<hsize_t> d(A.ndim());
-        for(int i=0; i<d.size(); i++) d[i] = A.dim()[i];
-        return d;
-    }
-    typedef h5traits<float> scalar_traits;
-};
-
-template <>
-struct array_traits<double, ArrayND<double> > {
-    static std::vector<hsize_t> dims(const ArrayND<double>& A) {
-        std::vector<hsize_t> d(A.ndim());
-        for(int i=0; i<d.size(); i++) d[i] = A.dim()[i];
-        return d;
-    }
-    typedef h5traits<double> scalar_traits;
-};
-
-template <typename T>
-struct array_traits<T, std::vector<T> > {
-    static std::vector<hsize_t> dims(const std::vector<T>& A) {
-        std::vector<hsize_t> d(1);
-        d[0] = A.size();
-        return d;
-    }
-    typedef h5traits<T> scalar_traits;
-};
-
-template<typename T, class _ArrT = std::vector<T> >
-int save_array(H5File* f, const char* name, const _ArrT& A) {
-    std::vector<hsize_t> dims = array_traits<T, _ArrT>::dims(A);
-    return save_array(f, name, A.data(), dims);
-}
-
 template<typename T>
-int save_array_nd(H5File* f, const char* name, const ArrayND<T>& A) {
-    std::vector<hsize_t> dims(A.ndim());
-    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
-    return save_array(f, name, A.data(), dims);
-}
-
-template<typename T>
-int save_array_normalized(H5File* f, const char* name, const ArrayND<T>& A, const uint& N) {
-    std::vector<T> a(A.size());
-    for(int i=0; i<A.size(); i++) a[i] = A[i]/N;
-    std::vector<hsize_t> dims(A.ndim());
-    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
-    return save_array(f, name, a.data(), dims);
-}
-
-template<typename T>
-int save_array_normalized(H5File* f, const char* name, const char* dname,
-                          const ArrayND<T>& A, const ArrayND<T>& dA, const uint& N) {
+int dump_array(h5::File& file, const std::string& path, 
+            const ArrayND<T>& A, const ArrayND<T>& dA, 
+            std::stringstream& var_list, const std::string& desc,
+            const uint& N) 
+{
     assert(A.size()==dA.size());
-    std::vector<T> a(A.size()), da(A.size());
+    assert(N>1);
+    std::string dpath = path + "_sem";
+    std::string ddesc("(SEM) ");
+    ddesc += desc;
+    ArrayND<T> M(A.dim()), S(A.dim()); // make a buffer arrays initialized to 0
     for(int i=0; i<A.size(); i++) {
-        a[i] = A[i]/N;
+        M[i] = A[i]/N;
         // error in the mean
-        da[i] = std::sqrt((dA[i]/N-a[i]*a[i])/(N-1));
+        S[i] = std::sqrt((dA[i]/N-M[i]*M[i])/(N-1));
     }
-    std::vector<hsize_t> dims(A.ndim());
-    for(int i=0; i<dims.size(); i++) dims[i] = A.dim()[i];
-    return save_array(f, name, a.data(), dims) + save_array(f, dname, da.data(), dims);
+    return dump_array(file,  path, M, var_list,  desc) + 
+           dump_array(file, dpath, S, var_list, ddesc);
+}
+
+int dump_event_stream(h5::File &h5f, const std::string &grp_name, const event_stream &es,
+                      std::stringstream &var_list)
+{
+    // get row, column numbers
+    size_t nrows(es.rows()), ncols(es.cols());
+
+    // mem buffer ~1MB
+    size_t buff_rows = std::ceil((1 << 20)/4/ncols); 
+    buff_rows = std::min(buff_rows, nrows);
+    std::vector<float> buff(buff_rows * ncols);
+    
+    // Create the dataset.
+    // Use compression + chunking
+    std::string path = grp_name + "/event_data";
+    h5::DataSetCreateProps dscp;
+    dscp.add(h5::Deflate(6));
+    dscp.add(h5::Chunking({buff_rows,ncols}));
+    h5::DataSet dataset = h5f.createDataSet<float>(path, h5::DataSpace(nrows,ncols),dscp);
+
+    std::vector<size_t> offset{0, 0};
+    std::vector<size_t> count{buff_rows, ncols};
+
+    std::ifstream ifs(es.fileName(), std::ios::binary);
+
+    // copy data in chunks
+    while (nrows)
+    {
+        count[0] = std::min(nrows, buff_rows); // # of rows to copy in this iter
+        nrows -= count[0];
+
+        // read from raw file buffer
+        ifs.read((char *)buff.data(), count[0] * ncols * sizeof(float));
+
+        // write to HDF5 file
+        dataset.select(offset, count).write_raw<float>(buff.data());
+
+        // advance offset
+        offset[0] += count[0];
+    }
+
+    ifs.close();
+
+    var_list << path << '\t'
+             << shapeStr(dataset.getSpace()) << '\t'
+             << dataset.getDataType().string() << '\t'
+             << "event data" << endl;
+
+    path = grp_name + "/column_names";
+    dump(h5f, path, es.event_prototype().columnNames(), var_list, "event data column names");
+    path = grp_name + "/column_descriptions";
+    dump(h5f, path, es.event_prototype().columnDescriptions(), var_list, "event data column descriptions");
+
+    return 0;
 }
 
 int mcdriver::save()
 {
-    std::string fname(out_opts_.OutputFileBaseName);
-    fname += ".h5";
-    H5::H5File* h5f(nullptr);
-    try
-    {
-        h5f = new H5File(fname, H5F_ACC_TRUNC);
-    }  // end of try block
-    // catch failure caused by the H5File operations
-    catch( FileIException error )
-    {
-        cerr << error.getDetailMsg() << endl;
-        error.printErrorStack();
-        return -1;
-    }
+try {    
+    h5::File h5f(outFileName(), h5::File::Truncate);
 
     options opt;
     getOptions(opt);
@@ -314,70 +185,54 @@ int mcdriver::save()
     std::stringstream var_list;
 
     // title
-    save_string(h5f, "Title", opt.Output.title);
-    var_list << "Title" << '\t' << "string" <<  endl;
+    dump(h5f, "title", opt.Output.title, var_list, "user supplied simulation title");
 
     // save options
     {
         std::stringstream ss;
         opt.printJSON(ss);
-        save_string(h5f, "config_json", ss.str());
+        dump(h5f, "config_json", ss.str(), var_list, "JSON formatted simulation options");
     }
-    var_list << "config_json" << '\t' << "string" << '\t' << "JSON formatted simulation options" << endl;
-    var_list << endl;
 
     // save iradina++ version info
     var_list << "Version Info" << endl;
-    save_string(h5f, "/version_info/version", IRADINAPP_VERSION);
-    save_string(h5f, "/version_info/compiler", COMPILER_ID);
-    save_string(h5f, "/version_info/compiler_version", COMPILER_VERSION);
-    save_string(h5f, "/version_info/build_system", SYSTEM_ID);
-    save_string(h5f, "/version_info/build_time", BUILD_TIME);
-    var_list << "/version_info/version" << '\t' << "string" << '\t' << "iradina++ version" << endl;
-    var_list << "/version_info/compiler" << '\t' << "string" << '\t' << "compiler" << endl;
-    var_list << "/version_info/compiler_version" << '\t' << "string" << '\t' << "compiler version" << endl;
-    var_list << "/version_info/build_system" << '\t' << "string" << '\t' << "build system" << endl;
-    var_list << "/version_info/build_time" << '\t' << "string" << '\t' << "build timestamp" << endl;
+    dump(h5f, "/version_info/version", std::string(IRADINAPP_VERSION),var_list,"iradina++ version");
+    dump(h5f, "/version_info/compiler", std::string(COMPILER_ID),var_list,"compiler id");
+    dump(h5f, "/version_info/compiler_version", std::string(COMPILER_VERSION),var_list,"compiler version");
+    dump(h5f, "/version_info/build_system", std::string(SYSTEM_ID),var_list,"build system");
+    dump(h5f, "/version_info/build_time", std::string(BUILD_TIME),var_list,"build timestamp");
     var_list << endl;
 
     // save run statistics
     var_list << "Run statistics" << endl;
     const tally& t = s_->getTally();
     const tally& dt = s_->getTallyVar();
-    save_scalar(h5f, "/run_stat/Nh", t.Nions());
-    var_list << "/run_stat/Nh" << '\t' << "Scalar" << '\t' << "# of histories" << endl;
-    save_scalar(h5f, "/run_stat/ips", ips_);
-    var_list << "/run_stat/ips" << '\t' << "Scalar" << '\t' << "ions/s" << endl;
-    save_scalar(h5f, "/run_stat/cpu_time", t.Nions()/ips_);
-    var_list << "/run_stat/cpu_time" << '\t' << "Scalar" << '\t' << "total cpu time [s]" << endl;
+    dump(h5f, "/run_stat/Nh", t.Nions(), var_list, "# of histories");
+    dump(h5f, "/run_stat/ips", ips_, var_list, "ion histories per second");
+    dump(h5f, "/run_stat/cpu_time", t.Nions()/ips_, var_list, "total cpu time [s]");
     {
         std::stringstream ss;
         ss << std::put_time(std::localtime(&start_time_), "%c %Z");
-        save_string(h5f, "/run_stat/start_time", ss.str());
+        dump(h5f, "/run_stat/start_time", ss.str(), var_list, "start time/date");
     }
-    var_list << "/run_stat/start_time" << '\t' << "string" << '\t' << "start time/date" << endl;
     {
         std::stringstream ss;
         ss << std::put_time(std::localtime(&end_time_), "%c %Z");
-        save_string(h5f, "/run_stat/end_time", ss.str());
+        dump(h5f, "/run_stat/end_time", ss.str(), var_list, "finish time/date");
     }
-    var_list << "/run_stat/end_time" << '\t' << "string" << '\t' << "start time/date" << endl;
     var_list << endl;
 
     // save grid
     var_list << "Spatial Grid" << endl;
     auto grid = s_->getTarget().grid();
-    save_array<float, grid1D>(h5f, "/grid/X", grid.x());
-    var_list << "/grid/X" << '\t' << "1x" << grid.x().size() << '\t' << "x-axis grid" << endl;
-    save_array<float, grid1D>(h5f, "/grid/Y", grid.y());
-    var_list << "/grid/Y" << '\t' << "1x" << grid.y().size() << '\t' << "y-axis grid" << endl;
-    save_array<float, grid1D>(h5f, "/grid/Z", grid.z());
-    var_list << "/grid/Z" << '\t' << "1x" << grid.z().size() << '\t' << "z-axis grid" << endl;
+    dump(h5f, "/grid/X", dynamic_cast<const std::vector<float>&>(grid.x()),var_list,"x-axis grid");
+    dump(h5f, "/grid/Y", dynamic_cast<const std::vector<float>&>(grid.y()),var_list,"y-axis grid");
+    dump(h5f, "/grid/Z", dynamic_cast<const std::vector<float>&>(grid.z()),var_list,"z-axis grid");
     { // save xyz of each cell center
         int rows = grid.x().size()-1;
         int cols = grid.y().size()-1;
         int layers = grid.z().size()-1;
-        ArrayND<double> buff(3,grid.ncells());
+        ArrayND<float> buff(3,grid.ncells());
 
         for(int i=0; i<rows; i++)
             for(int j=0; j<cols; j++)
@@ -389,105 +244,57 @@ int mcdriver::save()
                     buff(2,l) = 0.5f*(grid.z()[k] + grid.z()[k+1]);
                 }
 
-        save_array_nd(h5f, "/grid/cell_xyz", buff);
-        var_list << "/grid/cell_xyz" << '\t' << "[3x" << rows << "]\t" << "cell center coordinates" << endl;
+        dump_array(h5f, "/grid/cell_xyz", buff, var_list, "cell center coordinates");
     }
     var_list << endl;
 
     // save atoms & materials
     var_list << "Atom data" << endl;
     auto atoms = s_->getTarget().atoms();
-    std::vector<std::string> atom_labels(atoms.size());
-    for(int i=0; i<atoms.size(); i++) {
-        std::string& s = atom_labels[i];
-        const material* m = atoms[i]->mat();
-        s = atoms[i]->name();
-        if (m) {
-            s += " in ";
-            s += m->name();
-        } else s += " ion";
-    }
-    save_string(h5f, "/atom/label", atom_labels);
-    var_list << "/atom/label" << '\t' << "string array" << "\t" << "label = [Atom] in [Material]" << endl;
+    std::vector<std::string> atom_labels = s_->getTarget().atom_labels();
+    dump(h5f, "/atom/label", atom_labels, var_list, "labels = [Atom (Chemical name)] in [Material]");
     for(int i=0; i<atoms.size(); i++) atom_labels[i] = atoms[i]->name();
-    save_string(h5f, "/atom/name", atom_labels);
-    var_list << "/atom/name" << '\t' << "string array" << "\t" << "chemical names" << endl;
+    dump(h5f, "/atom/name", atom_labels, var_list, "Chemical names");
     {
         std::vector<float> A(atoms.size());
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Z();
-        save_array<float>(h5f, "/atom/Z", A);
-        var_list << "/atom/Z" << '\t' << "array" << "\t" << "atomic numbers" << endl;
-
+        dump(h5f, "/atom/Z", A, var_list, "atomic number");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->M();
-        save_array<float>(h5f, "/atom/M", A);
-        var_list << "/atom/M" << '\t' << "array" << "\t" << "atomic masses" << endl;
-
+        dump(h5f, "/atom/M", A, var_list, "atomic mass");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Ed();
-        save_array<float>(h5f, "/atom/Ed", A);
-        var_list << "/atom/Ed" << '\t' << "array" << "\t" << "displacement energies" << endl;
-
+        dump(h5f, "/atom/Ed", A, var_list, "displacement energy [eV]");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->El();
-        save_array<float>(h5f, "/atom/El", A);
-        var_list << "/atom/El" << '\t' << "array" << "\t" << "lattice binding energies" << endl;
-
+        dump(h5f, "/atom/El", A, var_list, "lattice binding energy [eV]");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Es();
-        save_array<float>(h5f, "/atom/Es", A);
-        var_list << "/atom/Es" << '\t' << "array" << "\t" << "surface binding energies" << endl;
-
+        dump(h5f, "/atom/Es", A, var_list, "surface binding energy [eV]");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Er();
-        save_array<float>(h5f, "/atom/Er", A);
-        var_list << "/atom/Er" << '\t' << "array" << "\t" << "replacement energies" << endl;
+        dump(h5f, "/atom/Er", A, var_list, "replacement energy [eV]");
     }
     var_list << endl;
-
-
 
     // save tallys
     var_list << "Tallies" << endl;
     var_list << "  Results are mean values over the ion histories. " << endl
-             << "  [VarName]_std is the standard error of the mean." << endl;
-    // PKAs
+             << "  [VarName]_sem is the Standard Error of the Mean (SEM) for the quantity [VarName]." << endl;
+    // Totals
     uint N = t.Nions();
     double vm = t.Npkas()/N, dvm = std::sqrt((dt.Npkas()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Npkas", vm);
-    var_list << "/tally/totals/Npkas" << '\t' << "Scalar" << '\t' << "# of PKAs" << endl;
-    save_scalar(h5f, "/tally/totals/Npkas_std", dvm);
-    var_list << "/tally/totals/Npkas_std" << '\t' << "Scalar" << '\t' << "(std dev) # of PKAs" << endl;
-
-    // Disp
+    dump(h5f, "/tally/totals/Npkas", vm, dvm, var_list, "# of PKAs");
+    // Displacements
     vm = t.Ndisp()/N; dvm = std::sqrt((dt.Ndisp()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Ndisp", vm);
-    var_list << "/tally/totals/Ndisp" << '\t' << "Scalar" << '\t' << "# of displacements" << endl;
-    save_scalar(h5f, "/tally/totals/Ndisp_sig", dvm);
-    var_list << "/tally/totals/Ndisp_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of displacements" << endl;
-
-    // Repl
+    dump(h5f, "/tally/totals/Ndisp", vm, dvm, var_list, "# of displacements");
+    // Replacements
     vm = t.Nrepl()/N; dvm = std::sqrt((dt.Nrepl()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Nrepl", vm);
-    var_list << "/tally/totals/Nrepl" << '\t' << "Scalar" << '\t' << "# of replacements" << endl;
-    save_scalar(h5f, "/tally/totals/Nrepl_sig", dvm);
-    var_list << "/tally/totals/Nrepl_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of replacements" << endl;
-
+    dump(h5f, "/tally/totals/Nrepl", vm, dvm, var_list, "# of replacements");
     // Nimpl
     vm = t.Nimpl()/N; dvm = std::sqrt((dt.Nimpl()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Nimpl", vm);
-    var_list << "/tally/totals/Nimpl" << '\t' << "Scalar" << '\t' << "# of implanted/interstitial ions" << endl;
-    save_scalar(h5f, "/tally/totals/Nimpl_sig", dvm);
-    var_list << "/tally/totals/Nimpl_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of implanted/interstitial ions" << endl;
-
+    dump(h5f, "/tally/totals/Nimpl", vm, dvm, var_list, "# of implanted/interstitial ions");
     // Nvac
     vm = t.Nvac()/N; dvm = std::sqrt((dt.Nvac()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Nvac", vm);
-    var_list << "/tally/totals/Nvac" << '\t' << "Scalar" << '\t' << "# of vacancies" << endl;
-    save_scalar(h5f, "/tally/totals/Nvac_sig", dvm);
-    var_list << "/tally/totals/Nvac_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of vacancies" << endl;
-
+    dump(h5f, "/tally/totals/Nvac", vm, dvm, var_list, "# of vacancies");
     // Nlost
     vm = t.Nlost()/N; dvm = std::sqrt((dt.Nlost()/N-vm*vm)/(N-1));
-    save_scalar(h5f, "/tally/totals/Nlost", vm);
-    var_list << "/tally/totals/Nlost" << '\t' << "Scalar" << '\t' << "# of lost ions" << endl;
-    save_scalar(h5f, "/tally/totals/Nlost_sig", dvm);
-    var_list << "/tally/totals/Nlost_sig" << '\t' << "Scalar" << '\t' << "(std dev) # of lost ions" << endl;
+    dump(h5f, "/tally/totals/Nlost", vm, dvm, var_list, "# of lost ions");
 
     if (opt.Simulation.simulation_type == mccore::FullCascade) {
 
@@ -501,21 +308,8 @@ int mcdriver::save()
             name += tally::arrayName(k);
             std::string dname(name);
             dname += "_std";
-            ret = ret && save_array_normalized(h5f, name.c_str(), dname.c_str(),
-                                               t.at(k), dt.at(k), t.Nions())==0;
-            if (ret) {
-                auto dim = t.at(k).dim();
-                var_list << name << '\t' << '[' << dim[0];
-                for(int i=1; i<dim.size(); ++i)
-                    var_list << 'x' << dim[i];
-                var_list << ']' << '\t' << tally::arrayDescription(k) << endl;
-
-                var_list << dname << '\t' << '[' << dim[0];
-                for(int i=1; i<dim.size(); ++i)
-                    var_list << 'x' << dim[i];
-                var_list << ']' << '\t' << "(std. dev) " << tally::arrayDescription(k) << endl;
-
-            }
+            ret = ret && 
+                  dump_array(h5f, name, t.at(k), dt.at(k), var_list, tally::arrayDescription(k), t.Nions())==0;
             k++;
         }
 
@@ -529,26 +323,36 @@ int mcdriver::save()
     }
 
     if (opt.Output.store_dedx) {
+        var_list << endl << "Electronic energy loss and straggling tables" << endl;
+
         ArrayNDf A(dedx_index::size);
         for(dedx_index i; i<i.end(); i++) A(i) = *i;
-        save_array_nd(h5f,"/eels/dEdx_erg",A);
+        dump_array(h5f,"/eels/dEdx_erg",A,var_list,"dEdx table energy values [eV]");
 
         ArrayND<mccore::dedx_interp_t*> D = s_->dedx();
         A = ArrayNDf(D.dim()[0],D.dim()[1],dedx_index::size);
         for(int i=0; i<A.dim()[0]; i++)
             for(int j=0; j<A.dim()[1]; j++)
-                memcpy(&A(i,j,0),D(i,j)->data(),dedx_index::size);
+                memcpy(&A(i,j,0),D(i,j)->data(),dedx_index::size*sizeof(float));
 
-        save_array_nd(h5f,"/eels/dEdx",A);
-        save_array_nd(h5f,"/eels/dEstrag",s_->de_strag());
-        save_array_nd(h5f,"/eels/mfp",s_->mfp());
-        save_array_nd(h5f,"/eels/ipmax",s_->ipmax());
+        dump_array(h5f,"/eels/dEdx",A,var_list,"dEdx values [eV/nm]");
+        dump_array(h5f,"/eels/dEstrag",s_->de_strag(),var_list,"straggling values [eV/nm^(1/2)]");
+        dump_array(h5f,"/eels/mfp",s_->mfp(),var_list,"ion mean free [nm]");
+        dump_array(h5f,"/eels/ipmax",s_->ipmax(),var_list,"max impact parameter [nm]");
     }
 
+    if (opt.Output.store_pka || opt.Output.store_transmitted_ions)
+        var_list << endl << "Event data" << endl;
+    if (opt.Output.store_pka) dump_event_stream(h5f,"/pka_events",s_->pka_stream(),var_list);
+    if (opt.Output.store_transmitted_ions) dump_event_stream(h5f,"/exit_events",s_->exit_stream(),var_list);
 
-    save_string(h5f, "variable_list", var_list.str());
+    h5e::dump(h5f, "variable_list", var_list.str());
 
-    h5f->close();
+}
+catch ( h5::Exception& e) {
+    cerr << e.what() << endl;
+    return -1;
+}    
 
     return 0;
 }

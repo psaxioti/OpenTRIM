@@ -396,6 +396,9 @@ public:
     /// Add a material with given name and return a pointer to the \ref material class
     material* addMaterial(const char* name);
 
+    /// Return vector of atom labels, e.g. Fe in Fe2O3
+    std::vector<std::string> atom_labels() const;
+
     /**
      * @brief Fills a rectangular volume with a specific material
      *

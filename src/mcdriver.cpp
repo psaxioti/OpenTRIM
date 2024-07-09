@@ -40,6 +40,13 @@ std::string mcdriver::outFileName(const char* type, int thread_id)
     return ss.str();
 }
 
+std::string mcdriver::outFileName() const
+{
+    std::string s(out_opts_.OutputFileBaseName);
+    s += ".h5";
+    return s;
+}
+
 void mcdriver::getOptions(options& opt) const
 {
     opt.Driver = par_;
@@ -140,18 +147,12 @@ int mcdriver::exec(progress_callback cb, uint msInterval, void *callback_user_da
     for(int i=1; i<nthreads; i++)
         sims[0]->merge(*(sims[i]));
 
-    if (out_opts_.store_pka) {
-        std::string h5fname = outFileName("pka", 0);
-        h5fname += ".h5";
-        sims[0]->pka_stream().saveH5(h5fname.c_str(), "pka");
-    }
-    if (out_opts_.store_transmitted_ions) {
-        std::string h5fname = outFileName("exit", 0);
-        h5fname += ".h5";
-        sims[0]->exit_stream().saveH5(h5fname.c_str(), "exit");
-    }
-    for(int i=0; i<nthreads; i++) sims[i]->remove_stream_files();
-
+    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_end); // POSIX
+    double t_secs = 1. * (t_end.tv_sec - t_start.tv_sec) / nthreads;
+    t_secs += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec) / nthreads;
+    ips_ = s_->getTally().Nions()/t_secs;
+    end_time_ = std::time(nullptr);
 
     // delete threads
     for(int i=0; i<nthreads; i++) {
@@ -161,13 +162,6 @@ int mcdriver::exec(progress_callback cb, uint msInterval, void *callback_user_da
     for(int i=1; i<nthreads; i++) {
         delete sims[i];
     }
-
-    // CALC TIME/ion CLOCK_PROCESS_CPUTIME_ID
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_end); // POSIX
-    double t_secs = 1. * (t_end.tv_sec - t_start.tv_sec) / nthreads;
-    t_secs += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec) / nthreads;
-    ips_ = s_->getTally().Nions()/t_secs;
-    end_time_ = std::time(nullptr);
 
     return 0;
 }

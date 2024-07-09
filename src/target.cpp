@@ -249,4 +249,19 @@ target::target_desc_t target::getDescription() const
     return td;
 }
 
+std::vector<std::string> target::atom_labels() const
+{
+    std::vector<std::string> lbls(atoms_.size());
+    for(int i=0; i<atoms_.size(); i++) {
+        std::string& s = lbls[i];
+        const material* m = atoms_[i]->mat();
+        s = atoms_[i]->name();
+        if (m) {
+            s += " in ";
+            s += m->name();
+        } else s += " ion";
+    }  
+    return lbls;  
+}
+
 

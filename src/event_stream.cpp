@@ -3,9 +3,35 @@
 #include "ion.h"
 #include "target.h"
 
-#include <H5Cpp.h>
-
-using namespace H5;
+void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
+{
+    natoms_ = n;
+    resize(5+3*n);
+    columnNames_.resize(buff_.size());
+    columnDescriptions_.resize(buff_.size());
+    columnNames_[0] = "hid"; columnDescriptions_[0] = "history id";
+    columnNames_[1] = "pid"; columnDescriptions_[1] = "PKA species id";
+    columnNames_[2] = "cid"; columnDescriptions_[2] = "cell id";
+    columnNames_[3] = "E"; columnDescriptions_[3] = "PKA energy [eV]";
+    columnNames_[4] = "Tdam"; columnDescriptions_[4] = "Damage energy[eV]";
+    for(int i=0; i<n; i++) {
+        int k = ofVac + i;
+        columnNames_[k] = "V";
+        columnNames_[k] += std::to_string(i+1); 
+        columnDescriptions_[k] = "Vacancies of ";
+        columnDescriptions_[k] += labels[i];
+        k += n;
+        columnNames_[k] = "R";
+        columnNames_[k] += std::to_string(i+1); 
+        columnDescriptions_[k] = "Replacements of ";
+        columnDescriptions_[k] += labels[i];
+        k += n;
+        columnNames_[k] = "I";
+        columnNames_[k] += std::to_string(i+1); 
+        columnDescriptions_[k] = "Interstitials of ";
+        columnDescriptions_[k] += labels[i];
+    }
+}
 
 void pka_event::init(const ion* i)
 {
@@ -18,12 +44,13 @@ void pka_event::init(const ion* i)
     addVac(i->myAtom()->id()-1);
 }
 
-int event_stream::open(const char* fname, int cols)
+int event_stream::open(const std::string& fname, const event& ev)
 {
     close();
     fname_ = fname;
-    cols_ = cols;
+    cols_ = ev.size();
     rows_ = 0;
+    event_proto_ = event(ev);
     fs_.open(fname_, std::ios::binary);
     return fs_.is_open() ? 0 : -1;
 }
@@ -38,85 +65,6 @@ void event_stream::write(const event* ev)
         fs_.write((char*)ev->data(),ev->size()*sizeof(float));
         rows_++;
     }
-}
-
-int event_stream::merge(const std::vector<event_stream *> &ev, const char* fname, const char* ds_name)
-{
-    uint cols = ev[0]->cols();
-    uint rows = ev[0]->rows();
-    for(int i = 1; i<ev.size(); i++) {
-        assert(ev[i]->cols()==cols);
-        rows += ev[i]->rows();
-    }
-    // Try block to detect exceptions raised by any of the calls inside it
-    try
-    {
-        //Exception::dontPrint();
-        // Open the file and dataset.
-        H5File f(fname, H5F_ACC_TRUNC);
-
-        hsize_t dims[2];
-        dims[0] = rows;
-        dims[1] = cols;
-        DataSpace filespace(2,dims);
-        // Create the dataset.
-        DataSet dataset = f.createDataSet(ds_name, PredType::NATIVE_FLOAT, filespace);
-
-        // mem buffer ~1MB
-        dims[0] = (1 << 10);
-        std::vector<float> buff(dims[0]*cols);
-
-        hsize_t offset[2] = {0, 0};
-        hsize_t dims1[2];
-        dims1[1] = cols;
-
-        for(const event_stream* e : ev) {
-
-            std::ifstream ifs(e->fileName(), std::ios::binary);
-
-            // copy data in chunks
-            hsize_t nrows = e->rows(); // total rows to copy
-            while (nrows) {
-                dims1[0] = std::min(nrows,dims[0]); // # of rows to copy in this iter
-                nrows -= dims1[0];
-
-                // read from raw buffer
-                ifs.read((char*)buff.data(), dims1[0]*cols*sizeof(float));
-
-                // write to file
-                DataSpace memspace(2, dims1);
-                // Select a hyperslab in dataset.
-                filespace.selectHyperslab(H5S_SELECT_SET, dims1, offset);
-                dataset.write(buff.data(), PredType::NATIVE_FLOAT, memspace, filespace);
-                offset[0] += dims1[0];
-
-            }
-
-            ifs.close();
-
-            std::remove(e->fileName().c_str());
-        }
-    }  // end of try block
-
-    // catch failure caused by the H5File operations
-    catch (FileIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    // catch failure caused by the DataSet operations
-    catch (DataSetIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    // catch failure caused by the DataSpace operations
-    catch (DataSpaceIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    return 0;  // successfully terminated
 }
 
 void event_stream::remove()
@@ -162,78 +110,16 @@ int event_stream::merge(const event_stream& ev)
     return 0;  // successfully terminated
 }
 
-int event_stream::saveH5(const char* fname, const char* ds_name) const
-{
-    if (is_open()) return -1;
+exit_event::exit_event() :
+event(ofEnd,
+{"hid","iid","cid",
+"E","x","y","z","nx","ny","nz"},
+{"history id","ion species id","ion's cell id before exiting","ion energy [eV]",
+"x position [nm]","y position [nm]","z position [nm]",
+"x direction cosine","y direction cosine","z direction cosine"})
+{}
 
-    // Try block to detect exceptions raised by any of the calls inside it
-    try
-    {
-        //Exception::dontPrint();
-        // Open the file and dataset.
-        H5File f(fname, H5F_ACC_TRUNC);
-
-        // create dataspace
-        hsize_t dims[2];
-        dims[0] = rows_;
-        dims[1] = cols_;
-        DataSpace filespace(2,dims);
-
-        // Create the dataset.
-        DataSet dataset = f.createDataSet(ds_name, PredType::NATIVE_FLOAT, filespace);
-
-        // mem buffer ~1MB
-        dims[0] = (1 << 10);
-        std::vector<float> buff(dims[0]*cols_);
-
-        hsize_t offset[2] = {0, 0};
-        hsize_t dims1[2];
-        dims1[1] = cols_;
-
-        std::ifstream ifs(fileName(), std::ios::binary);
-
-        // copy data in chunks
-        hsize_t nrows = rows_; // total rows to copy
-        while (nrows) {
-            dims1[0] = std::min(nrows,dims[0]); // # of rows to copy in this iter
-            nrows -= dims1[0];
-
-            // read from raw buffer
-            ifs.read((char*)buff.data(), dims1[0]*cols_*sizeof(float));
-
-            // write to file
-            DataSpace memspace(2, dims1);
-            // Select a hyperslab in dataset.
-            filespace.selectHyperslab(H5S_SELECT_SET, dims1, offset);
-            dataset.write(buff.data(), PredType::NATIVE_FLOAT, memspace, filespace);
-            offset[0] += dims1[0];
-        }
-
-        ifs.close();
-    }  // end of try block
-
-    // catch failure caused by the H5File operations
-    catch (FileIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    // catch failure caused by the DataSet operations
-    catch (DataSetIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    // catch failure caused by the DataSpace operations
-    catch (DataSpaceIException error) {
-        error.printErrorStack();
-        return -1;
-    }
-
-    return 0;  // successfully terminated
-}
-
-void exit_event::set(const ion* i, int cellid, float s)
+void exit_event::set(const ion* i, int cellid)
 {
     buff_[ofIonId] = i->ion_id();
     buff_[ofAtomId] = i->myAtom()->id();
@@ -245,5 +131,4 @@ void exit_event::set(const ion* i, int cellid, float s)
     buff_[ofDir]   = i->dir().x();
     buff_[ofDir+1] = i->dir().y();
     buff_[ofDir+2] = i->dir().z();
-    buff_[ofS] = s;
 }

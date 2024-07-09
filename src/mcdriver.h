@@ -81,6 +81,7 @@ public:
 
     void getOptions(options& opt) const;
     void setOptions(const options& o);
+    std::string outFileName() const;
 
     const output_options& outputOptions(const output_options& opts) const
     { return out_opts_; }

@@ -203,13 +203,13 @@ public:
     const tally& getTallyVar() const { return dtally_; }
     /// Open file stream to store \ref pka_event data
     int open_pka_stream(const char* fname) {
-        return pka_stream_.open(fname, pka.size());
+        return pka_stream_.open(fname, pka);
     }
     /// Return reference to the pka stream
     const event_stream& pka_stream() { return pka_stream_; }
     /// Open file stream to store \ref exit_event data
     int open_exit_stream(const char* fname) {
-        return exit_stream_.open(fname, exit_ev.size());
+        return exit_stream_.open(fname, exit_ev);
     }
     /// Return reference to the exit stream
     const event_stream& exit_stream() { return exit_stream_; }

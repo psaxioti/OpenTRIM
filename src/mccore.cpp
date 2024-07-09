@@ -343,7 +343,11 @@ int mccore::init() {
     tally_.init(natoms, ncells);
     dtally_.init(natoms, ncells);
     tion_.init(natoms, ncells);
-    pka.setNatoms(natoms-1);
+
+    // prepare event buffers
+    std::vector<std::string> atom_labels = target_->atom_labels();
+    atom_labels.erase(atom_labels.begin());
+    pka.setNatoms(natoms-1,atom_labels);
 
     return 0;
 }
@@ -442,34 +446,35 @@ float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp,
     dedx_index ie(i->erg());
 
     float de_stopping = fp * (*stopping_tbl)(i->erg());
-    if (par_.straggling_model != NoStraggling) {
+    if (par_.straggling_model != NoStraggling)
+    {
 
         float de_straggling = straggling_tbl[ie] * rng.normal() * sqrtfp;
 
         /* IRADINA
-                 * Due to gaussian distribution, the straggling can in some cases
-                 * get so large that the projectile gains energy or suddenly looses
-                 * a huge amount of energy. Is this realistic? This might actually
-                 * happen. However, in the simulation, ions may have higher energy
-                 * than the initial energy.
-                 * We will therefore limit the |straggling| to |stopping|.
-                 * Furthermore, with hydrogen, the straggling is often so big,
-                 * that ions gain huge amount of energy, and the phononic system
-                 * would actually gain energy.
-                 */
-        if (std::abs(de_straggling)>de_stopping)
-            de_straggling = (de_straggling<0) ? -de_stopping : de_stopping;
+         * Due to gaussian distribution, the straggling can in some cases
+         * get so large that the projectile gains energy or suddenly looses
+         * a huge amount of energy. Is this realistic? This might actually
+         * happen. However, in the simulation, ions may have higher energy
+         * than the initial energy.
+         * We will therefore limit the |straggling| to |stopping|.
+         * Furthermore, with hydrogen, the straggling is often so big,
+         * that ions gain huge amount of energy, and the phononic system
+         * would actually gain energy.
+         */
+        if (std::abs(de_straggling) > de_stopping)
+            de_straggling = (de_straggling < 0) ? -de_stopping : de_stopping;
 
         de_stopping += de_straggling;
     }
 
     /* IRADINA
-             * The stopping tables have no values below minVal = 16 eV.
-             * Therefore, we do simple linear downscaling of electronic
-             * stopping below 16 eV.
-             */
+     * The stopping tables have no values below minVal = 16 eV.
+     * Therefore, we do simple linear downscaling of electronic
+     * stopping below 16 eV.
+     */
     if (i->erg() < dedx_index::minVal)
-        de_stopping *= i->erg()/dedx_index::minVal;
+        de_stopping *= i->erg() / dedx_index::minVal;
 
     return de_stopping;
 }
@@ -536,7 +541,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
             // register ion exit event
             t(Event::IonExit,i0);
             if (exit_stream_.is_open()) {
-                exit_ev.set(i,i0.cellid(),fp);
+                exit_ev.set(i,i0.cellid());
                 exit_stream_.write(&exit_ev);
             }
             if (pka) pka->Tdam() += i0.erg();

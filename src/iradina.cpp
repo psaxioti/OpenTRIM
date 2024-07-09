@@ -81,13 +81,16 @@ int main(int argc, char* argv[])
     mcdriver D;
     D.setOptions(opt);
     D.exec(progress_callback,500);
-    D.save();
-
+    
     tally t = D.getSim()->getTally();
     cout << endl << endl
          << "Completed " << t.Nions() << " ion histories." << endl;
     cout << "ion/s = " << D.ips() << " (total), ";
     cout << D.ips()/D.nThreads() << " (per thread)" << endl;
+
+    cout << "Storing results in " << D.outFileName() << " ...";
+    D.save();
+    cout << " OK." << endl;
 
     return 0;
 }
