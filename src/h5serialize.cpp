@@ -125,7 +125,7 @@ int dump_event_stream(h5::File &h5f, const std::string &grp_name, const event_st
     size_t nrows(es.rows()), ncols(es.cols());
 
     // mem buffer ~1MB
-    size_t buff_rows = std::ceil((1 << 20)/4/ncols); 
+    size_t buff_rows = std::ceil(1.*(1 << 20)/4/ncols);
     buff_rows = std::min(buff_rows, nrows);
     std::vector<float> buff(buff_rows * ncols);
     
@@ -209,7 +209,7 @@ try {
     const tally& dt = s_->getTallyVar();
     dump(h5f, "/run_stat/Nh", t.Nions(), var_list, "# of histories");
     dump(h5f, "/run_stat/ips", ips_, var_list, "ion histories per second");
-    dump(h5f, "/run_stat/cpu_time", t.Nions()/ips_, var_list, "total cpu time [s]");
+    dump(h5f, "/run_stat/process_cpu_time", t.Nions()/ips_*opt.Driver.threads, var_list, "total cpu time [s]");
     {
         std::stringstream ss;
         ss << std::put_time(std::localtime(&start_time_), "%c %Z");

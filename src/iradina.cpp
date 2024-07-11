@@ -16,6 +16,11 @@ progressbar bar;
 
 void progress_callback(const mcdriver& d, void* )
 {
+//    const std::vector<uint>&  c = d.thread_ion_count();
+//    uint ct = d.ion_count();
+//    cout << c[0];
+//    for(int i=1; i<c.size(); i++) cout << '\t' << c[i];
+//    cout << '\t' << ct << endl;
     bar.update(d.ion_count());
 }
 
@@ -75,7 +80,7 @@ int main(int argc, char* argv[])
     /// @todo Fix the seed cli option for iradina++
     /// if (s>0) opt.Driver.seeds = s;
 
-    cout << "Starting simulation ..." << endl << endl;
+    cout << "Starting simulation '" << opt.Output.title << "'..." << endl << endl;
     bar.set_niter(opt.Driver.max_no_ions);
     bar.update(0);
     mcdriver D;
@@ -89,6 +94,7 @@ int main(int argc, char* argv[])
     cout << D.ips()/D.nThreads() << " (per thread)" << endl;
 
     cout << "Storing results in " << D.outFileName() << " ...";
+    cout.flush();
     D.save();
     cout << " OK." << endl;
 
