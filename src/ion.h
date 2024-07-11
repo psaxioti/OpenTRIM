@@ -23,10 +23,16 @@ class atom;
  *
  */
 
+
+/**
+ * @brief Enum characterizing the type of boundary crossing for an ion
+ * 
+ * @ingroup Ions
+ */
 enum class BoundaryCrossing {
-    None,
-    Internal, // an internal cell boundary has been crossed. ion changes cell
-    External // the external boundary has been crossed. ion exits simulation
+    None,       /**< No boundary crossing occured. */
+    Internal,   /**< The ion crossed an internal cell boundary. The ion changes cell */ 
+    External    /**< The ion crossed an external boundary of the simulation volume. The ion exits the simulation */ 
 };
 
 /**
@@ -106,7 +112,7 @@ public:
     /// Returns the id of the cell the ion is currently in
     int cellid() const { return cellid_; }
 
-    /// Returns the source ion history id that the current ion belongs to
+    /// Returns the history id that the current ion belongs to
     int ion_id() const { return ion_id_; }
 
     /**
@@ -129,8 +135,17 @@ public:
     int& cellid() { return cellid_; }
     const atom*& myAtom() { return atom_; }
 
-    void deflect(const vector3& n);
-    float distance2boundary(const box3D& b);
+    /**
+     * @brief Deflect the ion after scattering.
+     * 
+     * Changes the direction after scattering at angles \f$ (\theta,\phi) \f$.
+     * 
+     * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta) \f$
+     * @see  \ref deflect_vector()
+     */
+    void deflect(const vector3& n) { deflect_vector(dir_,n); }
+
+
     BoundaryCrossing propagate(float& s);
 };
 

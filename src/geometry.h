@@ -161,6 +161,17 @@ public:
             } else return false;
         } else return true;
     }
+    void apply_bc(float& x) const {
+        if (periodic_) {
+            if (x<front()) {
+                do x += w_; while (x<front());
+                assert(x<back());
+            } else if (x>=back()) {
+                do x -= w_; while (x>=back());
+                assert(x>=front());
+            }
+        }
+    }
 
     /// Returns true if x is inside the i-th cell, \f$ x_i \leq x < x_{i+1} \f$
     bool contains(int i, const float& x) const {
@@ -299,6 +310,12 @@ public:
                         y_.pos2cell(v.y()),
                         z_.pos2cell(v.z()));
     }
+    void apply_bc(vector3& v) const
+    {
+        x_.apply_bc(v.x());
+        y_.apply_bc(v.y());
+        z_.apply_bc(v.z());
+    }
 
     /// Return the id of the i-th cell
     int cellid(const ivector3& i) const {
@@ -324,5 +341,127 @@ public:
     }
 };
 
+/**
+ * @brief Find the distance traveled by a particle until it crosses a rectangular box boundary
+ * 
+ * The algorithm assumes that particle is inside a rectangular box b.
+ *
+ * b.min() is the vector at the box origin and b.max() is the opposite corner.
+ *
+ * For each dimension the equation for the distance \f$ \ell \f$ to the boundary is
+ * (e.g. for x)
+ * 
+ * \f[
+ * \ell_x = (x_{max} - x) / n_x, \quad  \mbox{if} \; n_x > 0
+ * \f]
+ * 
+ * OR
+ *
+ * \f[
+ * \ell_x = (x_{min} - x) / n_x, \quad  \mbox{if} \; n_x < 0
+ * \f]
+ * 
+ * where \f$ n_x \f$ is the x direction cosine
+ *
+ * Finally \f$ \ell = \mbox{min}\left[ \ell_x, \ell_y, \ell_z \right] \f$.
+ * 
+ * @param b   Rectangular box
+ * @param pos particle position
+ * @param dir particle direction
+ * @return float 
+ * 
+ * @ingroup Geometry
+ */
+inline
+float distance2boundary(const box3D& b, const vector3& pos, const vector3& dir)
+{
+    assert(b.contains(pos));
+
+    vector3 d = b.sizes();
+    if (dir[0]<0.f) d[0]=0.f;
+    if (dir[1]<0.f) d[1]=0.f;
+    if (dir[2]<0.f) d[2]=0.f;
+    d -= pos;
+    d += b.min();
+    d.array() /= dir.array();
+    return d.minCoeff();
+
+//    vector3 d;
+//    d.x() = dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x();
+//    d.y() = dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y();
+//    d.z() = dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z();
+//    d.array() /= dir.array();
+//    return d.minCoeff();
+
+    // (Slightly ~1%) Slower implementations
+
+    // float d = std::numeric_limits<float>::infinity(), d1;
+    // d1 = (dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x()) / dir.x();
+    // d = std::min(d, d1);
+    // d1 = (dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y()) / dir.y();
+    // d = std::min(d, d1);
+    // d1 = (dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z()) / dir.z();
+    // d = std::min(d, d1);
+    // return d;
+
+    // vector3 d = b.max() - pos, d1 = b.min() - pos;
+    // d.array() /= dir.array();
+    // d1.array() /= dir.array();
+    // d = d.cwiseMax(d1);
+    // return d.minCoeff();
+
+    // vector3 L = b.sizes();
+    // for(int i=0; i<3; i++) if (dir[i]<0.f) L[i]=0.f;
+    // L -= pos;
+    // L += b.min();
+    // L.array() /= dir.array();
+    // return L.minCoeff();
+}
+
+/**
+ * @brief Rotates the direction vector of a particle according to the scattering angles \f$ (\theta,\phi) \f$
+ * 
+ * The 1st argument represents the particle's direction vector \f$ \mathbf{m} \f$.
+ * 
+ * The 2nd argument is a vector
+ * \f[
+ * \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta)
+ * \f]
+ * where \f$ (\theta,\phi) \f$ are the polar and azimuthal scattering
+ * angles.
+ * 
+ * The new direction after scattering is obtained by the well-known result
+ * \f{eqnarray*}{
+ * m'_x &=& m_x\, n_z + \frac{m_x\, m_z\, n_x - m_y\, n_y}{\sqrt{1-m_z^2}} \\
+ * m'_y &=& m_y\, n_z + \frac{m_y\, m_z\, n_x - m_x\, n_y}{\sqrt{1-m_z^2}}  \\
+ * m'_z &=& m_z\, n_z - n_x\, \sqrt{1-m_z^2}
+ * \f}
+ * 
+ * @param m direction vector
+ * @param n deflection vector
+ * 
+ * @ingroup Geometry
+ */
+inline
+void deflect_vector(vector3 &m, const vector3 &n)
+{
+    // if the ion moves parallel to the z-axis
+    // then the new direction is n
+    float smz = 1-m.z()*m.z();
+    if (smz <= 0.f) {
+        m = n;
+        return;
+    }
+
+    vector3 m1 = m;
+    smz = std::sqrt(smz);
+    m.x() = m1.x()*n.z() + (m1.x()*m1.z()*n.x() - m1.y()*n.y())/smz;
+    m.y() = m1.y()*n.z() + (m1.y()*m1.z()*n.x() + m1.x()*n.y())/smz;
+    m.z() = m1.z()*n.z() - n.x()*smz;
+
+    // normalize
+    m.normalize();
+
+}
 
 #endif // GEOMETRY_H
