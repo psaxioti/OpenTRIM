@@ -124,6 +124,24 @@ int dump_event_stream(h5::File &h5f, const std::string &grp_name, const event_st
     // get row, column numbers
     size_t nrows(es.rows()), ncols(es.cols());
 
+    std::string path;
+    path = grp_name + "/column_names";
+    dump(h5f, path, es.event_prototype().columnNames(), var_list, "event data column names");
+    path = grp_name + "/column_descriptions";
+    dump(h5f, path, es.event_prototype().columnDescriptions(), var_list, "event data column descriptions");
+
+    path = grp_name + "/event_data";
+
+    if (nrows==0) {
+        // No data. Create empty dataset and leave
+        h5::DataSet dataset = h5f.createDataSet<float>(path, h5::DataSpace(nrows,ncols));
+        var_list << path << '\t'
+                 << shapeStr(dataset.getSpace()) << '\t'
+                 << dataset.getDataType().string() << '\t'
+                 << "event data" << endl;
+        return 0;
+    }
+
     // mem buffer ~1MB
     size_t buff_rows = std::ceil(1.*(1 << 20)/4/ncols);
     buff_rows = std::min(buff_rows, nrows);
@@ -131,7 +149,6 @@ int dump_event_stream(h5::File &h5f, const std::string &grp_name, const event_st
     
     // Create the dataset.
     // Use compression + chunking
-    std::string path = grp_name + "/event_data";
     h5::DataSetCreateProps dscp;
     dscp.add(h5::Deflate(6));
     dscp.add(h5::Chunking({buff_rows,ncols}));
@@ -164,11 +181,6 @@ int dump_event_stream(h5::File &h5f, const std::string &grp_name, const event_st
              << shapeStr(dataset.getSpace()) << '\t'
              << dataset.getDataType().string() << '\t'
              << "event data" << endl;
-
-    path = grp_name + "/column_names";
-    dump(h5f, path, es.event_prototype().columnNames(), var_list, "event data column names");
-    path = grp_name + "/column_descriptions";
-    dump(h5f, path, es.event_prototype().columnDescriptions(), var_list, "event data column descriptions");
 
     return 0;
 }
@@ -269,6 +281,23 @@ try {
         dump(h5f, "/atom/Es", A, var_list, "surface binding energy [eV]");
         for(int i=0; i<atoms.size(); i++) A[i] = atoms[i]->Er();
         dump(h5f, "/atom/Er", A, var_list, "replacement energy [eV]");
+    }
+    var_list << endl;
+    var_list << "Materials" << endl;
+    auto mat = s_->getTarget().materials();
+    {
+        std::vector<std::string> name;
+        std::vector<float> nat,nm,rat;
+        for(auto m : mat) {
+            name.push_back(m->name());
+            nat.push_back(m->atomicDensity());
+            nm.push_back(m->massDensity());
+            rat.push_back(m->atomicRadius());
+        }
+        dump(h5f, "/material/name", name, var_list, "name of material");
+        dump(h5f, "/material/atomic_density", nat, var_list, "atomic density [at/nm^3]");
+        dump(h5f, "/material/mass_density", nm, var_list, "mass density [g/cm^3]");
+        dump(h5f, "/material/atomic_radius", rat, var_list, "atomic radius [nm]");
     }
     var_list << endl;
 
