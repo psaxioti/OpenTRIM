@@ -1,7 +1,7 @@
 {
     "Driver" : {        
-        "max_no_ions" : 20,
-        "threads" : 1,
+        "max_no_ions" : 20000,
+        "threads" : 8,
         "seeds" : []
     },
     "Simulation" : {
