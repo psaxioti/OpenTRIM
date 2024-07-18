@@ -55,15 +55,15 @@ class ion
     vector3 dir_; // direction cosines
     float erg_; // energy in eV
     ivector3 icell_;
-    int cellid_;
+    int cellid_, prev_cellid_;
     int ion_id_;
     int recoil_id_;
     const atom* atom_;
     const grid3D* grid_;
 
-    friend class ion_beam;
-
-    int setPos(const vector3& x);
+    // counters
+    uint vac_,impl_,repl_,ncoll_;
+    float path_,ioniz_,phonon_,recoil_;
 
 public:
 
@@ -72,27 +72,12 @@ public:
         pos_(0.f,0.f,0.f),
         dir_(0.f,0.f,1.f),
         erg_(1.f),
-        icell_(), cellid_(-1),
+        icell_(), cellid_(-1), prev_cellid_(-1),
         ion_id_(0), recoil_id_(0),
-        atom_(nullptr), grid_(nullptr)
+        atom_(nullptr), grid_(nullptr),
+        vac_(0),impl_(0),repl_(0),ncoll_(0),
+        path_(0),ioniz_(0),phonon_(0), recoil_(0)
     {}
-
-    /// Copy constructor
-    ion(const ion& i) :
-        pos_(i.pos_), dir_(i.dir_), erg_(i.erg_),
-        icell_(i.icell_), cellid_(i.cellid_),
-        ion_id_(i.ion_id_), recoil_id_(i.recoil_id_),
-        atom_(i.atom_), grid_(i.grid_)
-    {}
-
-    /// Assignement operator
-    ion& operator=(const ion& i) {
-        pos_ = i.pos_; dir_ = i.dir_; erg_ = i.erg_;
-        icell_ = i.icell_; cellid_ = i.cellid_;
-        ion_id_ = i.ion_id_; recoil_id_ = i.recoil_id_;
-        atom_ = i.atom_; grid_ = i.grid_;
-        return *this;
-    }
 
     /// Returns the ion's position vector [nm]
     const vector3& pos() const { return pos_; }
@@ -103,14 +88,14 @@ public:
     /// Returns the ion's kinetic energy
     float erg() const { return erg_; }
 
-    /// Return reference to the ion's energy
-    float& erg() { return erg_; }
-
     /// Returns the index vector of the cell the ion is currently in
     const ivector3& icell() const { return icell_; }
 
     /// Returns the id of the cell the ion is currently in
     int cellid() const { return cellid_; }
+
+    /// Returns the id of the cell the ion was previously in
+    int prev_cellid() const { return prev_cellid_; }
 
     /// Returns the history id that the current ion belongs to
     int ion_id() const { return ion_id_; }
@@ -127,13 +112,68 @@ public:
     /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
     const atom* myAtom() const { return atom_; }
 
+    void de_phonon(float de) {
+        erg_ -= de; phonon_ += de;
+        assert(erg_>=0);
+        assert(finite(erg_));
+    }
+    void de_ioniz(float de) {
+        erg_ -= de; ioniz_ += de;
+        assert(erg_>0);
+        assert(finite(erg_));
+    }
+    void de_recoil(float de) {
+        erg_ -= de;
+        recoil_ += de;
+        assert(erg_>=0);
+        assert(finite(erg_));
+    }
+    float phonon() const { return phonon_; }
+    float ioniz() const { return ioniz_; }
+    float recoil() const { return recoil_; }
+    float path() const { return path_; }
+    uint ncoll() const { return ncoll_; }
+
+    void add_coll() { ncoll_++; }
+    void add_vac() { vac_++; }
+    void add_repl() { repl_++; }
+    void add_impl() { impl_++; }
+
     /// Return reference to the vector of direction cosines
     vector3& dir() { return dir_; }   
 
-    int& ion_id() { return ion_id_; }
-    int& recoil_id() { return recoil_id_; }
-    int& cellid() { return cellid_; }
-    const atom*& myAtom() { return atom_; }
+    // int& ion_id() { return ion_id_; }
+    // int& recoil_id() { return recoil_id_; }
+    // int& cellid() { return cellid_; }
+    // const atom*& myAtom() { return atom_; }
+    void setDir(const vector3 d) {
+        dir_ = d;
+        dir_.normalize();
+        assert(dir_.allFinite());
+        //float dn = std::abs(dir_.norm()-1.f);
+        //assert(dn==0.f);
+    }
+    int setPos(const vector3& x);
+    void setAtom(const atom* a) {
+        atom_ = a;
+    }
+    void setErg(float e) {
+        erg_ = e;
+        assert(finite(erg_));
+        assert(erg_>0);
+    }
+    void incRecoilId() {
+        recoil_id_++;
+    }
+    void setId(int id) {
+        ion_id_ = id;
+    }
+    void resetRecoilId() {
+        recoil_id_ = 0;
+    }
+    void setGrid(const grid3D* g) {
+        grid_ = g;
+    }
 
     /**
      * @brief Deflect the ion after scattering.
@@ -144,6 +184,8 @@ public:
      * @see  \ref deflect_vector()
      */
     void deflect(const vector3& n) { deflect_vector(dir_,n); }
+
+    void reset_counters();
 
 
     BoundaryCrossing propagate(float& s);

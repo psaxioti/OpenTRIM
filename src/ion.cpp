@@ -4,11 +4,18 @@
 int ion::setPos(const vector3 &x)
 {
     pos_ = x;
+    assert(x.allFinite());
     assert(grid_->contains(x));
     icell_ = grid_->pos2cell(x);
     assert(!grid3D::isNull(icell_));
     cellid_ = grid_->cellid(icell_);
     return 0;
+}
+
+void ion::reset_counters()
+{
+    vac_=impl_=repl_=ncoll_=0;
+    path_=ioniz_=phonon_=recoil_=0.f;
 }
 
 /**
@@ -56,9 +63,11 @@ BoundaryCrossing ion::propagate(float& s)
             };
             // new pos and cell
             s = s1;
+            path_ += s;
             pos_ = x;
             if (ix != icell_) {
                 icell_ = ix;
+                prev_cellid_ = cellid_;
                 cellid_ = grid_->cellid(icell_);
                 return BoundaryCrossing::Internal;
             } else {
@@ -77,6 +86,7 @@ BoundaryCrossing ion::propagate(float& s)
                 return BoundaryCrossing::None;
             }
         } else { // we remain in the cell
+            path_ += s;
             pos_ = x;
             return BoundaryCrossing::None;
         }
@@ -95,11 +105,15 @@ BoundaryCrossing ion::propagate(float& s)
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
             pos_ = x;
+            path_ += s;
+            prev_cellid_ = cellid_;
             cellid_ = -1;
             return BoundaryCrossing::External;
         } else { // ion is still in target. just change the cell
             // get new pos and cell
             pos_ = x;
+            path_ += s;
+            prev_cellid_ = cellid_;
             icell_ = grid_->pos2cell(x);
             cellid_ = grid_->cellid(icell_);
             return BoundaryCrossing::Internal;

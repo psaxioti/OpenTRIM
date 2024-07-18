@@ -120,11 +120,11 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
                                 {mccore::AtomicSpacing, "AtomicSpacing"},
                                 {mccore::Constant, "Constant"},
                                 {mccore::MendenhallWeller, "MendenhallWeller"},
-                                {mccore::MyFFP, "MyFFP"},
+                                {mccore::IPP, "IPP"},
                                 {mccore::AtomicSpacing, 1},
                                 {mccore::Constant, 2},
                                 {mccore::MendenhallWeller, 3},
-                                {mccore::MyFFP, 4}
+                                {mccore::IPP, 4}
                             })   
 
 NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {

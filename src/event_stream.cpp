@@ -119,11 +119,11 @@ event(ofEnd,
 "x direction cosine","y direction cosine","z direction cosine"})
 {}
 
-void exit_event::set(const ion* i, int cellid)
+void exit_event::set(const ion* i) //, int cellid)
 {
     buff_[ofIonId] = i->ion_id();
     buff_[ofAtomId] = i->myAtom()->id();
-    buff_[ofCellId] = cellid;
+    buff_[ofCellId] = i->prev_cellid();
     buff_[ofErg]   = i->erg();
     buff_[ofPos]   = i->pos().x();
     buff_[ofPos+1] = i->pos().y();

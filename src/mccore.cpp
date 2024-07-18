@@ -36,11 +36,12 @@ mccore::mccore(const mccore &s) :
     ref_count_(s.ref_count_),
     nion_thread_(0),
     count_offset_(0),
-    sqrtfp_const(s.sqrtfp_const),
+    sqrtfp_const(s.sqrtfp_const), ip0(s.ip0),
     dedx_(s.dedx_),
     de_strag_(s.de_strag_),
     scattering_matrix_(s.scattering_matrix_),
     mfp_(s.mfp_), ipmax_(s.ipmax_),
+    fp_max_(s.fp_max_), Tcutoff_(s.Tcutoff_),
     rng(),
     pka(s.pka)
 {
@@ -80,8 +81,12 @@ int mccore::init() {
     // calculate sqrt{l/l0} in each material for constant flight path
     auto materials = target_->materials();
     sqrtfp_const.resize(materials.size());
-    for(int i=0; i<materials.size(); i++)
+    ip0.resize(materials.size());
+    for(int i=0; i<materials.size(); i++) {
         sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicRadius());
+        ip0[i] = materials[i]->meanImpactPar();
+        if (par_.flight_path_type == Constant) ip0[i] /= sqrtfp_const[i];
+    }
 
     /*
      * create dedx tables for all ion - material
@@ -268,10 +273,12 @@ int mccore::init() {
      */
     mfp_   = ArrayNDf(natoms,nmat,nerg);
     ipmax_ = ArrayNDf(natoms,nmat,nerg);
+    fp_max_ = ArrayNDf(natoms,nmat,nerg);
+    Tcutoff_ = ArrayNDf(natoms,nmat,nerg);
     float delta_dedx = par_.max_rel_eloss;
     float Tmin = par_.min_recoil_energy;
     float mfp_ub = par_.max_mfp;
-    float Tmin_rel = 0.01f; /// @TODO: make it user option
+    float Tmin_rel = 0.99f; /// @TODO: make it user option
     for(int z1 = 0; z1<natoms; z1++)
     {
         for(int im=0; im<materials.size(); im++)
@@ -279,15 +286,18 @@ int mccore::init() {
             const material* m = materials[im];
             const float & N = m->atomicDensity();
             const float & Rat = m->atomicRadius();
-            float mfp_lb = par_.allow_sub_ml_scattering ? 0.f : Rat;
+            float mfp_lb = par_.flight_path_type == IPP && par_.allow_sub_ml_scattering ?
+                               0.f : Rat;
             for(dedx_index ie; ie!=ie.end(); ie++) {
                 float & mfp = mfp_(z1,im,ie);
                 float & ipmax = ipmax_(z1,im,ie);
+                float & fpmax = fp_max_(z1,im,ie);
+                float & T0 = Tcutoff_(z1,im,ie);
                 // float & dedxn = dedxn_(z1,im,ie);
                 float E = *ie;
-                float T0 = Tmin;
+                T0 = Tmin;
 
-                // ensure Tmin is below Tm/2 of all target atoms
+                // ensure Tmin is below Tm of all target atoms
                 for(const atom* a : m->atoms()) {
                     int z2 = a->id();
                     float Tm = E*scattering_matrix_(z1,z2)->gamma();
@@ -304,8 +314,8 @@ int mccore::init() {
                 mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
 
                 // ensure mfp*dEdx/E is below max_rel_eloss
-                float dx = delta_dedx*E / dedx_(z1,im)->data()[ie];
-                mfp = std::min(mfp,dx);
+                fpmax = delta_dedx*E / dedx_(z1,im)->data()[ie];
+                mfp = std::min(mfp,fpmax);
 
                 // ensure mfp not smaller than lower bound
                 mfp = std::max(mfp,mfp_lb);
@@ -357,27 +367,25 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
 {
     // clone the projectile ion
     ion* j = q_.new_ion(*proj);
+    j->reset_counters();
 
     // calc recoil direction from momentum conserv.
     float f1, f2;
     f1 = proj->erg() / recoil_erg;
     f2 = std::sqrt(f1);
     f1 = std::sqrt(f1+1);
-    j->dir() = (f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio;
+    j->setDir((f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio);
 
     // adjust recoil atom type, energy, increase recoil generation id
-    j->myAtom() = target;
-    j->erg() = recoil_erg;
-    j->recoil_id()++;
+    j->setAtom(target);
+    j->setErg(recoil_erg);
+    j->incRecoilId();
 
     // tally the recoil
     t(Event::NewRecoil,*j);
 
     // subtract lattice binding energy
-    float El = target->El();
-    j->erg() -= El;
-    // add El to phonon energy tally
-    t(Event::Phonon,*j,&El);
+    j->de_phonon(target->El());
 
     // add lattice energy recoil to pka Tdam
     if (pka) pka->Tdam() += target->El();
@@ -396,8 +404,9 @@ int mccore::run()
 
         // generate ion
         ion* i = q_.new_ion();
-        i->ion_id() = ++count_offset_;
-        i->recoil_id() = 0;
+        i->setId(++count_offset_);
+        i->resetRecoilId();
+        i->reset_counters();
         source_->source_ion(rng, *target_, *i);
         tion_(Event::NewSourceIon,*i);
 
@@ -420,7 +429,7 @@ int mccore::run()
                     transport(k,tion_,&pka);
                 }
             }
-            NRT(&j1,tion_,pka);
+            pka_end(&j1,tion_,pka);
             pka_stream_.write(&pka);
         } // pka loop
 
@@ -440,7 +449,7 @@ int mccore::run()
     return 0;
 }
 
-float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp,
+float mccore::calcDedx(const ion *i, const material* m, float fp, float sqrtfp,
                      const dedx_interp_t *stopping_tbl, const float *straggling_tbl)
 {
     dedx_index ie(i->erg());
@@ -470,11 +479,23 @@ float mccore::doDedx(const ion *i, const material* m, float fp, float sqrtfp,
 
     /* IRADINA
      * The stopping tables have no values below minVal = 16 eV.
-     * Therefore, we do simple linear downscaling of electronic
+     * Therefore, we do sqrt downscaling of electronic
      * stopping below 16 eV.
      */
     if (i->erg() < dedx_index::minVal)
-        de_stopping *= i->erg() / dedx_index::minVal;
+        de_stopping *= std::sqrt(i->erg() / dedx_index::minVal);
+
+    /*
+     * This is due to some rare low-energy events (ion E<100 eV)
+     * with IPP flight selection were
+     * a long flight path + large straggling can cause the
+     * stopping + straggling > E
+     *
+     * The code below changes that to almost stopping the ion,
+     * E - stopping ~ 0
+     */
+    if (de_stopping > i->erg())
+        de_stopping = 0.99*i->erg();
 
     return de_stopping;
 }
@@ -486,232 +507,288 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
     // get the corresponding dEdx & straggling table for ion/material combination
     const dedx_interp_t* de_stopping_tbl = nullptr;
     const float* de_straggling_tbl = nullptr;
-    if (mat)
+    std::array<const float *, 3> fp_par_tbl;
+    const float* & ipmax_tbl = fp_par_tbl[0];
+    const float* & mfp_tbl   = fp_par_tbl[1];
+    const float* & fpmax_tbl = fp_par_tbl[2];
+    float fp, ip, sqrtfp, ipmax;
+    int ie;
+    bool doCollision;
+    if (mat) {
         getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
+        getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+    }
 
+    // transport loop
     while (1) {
 
-        // decide flight path fp & impact par
-        float fp, ip, sqrtfp;
-        flightPath(i, mat, fp, ip, sqrtfp);
-
-        // propagate
-        ion i0(*i);
-        BoundaryCrossing crossing = i->propagate(fp);
-
-        switch(crossing) {
-        case BoundaryCrossing::None:
-            // register flightpath
-            t(Event::NewFlightPath,*i,&fp);
-            // if we are inside a material, calc stopping + straggling
-            if (mat) {
-                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
-                if (de > 0.f) {
-                    i->erg() -= de;
-                    t(Event::Ioniz,*i,&de);
-                }
-            }
-            break;
-        case BoundaryCrossing::Internal:
-            // register flightpath with old cell
-            t(Event::NewFlightPath,i0,&fp);
-            // if we were inside a material, calc stopping + straggling in old cell
-            if (mat) {
-                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
-                if (de > 0.f) {
-                    i->erg() -= de;
-                    t(Event::Ioniz,i0,&de);
-                }
-            }
-            // get new material and dEdx tables
-            mat = target_->cell(i->cellid());
-            if (mat) getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-            break;
-        case BoundaryCrossing::External:
-            // register flightpath with old cell
-            t(Event::NewFlightPath,i0,&fp);
-            // if we were inside a material, calc stopping + straggling
-            if (mat) {
-                float de = doDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
-                if (de > 0.f) {
-                    i0.erg() -= de;
-                    t(Event::Ioniz,i0,&de);
-                }
-            }
-            // register ion exit event
-            t(Event::IonExit,i0);
-            if (exit_stream_.is_open()) {
-                exit_ev.set(i,i0.cellid());
-                exit_stream_.write(&exit_ev);
-            }
-            if (pka) pka->Tdam() += i0.erg();
-            break;
-        }
-
-        if (crossing == BoundaryCrossing::External) break; // history ends!
-
-        if (crossing == BoundaryCrossing::Internal) continue; // start new fp in new cell
-
-        // if mat!=0 (not vacuum) and ion E>min. energy threshold -> collision
-        if (mat && std::isfinite(ip) && (i->erg() >= par_.min_energy)) {
-
-            // select collision partner
-            const atom* z2 = mat->selectAtom(rng);
-
-            // get the cross-section and calculate scattering
-            auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
-            float T; // recoil energy
-            float sintheta, costheta; // scattering angle in Lab sys
-            xs->scatter(i->erg(), ip, T, sintheta, costheta);
-
-            // get random azimuthal dir
-            float nx, ny;
-            rng.azimuth(nx,ny);
-            t(Event::Scattering,*i);
-
-            // apply to ion direction & energy
-            vector3 dir0 = i->dir(); // store initial dir
-            i->deflect(
-                vector3(nx*sintheta, ny*sintheta, costheta)
-                );
-            i->erg() -= T;
-
-            /// @TODO: special treatment of surface effects (sputtering etc.)
-
-            if (T >= z2->Ed()) { // displacement
-
-                // Create recoil and store in ion queue
-                ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),t,pka);
-
-                /*
-                     * Now check whether the projectile might replace the recoil
-                     *
-                     * Check if Z1==Z2 and E < Er
-                     *
-                     * This is different from Iradina, where it is required
-                     * Z1==Z2 && M1==M2
-                     */
-                if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {                    
-                    // Replacement event, ion energy goes to Phonons
-                    t(Event::Replacement,*i);
-                    // energy is added to Tdam
-                    if (pka) pka->Tdam() += i->erg();
-                    break; // end of ion history
-                }
-
-                /*
-                 * projectile and target Z not equal or E>Er =>
-                 * Z2 vacancy is created
-                 */
-                t(Event::Vacancy,*j);
-                if (pka) pka->addVac(z2->id()-1);
-
-            } else { // E<Ed, recoil cannot be displaced
-                // energy goes to phonons
-                t(Event::Phonon,*i,&T);
-                if (pka) pka->Tdam() += T;
-            }
-
-        }
-
-        /* Check what happens to the projectile after possible collision: */
-        if(i->erg() < par_.min_energy){ /* projectile has to stop. Store as implanted ion or recoil */
+        // Check if ion has enough energy to continue
+        if(i->erg() < par_.min_energy){ 
+            /* projectile has to stop. Store as implanted/interstitial atom*/
             t(Event::IonStop,*i);
             if (pka) {
                 pka->addImpl(i->myAtom()->id()-1);
                 pka->Tdam() += i->erg();
             }
-            break; // history ends
-        } /* else: continue proj transport */
-    }
+            return 0; // history ends
+        } 
 
-    // ion finished - free ion buffer
+        if (!mat) {  // Vacuum.
+            // set a long flight path (1mm)
+            // to intentionally hit a boundary
+            // Then the boundary crossing algorithm
+            // will take care of things
+            fp = 1e6f;
+            BoundaryCrossing crossing = i->propagate(fp);
+            switch(crossing) {
+            case BoundaryCrossing::None:
+                break;
+            case BoundaryCrossing::Internal:
+                // register event
+                t(Event::BoundaryCrossing,*i);
+                i->reset_counters();
+                // get new material and dEdx, mfp tables
+                mat = target_->cell(i->cellid());
+                if (mat) {
+                    getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
+                    getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+                }
+                break;
+            case BoundaryCrossing::External:
+                // register ion exit event
+                t(Event::IonExit,*i);
+                if (exit_stream_.is_open()) {
+                    exit_ev.set(i);
+                    exit_stream_.write(&exit_ev);
+                }
+                if (pka) pka->Tdam() += i->erg();
+                return 0; // ion history ends!
+            }
+            continue; // go to next iter
+        }
+
+        doCollision = true;
+        switch (par_.flight_path_type) {
+        case AtomicSpacing:
+        case Constant:
+            ip = ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
+            break;
+        case MendenhallWeller:
+            ie = dedx_index(i->erg());
+            ip = ipmax_tbl[ie];
+            fp = mfp_tbl[ie];
+            if (ip < mat->meanImpactPar())
+            {
+                sqrtfp = std::sqrt(fp/mat->atomicRadius());
+                ip *= std::sqrt(-std::log(rng.u01s_open()));
+                doCollision = (ip <= ipmax_tbl[ie]);
+            } else { // atomic spacing
+                fp = mat->atomicRadius();
+                sqrtfp = 1.f;
+                ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
+            }
+            break;
+        case IPP:
+            ie = dedx_index(i->erg());
+            fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
+            assert(fp>0);
+            assert(finite(fp));
+            doCollision = fp <= fpmax_tbl[ie];
+            if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
+            else fp = fpmax_tbl[ie];
+            sqrtfp = std::sqrt(fp/mat->atomicRadius());
+            break;
+        default:
+            assert(false); // never get here
+        }
+
+        // propagate ion, checking also for boundary crossing
+        BoundaryCrossing crossing = i->propagate(fp);
+
+        // deduct ionization & straggling
+        float de = calcDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+        i->de_ioniz(de);
+
+        switch(crossing) {
+        case BoundaryCrossing::None:
+            break;
+        case BoundaryCrossing::Internal:
+            // register event
+            t(Event::BoundaryCrossing,*i);
+            i->reset_counters();
+            // get new material and dEdx, mfp tables
+            mat = target_->cell(i->cellid());
+            if (mat) {
+                getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
+                getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+            }
+            doCollision = false; // the collision will be in the new material
+            break;
+        case BoundaryCrossing::External:
+            // register ion exit event
+            t(Event::IonExit,*i);
+            if (exit_stream_.is_open()) {
+                exit_ev.set(i);
+                exit_stream_.write(&exit_ev);
+            }
+            if (pka) pka->Tdam() += i->erg();
+            return 0; // ion history ends!
+        }
+
+        // if no collision, start again
+        // no collision =
+        // either BoundaryCrossing::Internal OR
+        // rejected by flight path algorithm
+        if (!doCollision) continue;
+
+        // Now comes the COLLISSION PART
+
+        // select collision partner
+        const atom* z2 = mat->selectAtom(rng);
+
+        // get the cross-section and calculate scattering
+        auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
+        float T; // recoil energy
+        float sintheta, costheta; // Lab sys scattering angle sin & cos 
+        xs->scatter(i->erg(), ip, T, sintheta, costheta);
+        assert(finite(T));
+
+        // get random azimuthal dir
+        float nx, ny; // nx = cos(phi), ny = sin(phi), phi: az. angle
+        rng.azimuth(nx,ny);
+
+        // register scattering event (before changing ion data)
+        // t(Event::Scattering,*i);
+
+        // apply new ion direction & energy
+        vector3 dir0 = i->dir(); // store initial dir
+        i->deflect(vector3(nx*sintheta, ny*sintheta, costheta));
+        i->add_coll();
+
+        /// @TODO: special treatment of surface effects (sputtering etc.)
+
+        // Check if recoil is displaced (T>=E_d)
+        if (T >= z2->Ed()) { 
+
+            // Create recoil (it is stored in the ion queue)
+            i->de_recoil(T);
+            ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),t,pka);
+
+            /*
+             * Now check whether the projectile might replace the recoil
+             *
+             * Check if Z1==Z2 and E < Er
+             *
+             * This is different from Iradina, where it is required
+             * Z1==Z2 && M1==M2
+             */
+            if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {                    
+                // Replacement event, ion energy goes to Phonons
+                float el = z2->El();
+                t(Event::Replacement,*i,&el);
+                // the energy is also added to the PKA's Tdam
+                if (pka) pka->Tdam() += i->erg();
+                return 0; // end of ion history
+            }
+
+            /*
+             * Otherwise:
+             * Z2 vacancy is created and ion continues
+             */
+            t(Event::Vacancy,*j);
+            if (pka) pka->addVac(z2->id()-1);
+
+        } else { // T<E_d, recoil cannot be displaced
+            // energy goes to phonons
+            // t(Event::Phonon,*i,&T);
+            i->de_phonon(T);
+            if (pka) pka->Tdam() += T;
+        }
+
+    } // main ion transport loop
+
+    // free the ion buffer
     q_.free_ion(i);
+
+
     return 0;
 }
 
-int mccore::flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp)
+bool mccore::flightPath(const ion* i, const material* mat, float& fp, float& ip, float& sqrtfp,
+                        std::array<const float *, 3> &fp_par_tbl)
 {
-    if (!m) {  // Vacuum.
-        // set a long flight path (1mm)
-        // to intentionally hit a boundary
-        // Then the boundary crossing algorithm
-        // will take care of things
-        fp = 1e6f;
-        ip = 0.f;
-        return 0;
-    }
-
-    float d, ipmax;
+    bool doCollision = true;
+    int ie;
+    const float* & ipmax_tbl = fp_par_tbl[0];
+    const float* & mfp_tbl   = fp_par_tbl[1];
+    const float* & fpmax_tbl = fp_par_tbl[2];
     switch (par_.flight_path_type) {
     case AtomicSpacing:
-        fp = m->atomicRadius();
-        sqrtfp = 1.f;
-        ip = m->meanImpactPar()*std::sqrt(rng.u01d_lopen());
-        break;
     case Constant:
-        fp = par_.flight_path_const;
-        sqrtfp = sqrtfp_const[m->id()];
-        ip = m->meanImpactPar()/sqrtfp_const[m->id()]*std::sqrt(rng.u01d_lopen());
+        ip = ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
         break;
     case MendenhallWeller:
-        ipmax = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        if (ipmax < m->atomicRadius()) // TODO: check def of impact par
+        ie = dedx_index(i->erg());
+        ip = ipmax_tbl[ie];
+        fp = mfp_tbl[ie];
+        if (ip < mat->meanImpactPar())
         {
-            sqrtfp = std::sqrt(fp/m->atomicRadius());
-            ip = ipmax*std::sqrt(-std::log(rng.u01s_open()));
-            if (ip > ipmax) ip = INFINITY;
+            sqrtfp = std::sqrt(fp/mat->atomicRadius());
+            ip *= std::sqrt(-std::log(rng.u01s_open()));
+            doCollision = (ip <= ipmax_tbl[ie]);
         } else { // atomic spacing
-            fp = m->atomicRadius();
+            fp = mat->atomicRadius();
             sqrtfp = 1.f;
-            ip = ipmax*std::sqrt(rng.u01d_lopen());
+            ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
         }
         break;
-    case MyFFP:
-        fp = mfp_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        fp *= (-std::log(rng.u01s_open()));
-        sqrtfp = std::sqrt(fp/m->atomicRadius());
-        ip = ipmax_(i->myAtom()->id(),m->id(),dedx_index(i->erg()));
-        ip *= std::sqrt(rng.u01d_lopen());
+    case IPP:
+        ie = dedx_index(i->erg());
+        fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
+        doCollision = fp <= fpmax_tbl[ie];
+        if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
+        else fp = fpmax_tbl[ie];
+        sqrtfp = std::sqrt(fp/mat->atomicRadius());
         break;
     default:
-        fp = ip = 0.f;
+        assert(false); // never get here
     }
-    return 0;
+    assert(fp>0);
+    assert(finite(fp));
+    return doCollision;
 }
 
-void mccore::NRT(const ion* i, tally &t, const pka_event& pka)
+void mccore::pka_end(const ion* i, tally &t, const pka_event& pka)
 {
     const atom* z2;
     const material* m;
-    float dp[2];
+    std::array<float, 5> dp;
+    dp.fill(0.f);
+    dp[0] = pka.recoilE();
     switch (par_.nrt_calculation) {
     case NRT_element:
         // NRT/LSS damage based on element
         z2 = i->myAtom();
-        dp[0] = z2->LSS_Tdam(pka.recoilE());
-        dp[1] = z2->NRT(dp[0]);
-        t(Event::NRT_LSS_damage,*i,dp);
+        dp[1] = z2->LSS_Tdam(pka.recoilE());
+        dp[2] = z2->NRT(dp[1]);
         // NRT damage based on element with true Tdam
-        dp[0] = pka.Tdam();
-        dp[1] = z2->NRT(dp[0]);
-        t(Event::NRT_damage,*i,dp);
+        dp[3] = pka.Tdam();
+        dp[4] = z2->NRT(dp[3]);
+
         break;
     case NRT_average:
         m = target_->cell(i->cellid());
         // NRT/LSS damage based on material / average Ed, Z, M
-        dp[0] = m->LSS_Tdam(pka.recoilE());
-        dp[1] = m->NRT(dp[0]);
-        t(Event::NRT_LSS_damage,*i,dp);
+        dp[1] = m->LSS_Tdam(pka.recoilE());
+        dp[2] = m->NRT(dp[1]);
         // NRT damage based on material with true Tdam
-        dp[0] = pka.Tdam();
-        dp[1] = m->NRT(dp[0]);
-        t(Event::NRT_damage,*i,dp);
+        dp[3] = pka.Tdam();
+        dp[4] = m->NRT(dp[3]);
         break;
     default:
         break;
     }
+    t(Event::CascadeComplete,*i,dp.data());
 }
 
 void mccore::merge(const mccore& other)

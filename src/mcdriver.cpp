@@ -186,9 +186,28 @@ int options::validate()
     }
 
     // Simulation
+    if (Simulation.scattering_calculation==mccore::InvalidScatteringOption)
+        throw std::invalid_argument("Invalid Simulation.scattering_calculation");
+
+    if (Simulation.flight_path_type==mccore::InvalidPath)
+        throw std::invalid_argument("Invalid Simulation.flight_path_type");
     if (Simulation.flight_path_type==mccore::Constant &&
         Simulation.flight_path_const<=0.f)
         throw std::invalid_argument("Simulation.flight_path_type is \"Constant\" but Simulation.flight_path_const is negative.");
+
+    if (Simulation.nrt_calculation==mccore::NRT_InvalidOption)
+        throw std::invalid_argument("Invalid Simulation.nrt_calculation");
+
+    if (Simulation.screening_type==Screening::None)
+        throw std::invalid_argument("Invalid Simulation.screening_type");
+
+    if (Simulation.straggling_model==mccore::InvalidStraggling)
+        throw std::invalid_argument("Invalid Simulation.straggling_model");
+
+    // Ion source
+    if (IonBeam.ion_distribution==ion_beam::InvalidIonDistribution)
+        throw std::invalid_argument("Invalid IonBeam.ion_distribution");
+
 
     // Output
     const std::string& fname = Output.OutputFileBaseName;

@@ -82,7 +82,7 @@ public:
         AtomicSpacing = 1,  /**< Constant, equal to interatomic distance */
         Constant = 2,       /**< Constant, equal to user supplied value */
         MendenhallWeller = 3, /**< Algorithm from Mendenhall-Weller NIMB2005*/
-        MyFFP = 4,            /**< Other algorithm */
+        IPP = 4,            /**< IPP algorithm */
         InvalidPath = -1
     };
 
@@ -141,6 +141,14 @@ public:
 
 protected:
 
+    struct fp_selection_data {
+        float fp; // flight path
+        float ip; // impact parameter
+        float sqrt_fp; // sqrt of fp
+        const dedx_interp_t* dedx;
+        const float* de_stragg;
+    };
+
     ion_queue q_;
 
     // simulation paramenters
@@ -163,8 +171,9 @@ protected:
     uint count_offset_;
     std::atomic_uint nion_thread_; // thread safe simulated ion counter
 
-    // helper variable for flight path calc
+    // helper variables for flight path calc
     std::vector<float> sqrtfp_const;
+    std::vector<float> ip0;
 
     // Scattering cross-sections
     ArrayND< abstract_xs_lab* > scattering_matrix_;
@@ -174,7 +183,7 @@ protected:
     ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
 
     // flight path selection par
-    ArrayNDf mfp_, ipmax_;
+    ArrayNDf mfp_, ipmax_, fp_max_, Tcutoff_;
 
 public:
     mccore();
@@ -223,6 +232,8 @@ public:
     // Tables of flight path selection parameters 
     ArrayNDf mfp() const { return mfp_; }
     ArrayNDf ipmax() const { return ipmax_; }
+    ArrayNDf fpmax() const { return fp_max_; }
+    ArrayNDf Tcutoff() const { return Tcutoff_; }
 
     /**
      * @brief Initialize internal variables of the mccore object
@@ -283,9 +294,10 @@ protected:
      * @param[out] fp  the selected flight path [nm]
      * @param[out] ip the selected impact parameter [nm]
      * @param[out]  sqrtfp the square root of the selected flight path
-     * @return 0 if succesfull
+     * @return true is the ion should collide at the end of its flight path
      */
-    int flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp);
+    bool flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp,
+                    std::array<const float *, 3>& fp_par_tbl);
 
     /**
      * @brief Transport an ion through the target
@@ -350,7 +362,7 @@ protected:
      *
      * Tables follow the corteo scheme, see \ref dedx_index.
      *
-     * @param i pointer to the moving ion object
+     * @param i pointer to the moving ion
      * @param m pointer to the material the ion is moving in
      * @param fp flight path [nm]
      * @param sqrtfp sqrt of the flight path (used for straggling)
@@ -358,32 +370,27 @@ protected:
      * @param straggling_tbl pointer to the relevant straggling table [eV/sqrt{nm}]
      * @return the energy loss [eV]
      */
-    float doDedx(const ion* i, const material* m, float fp, float sqrtfp,
+    float calcDedx(const ion* i, const material* m, float fp, float sqrtfp,
                  const dedx_interp_t* stopping_tbl, const float* straggling_tbl);
 
     /// Get pointers to electronic loss and straggling tables for a specific ion/material combination
     int getDEtables(const atom* z1, const material* m,
                     const dedx_interp_t *&dedx, const float *&de_stragg) const;
 
-    /**
-     * @brief Perform interpolation of tabulated energy loss data
-     *
-     * Energy loss and straggling data are tabulated according to the Corteo \ref dedx_index
-     * scheme.
-     *
-     * @param E the (energy) point were interpolation is required
-     * @param data the interpolation table
-     * @return the interpolated value
-     */
-    //static float interp_dedx(float E, const float* data);
+    int getMFPtables(const atom* z1, const material* m,
+                    float& fp, float& sqrt_fp,
+                    std::array<const float *, 3>& fp_par_tbl) const;
 
-    void NRT(const ion* i, tally &t, const pka_event &pka);
+
+    void pka_end(const ion* i, tally &t, const pka_event &pka);
 
 };
 
 inline int mccore::getDEtables(const atom* z1, const material* m,
                             const dedx_interp_t *&dedx, const float *&de_stragg) const
 {
+    assert(z1);
+    assert(m);
     int ia = z1->id();
     int im = m->id();
     dedx = dedx_(ia,im);
@@ -391,7 +398,41 @@ inline int mccore::getDEtables(const atom* z1, const material* m,
     return 0;
 }
 
+inline int mccore::getMFPtables(const atom *z1, const material *m,
+                                float &fp, float &sqrt_fp,
+                                std::array<const float *, 3>& fp_par_tbl) const
+{
+    assert(z1);
+    assert(m);
 
+    const float* & ipmax_tbl = fp_par_tbl[0];
+    const float* & mfp_tbl   = fp_par_tbl[1];
+    const float* & fpmax_tbl = fp_par_tbl[2];
 
+    switch (par_.flight_path_type)
+    {
+    case AtomicSpacing:
+        fp = m->atomicRadius();
+        sqrt_fp = 1.f;
+        ipmax_tbl = &(ip0[m->id()]);
+        break;
+    case Constant:
+        fp = par_.flight_path_const;
+        sqrt_fp = sqrtfp_const[m->id()];
+        ipmax_tbl = &(ip0[m->id()]);
+        break;
+    case MendenhallWeller:
+    case IPP:
+        ipmax_tbl = &(ipmax_(z1->id(),m->id(),0));
+        mfp_tbl = &(mfp_(z1->id(),m->id(),0));
+        fpmax_tbl = &(fp_max_(z1->id(),m->id(),0));
+        break;
+    default:
+        fp = sqrt_fp = 0.f;
+        assert(false); // should never reach here
+    }
+
+    return 0;
+}
 
 #endif // SIMULATION_H

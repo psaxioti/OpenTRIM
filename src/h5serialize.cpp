@@ -368,6 +368,8 @@ try {
         dump_array(h5f,"/eels/dEstrag",s_->de_strag(),var_list,"straggling values [eV/nm^(1/2)]");
         dump_array(h5f,"/eels/mfp",s_->mfp(),var_list,"ion mean free [nm]");
         dump_array(h5f,"/eels/ipmax",s_->ipmax(),var_list,"max impact parameter [nm]");
+        dump_array(h5f,"/eels/fpmax",s_->fpmax(),var_list,"max free path [nm]");
+        dump_array(h5f,"/eels/Tcutoff",s_->Tcutoff(),var_list,"recoil energy cut0ff [eV]");
     }
 
     if (opt.Output.store_pka || opt.Output.store_transmitted_ions)

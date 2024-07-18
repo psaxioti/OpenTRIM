@@ -5,19 +5,20 @@
 #include "ion.h"
 #include "target.h"
 
-enum class Event {
-    NewSourceIon = 0,
-    NewRecoil,
-    Scattering,
-    IonExit,
-    IonStop,
-    Ioniz,
-    Phonon,
-    Replacement,
-    Vacancy,
-    NRT_LSS_damage,
-    NRT_damage,
-    NewFlightPath
+enum class Event : uint32_t {
+    NewSourceIon = 1 << 0,
+    NewRecoil    = 1 << 1,
+    Scattering   = 1 << 2,
+    IonExit      = 1 << 3,
+    IonStop      = 1 << 4,
+    BoundaryCrossing = 1 << 5,
+    Ioniz        = 1 << 6,
+    Phonon       = 1 << 7,
+    Replacement  = 1 << 8,
+    Vacancy      = 1 << 9,
+    CascadeComplete = 1 << 10,
+    NewFlightPath  = 1 << 11,
+    NEvent         = 1 << 12
 };
 
 class tally {
@@ -72,6 +73,8 @@ protected:
         isFlightPath = 14,
         isCollision = 15
     };
+
+    uint32_t EventMask_ { static_cast<uint32_t>(Event::NEvent) - 1 };
 
 public:
 
@@ -131,57 +134,70 @@ public:
 
     inline void operator()(Event ev, const ion& i, const float* p = 0)
     {
+        int iid = i.myAtom()->id(), cid=i.cellid(), pid=i.prev_cellid();
         switch (ev) {
         case Event::NewSourceIon:
             A[cT](H)++;
             break;
         case Event::NewRecoil:
             A[cT](D)++;
-            if (i.recoil_id()==1) { // PKA
-                A[cT](P) += 1;
-                A[cP](i.myAtom()->id(),i.cellid())++;
-                A[ePKA](i.myAtom()->id(),i.cellid()) += i.erg();
-            }
-            break;
+            break;        
         case Event::Replacement:
             A[cT](R)++;
-            A[cR](i.myAtom()->id(),i.cellid())++;
-            A[ePhonon](i.myAtom()->id(),i.cellid()) += i.erg();
+            A[cR](iid,cid)++;
+            A[isCollision](iid,cid) += i.ncoll();
+            A[isFlightPath](iid,cid) += i.path();
+            A[eIoniz](iid,cid) += i.ioniz();
+            A[ePhonon](iid,cid) += i.erg() + i.phonon() + p[0];
             break;
         case Event::Vacancy:
             A[cT](V)++;
-            A[cV](i.myAtom()->id(),i.cellid())++;
+            A[cV](iid,cid)++;
+            break;
+        case Event::BoundaryCrossing:
+            A[isCollision](iid,pid) += i.ncoll();
+            A[isFlightPath](iid,pid) += i.path();
+            A[ePhonon](iid,pid) += i.phonon();
+            A[eIoniz](iid,pid) += i.ioniz();
             break;
         case Event::IonStop:
             A[cT](I)++;
-            A[cI](i.myAtom()->id(),i.cellid())++;
-            A[ePhonon](i.myAtom()->id(),i.cellid()) += i.erg();
+            A[cI](iid,cid)++;
+            A[isCollision](iid,cid) += i.ncoll();
+            A[isFlightPath](iid,cid) += i.path();
+            A[eIoniz](iid,cid) += i.ioniz();
+            A[ePhonon](iid,cid) += i.erg() + i.phonon();
             break;
         case Event::IonExit:
             A[cT](L)++;
-            A[cL](i.myAtom()->id(),i.cellid())++;
-            A[eLost](i.myAtom()->id(),i.cellid()) += i.erg();
+            A[cL](iid,pid)++;
+            A[isCollision](iid,pid) += i.ncoll();
+            A[isFlightPath](iid,pid) += i.path();
+            A[eIoniz](iid,pid) += i.ioniz();
+            A[ePhonon](iid,pid) += i.phonon();
+            A[eLost](iid,pid) += i.erg();
             break;
-        case Event::Ioniz:
-            A[eIoniz](i.myAtom()->id(),i.cellid()) += p[0];
+//        case Event::Ioniz:
+//            A[eIoniz](i.myAtom()->id(),i.cellid()) += p[0];
+//            break;
+//        case Event::Phonon:
+//            A[ePhonon](i.myAtom()->id(),i.cellid()) += p[0];
+//            break;
+        case Event::CascadeComplete:
+            A[cT](P) += 1;
+            A[cP](iid,cid)++;
+            A[ePKA](iid,cid) += p[0];
+            A[dpTdam_LSS](iid,cid) += p[1];
+            A[dpVnrt_LSS](iid,cid) += p[2];
+            A[dpTdam](iid,cid) += p[3];
+            A[dpVnrt](iid,cid) += p[4];
             break;
-        case Event::Phonon:
-            A[ePhonon](i.myAtom()->id(),i.cellid()) += p[0];
-            break;
-        case Event::NRT_LSS_damage:
-            A[dpTdam_LSS](i.myAtom()->id(),i.cellid()) += p[0];
-            A[dpVnrt_LSS](i.myAtom()->id(),i.cellid()) += p[1];
-            break;
-        case Event::NRT_damage:
-            A[dpTdam](i.myAtom()->id(),i.cellid()) += p[0];
-            A[dpVnrt](i.myAtom()->id(),i.cellid()) += p[1];
-            break;
-        case Event::NewFlightPath:
-            A[isFlightPath](i.myAtom()->id(),i.cellid()) += p[0];
-            break;
-        case Event::Scattering:
-            A[isCollision](i.myAtom()->id(),i.cellid())++;
-            break;
+//        case Event::NewFlightPath:
+//            A[isFlightPath](i.myAtom()->id(),i.cellid()) += p[0];
+//            break;
+//        case Event::Scattering:
+//            A[isCollision](i.myAtom()->id(),i.cellid())++;
+//            break;
         default:
             break;
         }

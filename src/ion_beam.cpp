@@ -26,7 +26,7 @@ ion_beam::ion_beam(const ion_beam& i) :
 
 void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
 {
-    i.grid_ = &t.grid();
+    i.setGrid(&t.grid());
 
     // beam in +x direction
     i.dir() = par_.dir;
@@ -65,7 +65,7 @@ void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
         break;
     }
     i.setPos(p);
-    i.erg() = par_.ionE0;
-    i.myAtom() = atom_;
+    i.setErg(par_.ionE0);
+    i.setAtom(atom_);
 
 }

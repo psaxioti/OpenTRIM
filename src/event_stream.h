@@ -145,7 +145,7 @@ class exit_event : public event
 public:
 
     exit_event();
-    void set(const ion* i, int cellid);
+    void set(const ion* i);
 };
 
 #endif // EVENT_STREAM_H
