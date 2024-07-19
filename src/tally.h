@@ -132,37 +132,46 @@ public:
             A[i] = t.A[i].copy();
     }
 
-    inline void operator()(Event ev, const ion& i, const float* p = 0)
+    inline void operator()(Event ev, const ion& i, const void* pv = 0)
     {
         int iid = i.myAtom()->id(), cid=i.cellid(), pid=i.prev_cellid();
+        const float* p;
+        const atom* a;
         switch (ev) {
-        case Event::NewSourceIon:
-            A[cT](H)++;
-            break;
-        case Event::NewRecoil:
-            A[cT](D)++;
-            break;        
-        case Event::Replacement:
-            A[cT](R)++;
-            A[cR](iid,cid)++;
-            A[isCollision](iid,cid) += i.ncoll();
-            A[isFlightPath](iid,cid) += i.path();
-            A[eIoniz](iid,cid) += i.ioniz();
-            A[ePhonon](iid,cid) += i.erg() + i.phonon() + p[0];
-            break;
-        case Event::Vacancy:
-            A[cT](V)++;
-            A[cV](iid,cid)++;
-            break;
         case Event::BoundaryCrossing:
             A[isCollision](iid,pid) += i.ncoll();
             A[isFlightPath](iid,pid) += i.path();
             A[ePhonon](iid,pid) += i.phonon();
             A[eIoniz](iid,pid) += i.ioniz();
             break;
+        case Event::Replacement:
+            // add a replacement
+            A[cT](R)++;
+            A[cR](iid,cid)++; // this atom, current cell
+            // Remove a Vac
+            A[cT](V)--;
+            // for the replaced atom (id passed in pointer pv), in current cell
+            a = reinterpret_cast<const atom*>(pv);
+            A[cV](a->id(),cid)--;
+            // if this was a recoil, add a V at the starting cell
+            if (i.recoil_id()) {
+                A[cT](D)++;
+                A[cT](V)++;
+                A[cV](iid,i.cellid0())++;
+            } else A[cT](H)++;
+            A[isCollision](iid,cid) += i.ncoll();
+            A[isFlightPath](iid,cid) += i.path();
+            A[eIoniz](iid,cid) += i.ioniz();
+            A[ePhonon](iid,cid) += i.erg() + i.phonon();
+            break;
         case Event::IonStop:
             A[cT](I)++;
             A[cI](iid,cid)++;
+            if (i.recoil_id()) {
+                A[cT](D)++;
+                A[cT](V)++;
+                A[cV](iid,i.cellid0())++;
+            }  else A[cT](H)++;
             A[isCollision](iid,cid) += i.ncoll();
             A[isFlightPath](iid,cid) += i.path();
             A[eIoniz](iid,cid) += i.ioniz();
@@ -171,33 +180,27 @@ public:
         case Event::IonExit:
             A[cT](L)++;
             A[cL](iid,pid)++;
+            if (i.recoil_id()) {
+                A[cT](D)++;
+                A[cT](V)++;
+                A[cV](iid,i.cellid0())++;
+            } else A[cT](H)++;
             A[isCollision](iid,pid) += i.ncoll();
             A[isFlightPath](iid,pid) += i.path();
             A[eIoniz](iid,pid) += i.ioniz();
             A[ePhonon](iid,pid) += i.phonon();
             A[eLost](iid,pid) += i.erg();
             break;
-//        case Event::Ioniz:
-//            A[eIoniz](i.myAtom()->id(),i.cellid()) += p[0];
-//            break;
-//        case Event::Phonon:
-//            A[ePhonon](i.myAtom()->id(),i.cellid()) += p[0];
-//            break;
         case Event::CascadeComplete:
             A[cT](P) += 1;
             A[cP](iid,cid)++;
+            p = reinterpret_cast<const float*>(pv);
             A[ePKA](iid,cid) += p[0];
             A[dpTdam_LSS](iid,cid) += p[1];
             A[dpVnrt_LSS](iid,cid) += p[2];
             A[dpTdam](iid,cid) += p[3];
             A[dpVnrt](iid,cid) += p[4];
             break;
-//        case Event::NewFlightPath:
-//            A[isFlightPath](i.myAtom()->id(),i.cellid()) += p[0];
-//            break;
-//        case Event::Scattering:
-//            A[isCollision](i.myAtom()->id(),i.cellid())++;
-//            break;
         default:
             break;
         }

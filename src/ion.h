@@ -52,18 +52,25 @@ enum class BoundaryCrossing {
 class ion
 {
     vector3 pos_; // position = x,y,z in nm
+    vector3 pos0_; // initial position (start of track)
     vector3 dir_; // direction cosines
     float erg_; // energy in eV
     ivector3 icell_;
-    int cellid_, prev_cellid_;
-    int ion_id_;
-    int recoil_id_;
+    int cellid_, // current cell id
+        prev_cellid_, // previous cell id
+        cellid0_; // initial cell id (start of track)
+    int ion_id_; // history id
+    int recoil_id_; // recoil id (generation), 0=ion, 1=PKA, ...
     const atom* atom_;
     const grid3D* grid_;
 
     // counters
-    uint vac_,impl_,repl_,ncoll_;
-    float path_,ioniz_,phonon_,recoil_;
+    // they are reset when ion changes cell, stops or exits
+    uint ncoll_; // # of collisions
+    float path_, // total path length
+        ioniz_, // total E loss to ionization
+        phonon_, // total E loss to phonons
+        recoil_; // total E loss to recoils
 
 public:
 
@@ -75,7 +82,7 @@ public:
         icell_(), cellid_(-1), prev_cellid_(-1),
         ion_id_(0), recoil_id_(0),
         atom_(nullptr), grid_(nullptr),
-        vac_(0),impl_(0),repl_(0),ncoll_(0),
+        ncoll_(0),
         path_(0),ioniz_(0),phonon_(0), recoil_(0)
     {}
 
@@ -93,6 +100,9 @@ public:
 
     /// Returns the id of the cell the ion is currently in
     int cellid() const { return cellid_; }
+
+    /// Returns the id of the cell the ion started in
+    int cellid0() const { return cellid_; }
 
     /// Returns the id of the cell the ion was previously in
     int prev_cellid() const { return prev_cellid_; }
@@ -135,45 +145,46 @@ public:
     uint ncoll() const { return ncoll_; }
 
     void add_coll() { ncoll_++; }
-    void add_vac() { vac_++; }
-    void add_repl() { repl_++; }
-    void add_impl() { impl_++; }
 
     /// Return reference to the vector of direction cosines
     vector3& dir() { return dir_; }   
 
-    // int& ion_id() { return ion_id_; }
-    // int& recoil_id() { return recoil_id_; }
-    // int& cellid() { return cellid_; }
-    // const atom*& myAtom() { return atom_; }
+    /// Set initial direction
     void setDir(const vector3 d) {
         dir_ = d;
         dir_.normalize();
         assert(dir_.allFinite());
-        //float dn = std::abs(dir_.norm()-1.f);
-        //assert(dn==0.f);
     }
+    /// Set initial position
     int setPos(const vector3& x);
+    /// Set the atomic species of the ion
     void setAtom(const atom* a) {
         atom_ = a;
     }
+    /// Set the initial energy of the ion
     void setErg(float e) {
         erg_ = e;
         assert(finite(erg_));
         assert(erg_>0);
     }
+    /// increase recoil id
     void incRecoilId() {
         recoil_id_++;
     }
+    /// set history id
     void setId(int id) {
         ion_id_ = id;
     }
+    /// reset recoil id to 0
     void resetRecoilId() {
         recoil_id_ = 0;
     }
+    /// set a grid3D for the ion
     void setGrid(const grid3D* g) {
         grid_ = g;
     }
+
+    void init_recoil(const atom* a, float T);
 
     /**
      * @brief Deflect the ion after scattering.
@@ -185,6 +196,7 @@ public:
      */
     void deflect(const vector3& n) { deflect_vector(dir_,n); }
 
+    /// reset all accumulators (path, energy etc)
     void reset_counters();
 
 

@@ -3,18 +3,36 @@
 
 int ion::setPos(const vector3 &x)
 {
-    pos_ = x;
+    pos_ = pos0_ = x;
     assert(x.allFinite());
     assert(grid_->contains(x));
     icell_ = grid_->pos2cell(x);
     assert(!grid3D::isNull(icell_));
-    cellid_ = grid_->cellid(icell_);
+    cellid_ = cellid0_ = grid_->cellid(icell_);
+    prev_cellid_ = -1;
     return 0;
 }
 
+// assuming the object was cloned from
+// the projectile
+void ion::init_recoil(const atom* a, float T)
+{
+    // mark current pos and cell
+    // as initial for this track
+    pos0_ = pos_;
+    cellid0_ = cellid_;
+    prev_cellid_ = -1;
+    // set the energy & atom
+    erg_ = T;
+    atom_ = a;
+    // increase recoil generation
+    recoil_id_++;
+}
+
+
 void ion::reset_counters()
 {
-    vac_=impl_=repl_=ncoll_=0;
+    ncoll_=0;
     path_=ioniz_=phonon_=recoil_=0.f;
 }
 

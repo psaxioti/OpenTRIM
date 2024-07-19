@@ -352,7 +352,7 @@ protected:
      * @return a pointer to the newly created moving ion
      */
     ion *new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
-                    const vector3& dir0, const float& sqrt_mass_ratio, tally &t, pka_event* pka);
+                    const vector3& dir0, const float& sqrt_mass_ratio);
 
     /**
      * @brief Calculate electronic energy loss and straggling for the moving ion

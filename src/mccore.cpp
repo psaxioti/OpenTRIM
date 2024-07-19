@@ -363,10 +363,11 @@ int mccore::init() {
 }
 
 ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &sqrt_mass_ratio, tally& t, pka_event *pka)
+                            const vector3& dir0, const float &sqrt_mass_ratio)
 {
     // clone the projectile ion
     ion* j = q_.new_ion(*proj);
+    j->init_recoil(target, recoil_erg);
     j->reset_counters();
 
     // calc recoil direction from momentum conserv.
@@ -375,20 +376,6 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
     f2 = std::sqrt(f1);
     f1 = std::sqrt(f1+1);
     j->setDir((f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio);
-
-    // adjust recoil atom type, energy, increase recoil generation id
-    j->setAtom(target);
-    j->setErg(recoil_erg);
-    j->incRecoilId();
-
-    // tally the recoil
-    t(Event::NewRecoil,*j);
-
-    // subtract lattice binding energy
-    j->de_phonon(target->El());
-
-    // add lattice energy recoil to pka Tdam
-    if (pka) pka->Tdam() += target->El();
 
     // store recoil in respective queue
     if (j->recoil_id()==1) q_.push_pka(j);
@@ -567,51 +554,18 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
             continue; // go to next iter
         }
 
-        doCollision = true;
-        switch (par_.flight_path_type) {
-        case AtomicSpacing:
-        case Constant:
-            ip = ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
-            break;
-        case MendenhallWeller:
-            ie = dedx_index(i->erg());
-            ip = ipmax_tbl[ie];
-            fp = mfp_tbl[ie];
-            if (ip < mat->meanImpactPar())
-            {
-                sqrtfp = std::sqrt(fp/mat->atomicRadius());
-                ip *= std::sqrt(-std::log(rng.u01s_open()));
-                doCollision = (ip <= ipmax_tbl[ie]);
-            } else { // atomic spacing
-                fp = mat->atomicRadius();
-                sqrtfp = 1.f;
-                ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
-            }
-            break;
-        case IPP:
-            ie = dedx_index(i->erg());
-            fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
-            assert(fp>0);
-            assert(finite(fp));
-            doCollision = fp <= fpmax_tbl[ie];
-            if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
-            else fp = fpmax_tbl[ie];
-            sqrtfp = std::sqrt(fp/mat->atomicRadius());
-            break;
-        default:
-            assert(false); // never get here
-        }
+        // select flight path & impact param.
+        doCollision = flightPath(i,mat,fp,ip,sqrtfp,fp_par_tbl);
 
-        // propagate ion, checking also for boundary crossing
+        // propagate ion, checking also boundary crossing
         BoundaryCrossing crossing = i->propagate(fp);
 
-        // deduct ionization & straggling
+        // subtract ionization & straggling
         float de = calcDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
         i->de_ioniz(de);
 
+        // handle boundary
         switch(crossing) {
-        case BoundaryCrossing::None:
-            break;
         case BoundaryCrossing::Internal:
             // register event
             t(Event::BoundaryCrossing,*i);
@@ -633,6 +587,8 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
             }
             if (pka) pka->Tdam() += i->erg();
             return 0; // ion history ends!
+        default:
+            break;
         }
 
         // if no collision, start again
@@ -672,7 +628,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
             // Create recoil (it is stored in the ion queue)
             i->de_recoil(T);
-            ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio(),t,pka);
+            ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio());
 
             /*
              * Now check whether the projectile might replace the recoil
@@ -682,12 +638,12 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
              * This is different from Iradina, where it is required
              * Z1==Z2 && M1==M2
              */
-            if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {                    
+            if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
+                j->de_phonon(z2->El());
                 // Replacement event, ion energy goes to Phonons
-                float el = z2->El();
-                t(Event::Replacement,*i,&el);
+                t(Event::Replacement,*i,z2);
                 // the energy is also added to the PKA's Tdam
-                if (pka) pka->Tdam() += i->erg();
+                if (pka) pka->Tdam() += i->erg()+z2->El();
                 return 0; // end of ion history
             }
 
@@ -695,8 +651,12 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
              * Otherwise:
              * Z2 vacancy is created and ion continues
              */
-            t(Event::Vacancy,*j);
-            if (pka) pka->addVac(z2->id()-1);
+            //t(Event::Vacancy,*j);
+            j->de_phonon(z2->El());
+            if (pka) {
+                pka->Tdam() += z2->El();
+                pka->addVac(z2->id()-1);
+            }
 
         } else { // T<E_d, recoil cannot be displaced
             // energy goes to phonons
