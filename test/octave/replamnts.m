@@ -4,8 +4,8 @@ function Replac = replamnts(nb, ipp, S, cellsize, replmnts, S1)
   Replac.Repl(2) = sum(replmnts);% iradina
 if (nb == 3 )|| (nb == 4) || (nb == 5),
   Replac.Repl(3) = sum(defects.Replacements(:,1)+defects.Replacements(:,2)+defects.Replacements(:,3)); %iradina++
-elseif
-  Replac.Repl(3) = sum(defects.Replacements(:,1)+defects.Replacements(:,2)) %iradina++
+else
+  Replac.Repl(3) = sum(defects.Replacements(:,1)+defects.Replacements(:,2)); %iradina++
 end
 
 if ~isempty(S1)

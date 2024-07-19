@@ -13,7 +13,8 @@
         "min_energy" : 1.0,
         "min_recoil_energy" : 100,
         "allow_sub_ml_scattering" : false,
-        "max_mfp" : 4.4
+        "max_mfp" : 4.4,
+        "max_rel_eloss" : 1
     },
     "IonBeam" : {
         "ion_distribution" : "SurfaceCentered",

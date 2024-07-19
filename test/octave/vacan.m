@@ -31,7 +31,7 @@ if (nb == 3 ) || (nb == 4) || (nb == 5),
      Vacan.Vaci(4) = sum(S1.Vr(:,2)+S1.Vr(:,1))*cellsize*10; % srim monolayer
   endif
   disp(sprintf("%s\t%-10.4f\t%-10.4f\t%-10.4f\t%-10.4f",str,Vacan.Vaci))
-elseif
+else
   str = 'Vac sum/ion';
   Vacan.Vaci(1) = sum(S.Vr*cellsize*10); %srim
   Vacan.Vaci(2) = sum(vac); % iradina

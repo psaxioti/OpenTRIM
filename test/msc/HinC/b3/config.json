@@ -11,7 +11,8 @@
         "flight_path_type" : "IPP",   // "AtomicSpacing", "MendenhallWeller", IPP
         "min_energy" : 1.0,
         "min_recoil_energy" : 100.0,
-        "max_mfp" : 15
+        "max_mfp" : 15,
+        "max_rel_eloss" : 1
     },
     "IonBeam" : {
         "ion_distribution" : "SurfaceCentered",

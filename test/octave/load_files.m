@@ -23,7 +23,7 @@ Ebind = [3, 3, 3.3, 3.3, 3.3, 3, 3];
 Eb = Ebind(nb);
 
 # Load HDF5 Results from iradina++
-ipp = load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
+ipp = h5load(['../iradina++/b' num2str(nb) '/b' num2str(nb) '.h5']);
 
 #Load data from srim
 S = srim2mat(['../srim/b' num2str(nb) '/']);
@@ -80,7 +80,7 @@ end
 xx = A(:,1)*cellsize;
 
 # Title
-titlestr = ipp.Title;
+titlestr = ipp.title;
 # x axis = cell centers
 x = ipp.grid.cell_xyz(:,1);
 
