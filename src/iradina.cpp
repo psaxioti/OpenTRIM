@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
         ("j","Number of threads (overrides config input)", cxxopts::value<int>())
         ("s,seed","random generator seed (overrides config input)",cxxopts::value<int>())
         ("f","JSON config file",cxxopts::value<std::string>())
+        ("t,template","pring a template JSON config file to stdout")
         ("v,version","Display version information")
         ("h,help","Display short help message");
 
@@ -50,6 +51,11 @@ int main(int argc, char* argv[])
             cout << "iradina++ version " << IRADINAPP_VERSION << endl;
             cout << "Build time: " << BUILD_TIME << endl;
             cout << "Compiler: " << COMPILER_ID << " v" << COMPILER_VERSION << " on " SYSTEM_ID << endl;
+            return 0;
+        }
+        if (result.count("template")) {
+            options opt;
+            opt.printJSON(cout);
             return 0;
         }
         if (result.count("n")) n = result["n"].as<int>();
