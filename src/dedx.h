@@ -4,18 +4,20 @@
 #include "corteo.h"
 
 /**
- * \defgroup dedx Electronic energy loss
+ * \defgroup dedx libiondedx shared library
  *
- * @brief Tables of electronic energy loss from SRIM-2013
+ * @brief Tables of ion electronic energy loss
  *
  * @{
  *
- * The tables have been generated with the program
- * SRmodule.exe
- * distributed with SRIM-2013.
+ * The tables have been compiled with the program
+ * `SRmodule.exe`
+ * distributed with SRIM-2013 (http://www.srim.org).
  *
- * dEdx is given as a function of ion energy on a log-spaced corteo range
+ * \f$dE/dx\f$ is given as a function of ion energy on a log-spaced corteo range
  * defined by the class \ref dedx_index.
+ * 
+ * Tables are provided for all projectile (\f$Z=Z_1\f$) / target (\f$Z=Z_2\f$) compinations with \f$ 1 \leq Z_1, Z_2 \leq 92\f$ 
  *
  * The data are compiled into a dynamic library (libdedx.so or .dll).
  * Access is provided by the function \ref dedx().

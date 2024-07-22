@@ -1,4 +1,5 @@
-# Screened Coulomb potentials
+# Screened Coulomb potentials  {#screened}
+
 The general form of the potential is
 
 $$

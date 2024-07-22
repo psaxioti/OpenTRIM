@@ -166,7 +166,7 @@ int mcdriver::exec(progress_callback cb, uint msInterval, void *callback_user_da
     return 0;
 }
 
-int options::validate()
+int mcdriver::options::validate()
 {
     // Driver
     if (Driver.max_no_ions <= 0)
@@ -338,7 +338,7 @@ int options::validate()
     return 0;
 }
 
-mccore* options::createSimulation() const
+mccore* mcdriver::options::createSimulation() const
 {
     mccore* S = new mccore(Simulation);
     //S->setOutputOptions(Output);

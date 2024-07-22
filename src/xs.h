@@ -13,11 +13,11 @@
 #define ELEMENTARY_CHARGE 1.602176487E-19
 
 /**
- * \defgroup XS Screened Coulomb potentials and cross-sections
+ * \defgroup XS Screened Coulomb scattering calculations
  * @{
  *
  * A set of C++ objects for classical scattering calculations of screened
- * Coulomb interatomic interactions.
+ * Coulomb interatomic potentials.
  *
  * The general form of the potential is
  * \f[
@@ -26,8 +26,12 @@
  * where \f$ \Phi \f$ is the screening function and \f$ a \f$ the screening length.
  *
  * Different types of screening functions are defined
- * by the \ref screening_function templated structure with the \ref screening_function_t
- * enum as template parameter.
+ * by the \ref screening_function templated structure with the enum class \ref Screening
+ * as template parameter. The most used screening potentials are defined: 
+ * - Ziegler-Biersack-Littmark (ZBL) Universal potential, Screening::ZBL
+ * - Lenz-Jensen, Screening::LenzJensen
+ * - Kr-C, Screening::KrC
+ * - Moliere, Screening::Moliere
  *
  * The scattering angle in the center-of-mass system can be obtained by
  * the scattering integral
@@ -45,9 +49,14 @@
  * reduced center-of-mass energy and impact parameter.
  *
  * The integral is evaluated by quadrature in the
- * \ref xs_quad template class, where ref screening_function_t
- * enum is again the template parameter.
+ * \ref xs_quad template class, where the
+ * Screening enum is again the template parameter.
  *
+ * For comparison, the so-called MAGIC approximation of Biersack-Haggmark
+ * for the scattering integrals of
+ * the ZBL potential is also implemented
+ * in the class \ref xs_zbl_magic.
+ * 
  * As quadrature is a costly operation, the scattering integrals are typically tabulated
  * for use in Monte-Carlo codes.
  * Here we adapt the tabulation method of the program Corteo, see \ref CorteoIdx.
@@ -57,10 +66,6 @@
  * as a function of
  * \f$  \epsilon \f$ and \f$ s \f$. The tables are compiled into dynamic libraries
  * and can be linked for use in a simulation program.
- *
- * For comparison, SRIM's MAGIC approximation for the scattering integrals of
- * the ZBL potential is also implemented
- * in the class \ref xs_zbl_magic.
  *
  * For scattering calculations in the lab system, the \ref abstract_xs_lab class defines
  * the interface for all cross-section classes.

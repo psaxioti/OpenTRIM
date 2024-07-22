@@ -1,14 +1,20 @@
 cmake_minimum_required(VERSION 3.12.0)
     
 project(iradina++ 
-        VERSION 0.1.5
+        VERSION 0.1.6
         LANGUAGES C CXX)
+
+# specify the C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 message (STATUS "iradina++ version ${PROJECT_VERSION}")
 
 string(TIMESTAMP CMAKE_BUILD_TIME UTC)
 
 message (STATUS "Build time ${CMAKE_BUILD_TIME}")
+
+add_compile_options("-march=native")
 
 add_compile_definitions(IRADINAPP_VERSION="${PROJECT_VERSION}"
                         SYSTEM_ID="${CMAKE_CXX_PLATFORM_ID}"

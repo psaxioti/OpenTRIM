@@ -6,7 +6,7 @@
 void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
 {
     natoms_ = n;
-    resize(5+3*n);
+    buff_.resize(5+3*n);
     columnNames_.resize(buff_.size());
     columnDescriptions_.resize(buff_.size());
     columnNames_[0] = "hid"; columnDescriptions_[0] = "history id";

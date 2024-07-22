@@ -32,13 +32,14 @@ int main(int argc, char* argv[])
         ("n","Number of histories to run (overrides config input)", cxxopts::value<int>())
         ("j","Number of threads (overrides config input)", cxxopts::value<int>())
         ("s,seed","random generator seed (overrides config input)",cxxopts::value<int>())
+        ("o,output","output file base name (overrides config input)",cxxopts::value<std::string>())
         ("f","JSON config file",cxxopts::value<std::string>())
-        ("t,template","pring a template JSON config file to stdout")
+        ("t,template","pring a template JSON config to stdout")
         ("v,version","Display version information")
         ("h,help","Display short help message");
 
     int n(-1), j(-1), s(-1);
-    std::string input_file;
+    std::string input_file, output_file;
 
     try {
         auto result = cli_options.parse(argc,argv);
@@ -54,7 +55,7 @@ int main(int argc, char* argv[])
             return 0;
         }
         if (result.count("template")) {
-            options opt;
+            mcdriver::options opt;
             opt.printJSON(cout);
             return 0;
         }
@@ -62,6 +63,7 @@ int main(int argc, char* argv[])
         if (result.count("j")) j = result["j"].as<int>();
         if (result.count("s")) s = result["s"].as<int>();
         if (result.count("f")) input_file = result["f"].as<std::string>();
+        if (result.count("o")) output_file = result["o"].as<std::string>();
     }
     catch(const cxxopts::exceptions::exception& e)
     {
@@ -70,7 +72,7 @@ int main(int argc, char* argv[])
     }
 
     // Parse JSON config
-    options opt;
+    mcdriver::options opt;
     if (input_file.empty()) {
         cout << "Input JSON config:" << endl;
         if (opt.parseJSON(cin)!=0) return -1;
@@ -83,6 +85,7 @@ int main(int argc, char* argv[])
     // cli overrides
     if (n>0) opt.Driver.max_no_ions = n;
     if (j>0) opt.Driver.threads = j;
+    if (!output_file.empty()) opt.Output.OutputFileBaseName = output_file;
     /// @todo Fix the seed cli option for iradina++
     /// if (s>0) opt.Driver.seeds = s;
 

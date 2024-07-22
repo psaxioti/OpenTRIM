@@ -45,15 +45,15 @@ struct adl_serializer< Eigen::AlignedVector3<T> > {
     inline void from_json(const ojson& nlohmann_json_j, Type& nlohmann_json_t) { const Type nlohmann_json_default_obj{}; NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM_WITH_DEFAULT, __VA_ARGS__)) }
 
 // serialization of options struct
-void to_json(ojson& j, const options& p);
-void from_json(const ojson& j, options& p);
+void to_json(ojson& j, const mcdriver::options& p);
+void from_json(const ojson& j, mcdriver::options& p);
 
-int options::parseJSON(std::istream& js)
+int mcdriver::options::parseJSON(std::istream& js, bool doValidation)
 {
     try {
         ojson j = ojson::parse(js,nullptr,true,true);
-        *this = j.template get<options>();
-        validate();
+        *this = j.template get<mcdriver::options>();
+        if (doValidation) validate();
     }
     catch (const ojson::exception& e) {
         cerr << "Error reading json input:" << endl;
@@ -195,7 +195,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::target_desc_t,
                                                 cell_size)
 
 
-void to_json(ojson& j, const options& p)
+void to_json(ojson& j, const mcdriver::options& p)
 {
     j["Simulation"] = p.Simulation;
     j["IonBeam"] = p.IonBeam;
@@ -203,9 +203,9 @@ void to_json(ojson& j, const options& p)
     j["Output"] = p.Output;
     j["Driver"] = p.Driver;
 }
-void from_json(const ojson& j, options& p)
+void from_json(const ojson& j, mcdriver::options& p)
 {
-    p = options();
+    p = mcdriver::options();
 
     if (j.contains("Simulation"))
         p.Simulation = j["Simulation"];
@@ -221,7 +221,7 @@ void from_json(const ojson& j, options& p)
     p.Target = j["Target"];
 }
 
-void options::printJSON(std::ostream& os) const
+void mcdriver::options::printJSON(std::ostream& os) const
 {
     ojson j(*this);
     os << j.dump(4) << endl;
