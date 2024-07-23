@@ -303,23 +303,23 @@ public:
     /// Double precision uniform random values in [0, 1)
 
     /**
-     * @brief Return a random 32bit float in [0, 1)
+     * @brief Return a random 64bit float in [0, 1)
      *
-     * The function uses the upper 24 bits of the output
-     * from xoshiro128+ divided by 2^24.
+     * The function uses the upper 53 bits of the output
+     * from xoshiro128+ divided by 2^53.
      *
-     * This creates a 32bit float uniformly distributed in [0, 1)
+     * This creates a 64bit float uniformly distributed in [0, 1)
      *
      * The value of 1 is never returned. The maximum value that can be returned
-     * is 1.f - std::limits<float>::epsilon()/2
+     * is 1.f - std::limits<double>::epsilon()/2
      *
      */
     double u01d_ropen() {
         return toDouble((*this)());
     }
-    /// Same as u01ropen()
+    /// Same as u01d_ropen()
     float u01d() { return u01d_ropen(); }
-    /// Return random value in (0, 1]
+    /// Return double precision random value in (0, 1]
     float u01d_lopen() {
         return 1.0 - u01d_ropen();
     }
@@ -349,7 +349,7 @@ public:
      * @param nx sin(phi)
      * @param ny cos(phi)
      */
-    void azimuth(float& nx, float& ny)
+    void random_azimuth_dir(float& nx, float& ny)
     {
         float s1,s2,r2;
         do

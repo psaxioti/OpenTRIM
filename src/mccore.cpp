@@ -611,7 +611,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
         // get random azimuthal dir
         float nx, ny; // nx = cos(phi), ny = sin(phi), phi: az. angle
-        rng.azimuth(nx,ny);
+        rng.random_azimuth_dir(nx,ny);
 
         // register scattering event (before changing ion data)
         // t(Event::Scattering,*i);
