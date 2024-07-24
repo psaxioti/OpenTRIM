@@ -4,6 +4,10 @@
 #include <cassert>
 #include <limits>
 #include <cfloat>
+#include <array>
+#include <cmath>
+
+namespace corteo {
 
 /**
  * \defgroup CorteoIdx Corteo indexing
@@ -94,19 +98,19 @@ struct num_detail<long double>
 
 
 /**
- * @brief The corteo_index structure template implements corteo indexing in C++
+ * @brief The corteo::index structure template implements \ref CorteoIdx in C++
  *
- * The corteo_index object can be used like a C++ iterator to loop over
+ * The corteo::index object can be used like a C++ iterator to loop over
  * a log-spaced range.
  *
- * At the same time, it provides access to the floating point value by means
+ * At the same time, it provides access to the corresponding floating point value by means
  * of the dereference operator.
  *
  * For example, a typical for-loop over the corteo range can be implemented
  * as follows:
  *
  * \code
- * corteo_index<float, int, 4, 0, 1> i; // i initialized to 0
+ * corteo::index<float, int, 4, 0, 1> i; // i initialized to 0
  * for(; i<i.end(); i++) {
  *     float f = *i; // dereference operator returns the floating point number
  *     std::cout << f << std::endl;
@@ -114,7 +118,7 @@ struct num_detail<long double>
  * }
  * \endcode
  *
- * This iterates over the defined corteo range and prints
+ * The above code iterates over the defined corteo range and prints
  * all 2^4+1=17 float values from 2^0 = 1 to 2^1 = 2.
  *
  * The following can also be used:
@@ -130,7 +134,9 @@ struct num_detail<long double>
  * is checked at compile-time for compatibility
  * of the underlying implementation with the IEEE-754 std.
  *
- * The real and integral types must be of the same size. Thus, the
+ * The template parameters RealType and IntType must
+ * specify real and integral numeric types, respectively,
+ * of the same size. The
  * combinations float-int and double-long will generally work.
  *
  * @todo
@@ -151,7 +157,7 @@ template<class _RealType,
          _IntType _Nb,
          _IntType _minExp,
          _IntType _maxExp>
-struct corteo_index
+struct index
 {
     typedef _RealType RealType;
     typedef _IntType IntType;
@@ -224,7 +230,7 @@ public:
      * @brief Constructor with index initializer.
      * @param i The initial value of the index, defaults to 0
      */
-    corteo_index(IntType i = IntType(0)) : i_(i) {}
+    index(IntType i = IntType(0)) : i_(i) {}
 
     /**
      * @brief Constructs an index that corresponds to float v
@@ -233,7 +239,7 @@ public:
      *
      * @param v The floating point number
      */
-    explicit corteo_index(const RealType& v) : i_(val2idx(v)) {}
+    explicit index(const RealType& v) : i_(val2idx(v)) {}
 
     /**
      * @brief Helper function to convert a real number to index
@@ -250,37 +256,37 @@ public:
      * @param v is the floating-point number
      * @return the corresponding index
      */
-    static corteo_index fromValue(RealType v) { return corteo_index(val2idx(v)); }
+    static index fromValue(RealType v) { return index(val2idx(v)); }
 
     /**
      * @brief Advance the index by one
      * @return A reference to the index
      */
-    corteo_index& operator++() { i_++; return *this; }
-    corteo_index operator++(int) { corteo_index retval = *this; ++(*this); return retval; }
+    index& operator++() { i_++; return *this; }
+    index operator++(int) { index retval = *this; ++(*this); return retval; }
 
     /**
      * @brief Returns an index to the start of the range, i.e. 0
      * @return A corteo_index pointing to 0
      */
-    constexpr corteo_index begin() const { return corteo_index(IntType(0));   }
+    constexpr index begin() const { return index(IntType(0));   }
 
     /**
      * @brief Returns an index to one past the last point of the range, i.e. corteo_index::size
      * @return A corteo_index pointing to one past the end of the range
      */
-    constexpr corteo_index end()   const { return corteo_index(IntType(size)); }
+    constexpr index end()   const { return index(IntType(size)); }
 
     /**
      * @brief Returns an index to the last point of the range, i.e. corteo_index::size-1
      * @return A corteo_index pointing to the last point
      */
-    constexpr corteo_index rbegin() const { return corteo_index(IntType(dim));   }
+    constexpr index rbegin() const { return index(IntType(dim));   }
 
     /**
      * @brief Returns an index to the position before the first point, i.e. -1
      */
-    constexpr corteo_index rend()   const { return corteo_index(IntType(-1)); }
+    constexpr index rend()   const { return index(IntType(-1)); }
 
     /**
      * @brief The dereference operator * returns the corresponding real value
@@ -302,10 +308,161 @@ public:
     /**
      * @brief Returns the index as an IntType
      */
-    IntType index() const {return i_; }
+    IntType toInt() const {return i_; }
 
 private:
     IntType i_;
 };
+
+/**
+ * @brief A linear interpolator for a corteo range
+ * 
+ * @tparam idx_t the type of corteo::index
+ * 
+ * @ingroup CorteoIdx
+ */
+template<class idx_t>
+class lin_interp {
+
+public:
+    typedef typename idx_t::RealType RealType;
+
+    /// @brief Default constructor, creates empty object
+    lin_interp() = default;
+
+    /**
+     * @brief Construct a new lin_interp object to interpolate between the data given by y
+     * 
+     * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
+     * the data elements must be convertible to float.
+     * 
+     * The size of y must be equal or larger than that of the corteo index \ref idx_t.
+     * 
+     * y is copied to an internal buffer.
+     * 
+     * @tparam Cont a container type
+     * @param y the data to interpolate
+     */
+    template<class Cont>
+    explicit lin_interp(const Cont& y)
+    { set(y); }
+
+    /**
+     * @brief Call this function to set new interpolator data
+     * 
+     * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
+     * the data elements must be convertible to float.
+     * 
+     * The size of y must be equal or larger than that of the corteo index \ref idx_t.
+     * 
+     * y is copied to an internal buffer.
+     * 
+     * @tparam Cont a container type
+     * @param y the data to interpolate
+     */
+    template<class Cont>
+    void set(const Cont& y) {
+        for(idx_t i,j(1); i<i.end()-1; i++,j++) {
+            y_[i] = y[i];
+            dydx_[i] = (y[j] - y[i]) / (*j - *i);
+        }
+        y_[idx_t::size-1] = y[idx_t::size-1];
+    }
+
+    /// @brief Returns the linearly interpolated value y(x)
+    RealType operator()(const RealType& x) const
+    {
+        if (x <= idx_t::minVal) return y_.front();
+        if (x >= idx_t::maxVal) return y_.back();
+        idx_t i(x);
+        return y_[i] + dydx_[i]*(x-*i);
+    }
+
+    /// @brief Returns a pointer to the internal data table
+    const RealType* data() const { return &y_[0]; }
+
+private:
+    std::array<RealType, idx_t::size> y_, dydx_;
+
+};
+
+/**
+ * @brief A log-log interpolator for a corteo range
+ * 
+ * @tparam idx_t is the type of corteo::index
+ * 
+ * @ingroup CorteoIdx
+ */
+template<class idx_t>
+class log_interp {
+
+public:
+    typedef typename idx_t::RealType RealType;
+
+    /// @brief Default constructor, creates empty object
+    log_interp() = default;
+
+    /**
+     * @brief Construct a new log_interp object to perform log-log interpolation with the data given by y
+     * 
+     * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
+     * the data elements must be convertible to float. log(y[i]) must be finite for all i in the range
+     * of \ref idx_t.
+     * 
+     * The size of y must be equal or larger than that of the corteo index \ref idx_t.
+     * 
+     * y is copied to an internal buffer.
+     * 
+     * @tparam Cont a container type
+     * @param y the data to interpolate
+     */
+    template<class Cont>
+    explicit log_interp(const Cont& y)
+    {
+        set(y);
+    }
+
+    /**
+     * @brief Call this function to set new interpolator data
+     * 
+     * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
+     * the data elements must be convertible to float. 
+     * 
+     * log(y[i]) must be finite for all i in the range
+     * 
+     * The size of y must be equal or larger than that of the corteo index \ref idx_t.
+     * 
+     * y is copied to an internal buffer.
+     * 
+     * @tparam Cont a container type
+     * @param y the data to interpolate
+     */
+    template<class Cont>
+    void set(const Cont& y) {
+        for(idx_t i,j(1); i<i.end()-1; i++,j++) {
+            d_[i] = (std::log2(y[j]) - std::log2(y[i])) /
+                    (std::log2(*j) - std::log2(*i));
+            y_[i] = y[i];
+        }
+        y_[idx_t::size-1] = y[idx_t::size-1];
+    }
+
+    /// @brief Returns the log-log interpolated value y(x)
+    RealType operator()(const RealType& x) const
+    {
+        if (x <= idx_t::minVal) return y_.front();
+        if (x >= idx_t::maxVal) return y_.back();
+        idx_t i(x);
+        return y_[i]*std::exp2(d_[i]*std::log2(x/(*i)));
+    }
+
+    /// @brief Returns a pointer to the internal data table
+    const RealType* data() const { return &y_[0]; }
+
+private:
+    std::array<RealType, idx_t::size> y_, d_;
+};
+
+} // namespace corteo
 
 #endif
