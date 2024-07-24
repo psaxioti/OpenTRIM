@@ -56,7 +56,12 @@ file(GLOB gendedx_files CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/dedx/*.cpp)
 
 add_library(iondedx SHARED
-    src/dedx.h src/dedx.cpp 
+    src/corteo.h
+    src/dedx.h
+    src/dedx.cpp
+    src/elements.h
+    src/elements.cpp
+    src/straggling.cpp
     ${gendedx_files})
 
 add_executable(gencorteo
@@ -80,7 +85,6 @@ add_library(xs_moliere SHARED ${CMAKE_CURRENT_BINARY_DIR}/xs_moliere_data.cpp)
 set (IRADINAPP_HEADERS
     src/dedx.h
     src/corteo.h   
-    src/corteo_interp.h
     src/corteo_xs.h
     src/xs.h
     src/elements.h
@@ -103,7 +107,6 @@ add_library(iradinapp SHARED
     src/target.cpp
     src/mccore.cpp   
     src/ion_beam.cpp
-    src/straggling.cpp    
     src/event_stream.cpp
     src/h5serialize.cpp
     src/tally.cpp

@@ -1,8 +1,8 @@
 #include "dedx.h"
-#include "mccore.h"
-#include "xs.h"
 
 #include <cmath>
+
+#define E2 1.43996445      /* e^2 / 4 pi eps0 = e^2 c^2 in [eV][nm] */
 
 /*
  * Bohr straggling correction parameter according to
@@ -114,15 +114,20 @@ static const float chu_coef[][4] = {{+0.0000f, +0.0000f, +0.0000f, +0.0000f},
  * @brief Calculate ion straggling
  *
  * Calculates the ion straggling energy parameters for an ion Z1
- * traveling in a target with atomic numebr Z2 and sheet density Ns.
+ * traveling in a target with atomic number Z2 and sheet density Ns.
  *
- * The parameters are caclurated for ion energies spanning the 4bit corteo energy_index
+ * Straggling is calculated for ion energies spanning the corteo dedx_index.
+ * 
+ * The calculated straggling parameter \f$\Delta E_s\f$ is essentially the std of energy loss 
+ * fluctuation per square root of \f$x/R_{at}\f$, where \f$x\f$ is the travelled
+ * ion path and \f$R_{at}\f$ the atomic radius. \f$\Delta E_s\f$ is given in eV
+ * if \f$N_s = N\cdot R_{at}\f$ is given in at/nm^2
  *
- * In MC simulation the actual straggling is DEs * R, where DEs is the parameter in eV and
- * R is a random number distributed as N(0,1)
+ * In a MC simulation, the actual straggling value is \f$\Delta E_s\cdot u\f$, 
+ * where \f$u\f$ is sampled from the normal distribution \f$N(0,1)\f$.
  *
- * @param dedx ion stopping
- * @param dedx1 proton stopping
+ * @param dedx_ion ion stopping interpolator
+ * @param dedx_H proton stopping interpolator
  * @param Z1 is the projectile atomic number
  * @param M1 is the projectile atomic mass
  * @param Z2 target atomic number
@@ -130,91 +135,94 @@ static const float chu_coef[][4] = {{+0.0000f, +0.0000f, +0.0000f, +0.0000f},
  * @param model straggling model
  * @param strag pointer to table to receive straggling values [eV]
  */
-void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
+void calcStraggling(const dedx_interp& dedx_ion,
+                    const dedx_interp& dedx_H,
+                    int Z1, const float& M1,
                     int Z2, const float& Ns,
-                    mccore::straggling_model_t model, float* strag)
+                    StragglingModel model, float* strag)
+
 {
     /*
      * Start by calculating squared Bohr straggling
      * (all other models need this anyway)
-     *
-     * The units depend on Density
-     *
-     *
      */
     double OmegaBohr2 = 4 * M_PI * Z1 * Z1 * Z2 *  E2 * E2 * Ns;  /* eV^2 */;
 
     for(dedx_index ie; ie!=ie.end(); ie++)
     {
-        double stopping = dedx[ie];
         double energy = *ie;
+        double stopping_ion = dedx_ion(*ie);
+        double stopping_H = dedx_H(*ie/M1);
 
-        dedx_index je = dedx_index::fromValue(energy/M1);
         /*
          * the effective charge state is obtained from comparing
-                     * stopping of the ion and the hydrogen:
-                     * chargestate^2 = stopping(H)/stopping(ion) Z_ion^2
-                     * for stopping at same speed
-                     */
-        double chargestate2 = stopping/dedx1[je]/Z1/Z1;
+         * stopping of the ion and the hydrogen:
+         * chargestate^2 = stopping(H)/stopping(ion) Z_ion^2
+         * for stopping at same speed
+         */
+        double chargestate2 = stopping_ion/stopping_H/Z1/Z1;
         // double chargestate2 = dedx1[je]/stopping/Z1/Z1;
 
 
         /*
-                     * Calculate the Chu correction factor.
-                     * The formula needs energy[MeV]/mass
-                     *
-                     * Chu values undefined for target_Z==1, because the Chu table
-                     * has no data on hydrogen --> use Bohr.
-                     */
-        double MEV_energy_amu = energy*1e-6/M1;
-        double Chu_factor=1.0;
-        if (Z2 > 1) {
-            const float* cc = chu_coef[Z2];
-            Chu_factor=1.0 / ( 1.0
-                                + cc[0] * std::pow(MEV_energy_amu, cc[1])
-                                + cc[2] * std::pow(MEV_energy_amu, cc[3])
-                                );
+         * Calculate the Chu correction factor.
+         * The formula needs energy[MeV]/mass
+         *
+         * Chu values undefined for target_Z==1, because the Chu table
+         * has no data on hydrogen --> use Bohr.
+         */
+        double MEV_energy_amu = energy * 1e-6 / M1;
+        double Chu_factor = 1.0;
+        if (Z2 > 1)
+        {
+            const float *cc = chu_coef[Z2];
+            Chu_factor = cc[0]*std::pow(MEV_energy_amu,cc[1]) + 
+                         cc[2]*std::pow(MEV_energy_amu,cc[3]);
+            Chu_factor = 1.0 / (1.0 + Chu_factor);
         }
 
         /*
-                     * To calculate Yang's extra straggling contribution
-                     * caused by charge state fluctuations, we need his
-                     * Gamma and his epsilon (eq.6-8 from the paper):
-                     *
-                     * For hydrogen we need the B and for other projectile
-                     * the C constants:
-                     */
+         * To calculate Yang's extra straggling contribution
+         * caused by charge state fluctuations, we need his
+         * Gamma and his epsilon (eq.6-8 from the paper):
+         *
+         * For hydrogen we need the B and for other projectile
+         * the C constants:
+         */
         double Yang;
-        if (Z1==1) {
+        if (Z1 == 1)
+        {
             static const double B[] = {0., 0.1955, 0.6941, 2.522, 1.040};
             double Gamma = B[3] * (1.0 - exp(-B[4] * MEV_energy_amu));
-            Yang  = B[1] * Gamma / ( pow((MEV_energy_amu-B[2]),2.0) + Gamma*Gamma  );
-        } else {
+            Yang = B[1] * Gamma / (pow((MEV_energy_amu - B[2]), 2.0) + Gamma * Gamma);
+        }
+        else
+        {
             static const double C[] = {0., 1.273e-2, 3.458e-2, 0.3931, 3.812};
-            double epsilon = MEV_energy_amu *  pow(Z1,-1.5)  * pow(Z2,-0.5);  /* solid targets */
-            double Gamma = C[3] * (1.0- exp(-C[4] * epsilon));
-            Yang  = (  pow(Z1,1.333333333333)/pow(Z2,0.33333333333) ) *  C[1] * Gamma / ( pow((epsilon-C[2]),2.0) + Gamma*Gamma  );
+            double epsilon = MEV_energy_amu * pow(Z1, -1.5) * pow(Z2, -0.5); /* solid targets */
+            double Gamma = C[3] * (1.0 - exp(-C[4] * epsilon));
+            Yang = (pow(Z1, 1.333333333333) / pow(Z2, 0.33333333333)) * 
+                   C[1] * Gamma / (pow((epsilon - C[2]), 2.0) + Gamma * Gamma);
         }
 
         /*
-                     * Now we have all ingredients for any of the straggling models.
-                     * We could have saved some calculations by checking the model first,
-                     * but well... we'll probably use Yang's model in most cases
-                     */
-        switch(model) {
-        case mccore::NoStraggling: /* no straggling */
-            break;
-        case mccore::BohrStraggling: /* Bohr */
+         * Now we have all ingredients for any of the straggling models.
+         * We could have saved some calculations by checking the model first,
+         * but well... we'll probably use Yang's model in most cases
+         */
+        switch (model)
+        {
+        case StragglingModel::Bohr: /* Bohr */
             strag[ie] += OmegaBohr2;
             break;
-        case mccore::ChuStraggling: /* Chu */
-            strag[ie] += OmegaBohr2*Chu_factor;
+        case StragglingModel::Chu: /* Chu */
+            strag[ie] += OmegaBohr2 * Chu_factor;
             break;
-        case mccore::YangStraggling: /* Chu + Yang correction */
-            strag[ie] += OmegaBohr2*(chargestate2*Chu_factor+Yang);
+        case StragglingModel::Yang: /* Chu + Yang correction */
+            strag[ie] += OmegaBohr2 * (chargestate2 * Chu_factor + Yang);
             break;
+        default:
+            assert(0); // never get here
         }
-
     }
 }
