@@ -20,7 +20,9 @@ void progress_callback(const mcdriver& d, void* )
 //    uint ct = d.ion_count();
 //    cout << c[0];
 //    for(int i=1; i<c.size(); i++) cout << '\t' << c[i];
-//    cout << '\t' << ct << endl;
+//    cout << '\t' << ct
+//         << '\t'  << d.getSim()->ion_que_size() << endl;
+
     bar.update(d.ion_count());
 }
 

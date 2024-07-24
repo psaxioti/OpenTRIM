@@ -178,7 +178,7 @@ public:
     void setOutputOptions(const output_options& opts)
     { out_opts_ = opts; }
 
-    const mccore* getSim() { return s_; }
+    const mccore* getSim() const { return s_; }
 
     /// total ions/s
     double ips() const { return ips_; }

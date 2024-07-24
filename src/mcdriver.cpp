@@ -201,7 +201,7 @@ int mcdriver::options::validate()
     if (Simulation.screening_type==Screening::None)
         throw std::invalid_argument("Invalid Simulation.screening_type");
 
-    if (Simulation.straggling_model==mccore::InvalidStraggling)
+    if (Simulation.straggling_model==StragglingModel::Invalid)
         throw std::invalid_argument("Invalid Simulation.straggling_model");
 
     // Ion source

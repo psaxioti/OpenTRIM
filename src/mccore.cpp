@@ -6,10 +6,6 @@
 #include <iostream>
 #include <type_traits>
 
-void calcStraggling(const float* dedx, const float* dedx1, int Z1, const float& M1,
-                    int Z2, const float& Ns,
-                    mccore::straggling_model_t model, float* strag);
-
 mccore::mccore() :
     source_(new ion_beam),
     target_(new target),
@@ -60,8 +56,12 @@ mccore::~mccore()
         delete source_;
         delete target_;
         if (!dedx_.isNull()) {
-            dedx_interp_t** p = dedx_.data();
+            dedx_interp** p = dedx_.data();
             for (int i=0; i<dedx_.size(); i++) delete p[i];
+        }
+        if (!de_strag_.isNull()) {
+            straggling_interp** p = de_strag_.data();
+            for (int i=0; i<de_strag_.size(); i++) delete p[i];
         }
         if (!scattering_matrix_.isNull()) {
             abstract_xs_lab** xs = scattering_matrix_.data();
@@ -80,124 +80,38 @@ int mccore::init() {
 
     // calculate sqrt{l/l0} in each material for constant flight path
     auto materials = target_->materials();
-    sqrtfp_const.resize(materials.size());
-    ip0.resize(materials.size());
-    for(int i=0; i<materials.size(); i++) {
+    int nmat = materials.size();
+    sqrtfp_const.resize(nmat);
+    ip0.resize(nmat);
+    for(int i=0; i<nmat; i++) {
         sqrtfp_const[i] = std::sqrt(par_.flight_path_const / materials[i]->atomicRadius());
         ip0[i] = materials[i]->meanImpactPar();
         if (par_.flight_path_type == Constant) ip0[i] /= sqrtfp_const[i];
     }
 
     /*
-     * create dedx tables for all ion - material
+     * create dedx and straggling tables for all ion - material
      * combinations, # =
      * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get a corteo dedx table
+     * For each combi, get an interpolator object
      */
     auto atoms = target_->atoms();
-    int natoms = atoms.size();
-    int nmat = materials.size();
-    int nerg = dedx_index::size;
-    dedx_ = ArrayND< dedx_interp_t* >(natoms,nmat);
-    std::vector<float> buff(nerg);
-    for(atom* at1 : atoms) {
-        float amuRatio = elements::mostAbundantIsotope(at1->Z())/at1->M();
-        int iat1 = at1->id();
-        for(const material* mat : materials)
-        {
-            int im = mat->id();
-            //float* p = &dedx_(iat1,im,0);
-            float* p = buff.data();
-            for(atom* at2 : mat->atoms())
-            {
-                /*
-                 * SRIM dedx tables are stored in eV / 10^15 (at/cm^2)
-                 * They are multiplied by the atomicDensity [at/nm^3]
-                 * factor 0.1 needed so that resulting dedx
-                 * unit is eV/nm
-                 */
-                const float* q = ::dedx(at1->Z(), at2->Z());
-                float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-                for(dedx_index i; i<i.end(); i++) {
-                    float erg = (*i) * amuRatio;
-                    p[i] += w*corteo_lin_interp<float,dedx_index>(q,erg);
-                }
-
-
-                /* The compound correction needs to be added here !!! */
-                /* following copied from corteo:
-                   compound correction according to Zeigler & Manoyan NIMB35(1998)215, Eq.(16) (error in Eq. 14)
-                   if(compoundCorr!=1.0f)
-                   for(k=0; k<DIMD; k++) {
-                   f = d2f( 1.0/(1.0+exp( 1.48*( sqrt(2.*Dval(k)/projectileMass/25e3) -7.0) )) );
-                   spp[k]*=f*(compoundCorr-1.0f)+1.0f;
-                   }
-                */
-            }
-            dedx_(iat1,im) = new dedx_interp_t(p);
-        }
-    }
-
-    ArrayNDf dedx1(nmat,nerg); // proton stopping (materials x energy)
-    for(const material* mat : materials)
+    int natoms = atoms.size();    
+    dedx_ = ArrayND<dedx_interp *>(natoms, nmat);
+    de_strag_ = ArrayND<straggling_interp *>(natoms, nmat);
+    for (atom *at1 : atoms)
     {
-        int im = mat->id();
-        float* p1 = &dedx1(im,0);
-        for(atom* at2 : mat->atoms())
-        {
-            /*
-                 * SRIM dedx tables are stored in eV / 10^15 (at/cm^2)
-                 * They are multiplied by the atomicDensity [at/nm^3]
-                 * factor 0.1 needed so that resulting dedx
-                 * unit is eV/nm
-                 */
-            const float* q1 = ::dedx(1, at2->Z());
-            float w = (at2->X()) * (mat->atomicDensity()) * 0.1;
-            for(dedx_index i; i<i.end(); i++) {
-                p1[i] += q1[i]*w;
-            }
-
-
-            /* The compound correction needs to be added here !!! */
-            /* following copied from corteo:
-                   compound correction according to Zeigler & Manoyan NIMB35(1998)215, Eq.(16) (error in Eq. 14)
-                   if(compoundCorr!=1.0f)
-                   for(k=0; k<DIMD; k++) {
-                   f = d2f( 1.0/(1.0+exp( 1.48*( sqrt(2.*Dval(k)/projectileMass/25e3) -7.0) )) );
-                   spp[k]*=f*(compoundCorr-1.0f)+1.0f;
-                   }
-                */
-        }
-    }
-
-    /*
-     * create straggling tables for all ion - material
-     * combinations, # =
-     * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get a corteo table
-     *
-     *
-     */
-    de_strag_ = ArrayNDf(natoms,nmat,nerg);
-    for(int z1 = 0; z1<natoms; z1++) {
-        int Z1 = atoms[z1]->Z();
-        float M1 = atoms[z1]->M();
-        for(const material* mat : materials)
+        int iat1 = at1->id();
+        for (const material *mat : materials)
         {
             int im = mat->id();
-            const dedx_interp_t* dedx = dedx_(z1,im);
-            const float* dedxH = &dedx1(im,0);
-            float* p = &de_strag_(z1,im,0);
-            float Nl0 = mat->atomicDensity()*mat->atomicRadius(); // at/nm^2
-            for(const atom* z2 : mat->atoms())
-                calcStraggling(dedx->data(),
-                               dedxH,
-                               Z1,M1,z2->Z(),
-                               Nl0*z2->X(),
-                               par_.straggling_model,p);
-            for(dedx_index ie; ie!=ie.end(); ie++)
-                p[ie] = std::sqrt(p[ie]);
-        }        
+            auto desc = mat->getDescription();
+            dedx_(iat1, im) = new dedx_interp(at1->Z(), at1->M(),
+                                              desc.Z, desc.X, mat->atomicDensity());
+            de_strag_(iat1, im) = new straggling_interp(par_.straggling_model,
+                                                        at1->Z(), at1->M(),
+                                                        desc.Z, desc.X, mat->atomicDensity());
+        }
     }
 
     /*
@@ -271,6 +185,7 @@ int mccore::init() {
      * - ipmax = 1/(pi*mfp*N)^(1/2)
      *
      */
+    int nerg = dedx_index::size;
     mfp_   = ArrayNDf(natoms,nmat,nerg);
     ipmax_ = ArrayNDf(natoms,nmat,nerg);
     fp_max_ = ArrayNDf(natoms,nmat,nerg);
@@ -366,7 +281,7 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
                             const vector3& dir0, const float &sqrt_mass_ratio)
 {
     // clone the projectile ion
-    ion* j = q_.new_ion(*proj);
+    ion* j = q_.new_ion(proj);
     j->init_recoil(target, recoil_erg);
     j->reset_counters();
 
@@ -399,6 +314,8 @@ int mccore::run()
 
         // transport the ion
         transport(i,tion_);
+        // free the ion buffer
+        q_.free_ion(i);
 
         // transport all PKAs
         ion* j;
@@ -414,8 +331,12 @@ int mccore::run()
                 ion* k;
                 while ((k = q_.pop_recoil())!=nullptr) {
                     transport(k,tion_,&pka);
+                    // free the ion buffer
+                    q_.free_ion(k);
                 }
             }
+            // free the ion buffer
+            q_.free_ion(j);
             pka_end(&j1,tion_,pka);
             pka_stream_.write(&pka);
         } // pka loop
@@ -436,16 +357,18 @@ int mccore::run()
     return 0;
 }
 
-float mccore::calcDedx(const ion *i, const material* m, float fp, float sqrtfp,
-                     const dedx_interp_t *stopping_tbl, const float *straggling_tbl)
+float mccore::calcDedx(const ion *i, const material* m,
+                       float fp, float sqrtfp,
+                       const dedx_interp *stopping,
+                       const straggling_interp *straggling)
 {
     dedx_index ie(i->erg());
 
-    float de_stopping = fp * (*stopping_tbl)(i->erg());
-    if (par_.straggling_model != NoStraggling)
+    float de_stopping = fp * (*stopping)(i->erg());
+    if (par_.eloss_calculation == EnergyLossAndStraggling)
     {
 
-        float de_straggling = straggling_tbl[ie] * rng.normal() * sqrtfp;
+        float de_straggling = straggling->data()[ie] * rng.normal() * sqrtfp;
 
         /* IRADINA
          * Due to gaussian distribution, the straggling can in some cases
@@ -492,8 +415,8 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
     // get the corresponding dEdx & straggling table for ion/material combination
-    const dedx_interp_t* de_stopping_tbl = nullptr;
-    const float* de_straggling_tbl = nullptr;
+    const dedx_interp* de_stopping_tbl = nullptr;
+    const straggling_interp* de_straggling_tbl = nullptr;
     std::array<const float *, 3> fp_par_tbl;
     const float* & ipmax_tbl = fp_par_tbl[0];
     const float* & mfp_tbl   = fp_par_tbl[1];
@@ -561,8 +484,10 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
         BoundaryCrossing crossing = i->propagate(fp);
 
         // subtract ionization & straggling
-        float de = calcDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
-        i->de_ioniz(de);
+        if (par_.eloss_calculation != EnergyLossOff) {
+            float de = calcDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+            i->de_ioniz(de);
+        }
 
         // handle boundary
         switch(crossing) {
@@ -666,10 +591,6 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
         }
 
     } // main ion transport loop
-
-    // free the ion buffer
-    q_.free_ion(i);
-
 
     return 0;
 }

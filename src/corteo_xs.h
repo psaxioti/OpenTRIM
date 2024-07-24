@@ -32,9 +32,9 @@
  */
 struct xs_corteo_index {
     /// Corteo 4-bit index for the reduced energy
-    typedef corteo_index<float, int, 4, -19, 21> e_index;
+    typedef corteo::index<float, int, 4, -19, 21> e_index;
     /// Corteo 4-bit index for the reduced impact parameter
-    typedef corteo_index<float, int, 4, -26,  6> s_index;
+    typedef corteo::index<float, int, 4, -26,  6> s_index;
     /// number of rows (energy values)
     constexpr static const int rows = e_index::size;
     /// number of columns (impact parameter values)

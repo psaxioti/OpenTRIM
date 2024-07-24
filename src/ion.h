@@ -245,40 +245,46 @@ class ion_queue {
         return i;
     }
 
+    size_t sz_;
+
 public:
-    /// Returns a new ion object
-    ion* new_ion() {
+    explicit ion_queue() : sz_(0) {}
+
+    /// Returns a new ion object, initialized with data copied from non-null p
+    ion* new_ion(const ion* p = nullptr) {
         ion* i;
-        if (ion_buffer_.empty()) i = new ion;
-        else {
+        if (ion_buffer_.empty()) {
+            i = p ? new ion(*p) : new ion;
+            sz_++;
+        } else {
             i = ion_buffer_.front();
             ion_buffer_.pop();
-        }
-        return i;
-    }
-    /// Returns a new ion object, initialized with data copied from p
-    ion* new_ion(const ion& p) {
-        ion* i;
-        if (ion_buffer_.empty()) i = new ion(p);
-        else {
-            i = ion_buffer_.front();
-            ion_buffer_.pop();
-            *i = p;
-        }
+            if (p) *i = *p;
+        }        
         return i;
     }
 
     /// Push an ion object to the PKA queue
-    void push_pka(ion* i) { pka_queue_.push(i); }
+    void push_pka(ion* i) {
+        pka_queue_.push(i);
+    }
     /// Push an ion object to the recoil queue
-    void push_recoil(ion* i) { recoil_queue_.push(i); }
+    void push_recoil(ion* i) {
+        recoil_queue_.push(i);
+    }
     /// Pop a PKA ion object from the queue. If the queue is empty, a nullptr is returned.
-    ion* pop_pka() { return pop_one_(pka_queue_); }
+    ion* pop_pka() {
+        return pop_one_(pka_queue_);
+    }
     /// Pop a recoil ion object from the queue. If the queue is empty, a nullptr is returned.
-    ion* pop_recoil() { return pop_one_(recoil_queue_); }
+    ion* pop_recoil() {
+        return pop_one_(recoil_queue_);
+    }
 
     /// Release a used ion object
-    void free_ion(ion* i) { ion_buffer_.push(i); }
+    void free_ion(ion* i) {
+        ion_buffer_.push(i);
+    }
 
     /// Clear all allocated ion objects from memory
     void clear() {
@@ -286,10 +292,17 @@ public:
             ion* i = ion_buffer_.front();
             ion_buffer_.pop();
             delete i;
+            sz_--;
         }
+        assert(sz_==0);
     }
 
-
+    size_t size() const {
+        return sz_;
+//        return ion_buffer_.size() +
+//               pka_queue_.size() +
+//               recoil_queue_.size();
+    }
 };
 
 #endif // ION_H

@@ -125,15 +125,27 @@ NLOHMANN_JSON_SERIALIZE_ENUM(mccore::flight_path_type_t, {
                                 {mccore::Constant, 2},
                                 {mccore::MendenhallWeller, 3},
                                 {mccore::IPP, 4}
-                            })   
-
-NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t, {
-                                {mccore::InvalidScatteringOption, nullptr},
-                                {mccore::Corteo4bitTable, "Corteo4bitTable"},
-                                {mccore::ZBL_MAGICK, "ZBL_MAGICK"},
-                                {mccore::Corteo4bitTable, 0},
-                                {mccore::ZBL_MAGICK, 1},
                             })
+
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::scattering_calculation_t,
+                             {
+                              {mccore::InvalidScatteringOption, nullptr},
+                              {mccore::Corteo4bitTable, "Corteo4bitTable"},
+                              {mccore::ZBL_MAGICK, "ZBL_MAGICK"},
+                              {mccore::Corteo4bitTable, 0},
+                              {mccore::ZBL_MAGICK, 1},
+                              })
+
+NLOHMANN_JSON_SERIALIZE_ENUM(mccore::eloss_calculation_t,
+                             {
+                              {mccore::InvalidEnergyLoss, nullptr},
+                              {mccore::EnergyLossOff, "Off"},
+                              {mccore::EnergyLoss, "EnergyLoss"},
+                              {mccore::EnergyLossAndStraggling, "EnergyLossAndStraggling"},
+                              {mccore::EnergyLossOff, 0},
+                              {mccore::EnergyLoss, 1},
+                              {mccore::EnergyLossAndStraggling, 2},
+                              })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(Screening, {
                                 {Screening::None, "None"},
@@ -148,25 +160,24 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Screening, {
                                 {Screening::ZBL, 4}
                             })
 
-NLOHMANN_JSON_SERIALIZE_ENUM(mccore::straggling_model_t, {
-                                {mccore::InvalidStraggling, nullptr},
-                                {mccore::NoStraggling, "NoStraggling"},
-                                {mccore::BohrStraggling, "BohrStraggling"},
-                                {mccore::ChuStraggling, "ChuStraggling"},
-                                {mccore::YangStraggling, "YangStraggling"},
-                                {mccore::NoStraggling, 0},
-                                {mccore::BohrStraggling, 1},
-                                {mccore::ChuStraggling, 2},
-                                {mccore::YangStraggling, 3}
-                            })                                                                                        
+NLOHMANN_JSON_SERIALIZE_ENUM(StragglingModel, {
+                                {StragglingModel::Invalid, nullptr},
+                                {StragglingModel::Bohr, "BohrStraggling"},
+                                {StragglingModel::Chu,  "ChuStraggling"},
+                                {StragglingModel::Yang, "YangStraggling"},
+                                {StragglingModel::Bohr, 0},
+                                {StragglingModel::Chu,  1},
+                                {StragglingModel::Yang, 2}
+                            })
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
-                                   simulation_type, screening_type,
-                                   scattering_calculation,
-                                   flight_path_type, straggling_model,
-                                   nrt_calculation,
-                                   flight_path_const, min_energy, min_recoil_energy,
-                                   allow_sub_ml_scattering, max_mfp, max_rel_eloss)
+                                          simulation_type, screening_type,
+                                          scattering_calculation,
+                                          flight_path_type,
+                                          eloss_calculation, straggling_model,
+                                          nrt_calculation,
+                                          flight_path_const, min_energy, min_recoil_energy,
+                                          allow_sub_ml_scattering, max_mfp, max_rel_eloss)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
                                           max_no_ions,

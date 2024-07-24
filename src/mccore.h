@@ -9,7 +9,6 @@
 #include "tally.h"
 #include "event_stream.h"
 #include "dedx.h"
-#include "corteo_interp.h"
 
 #include <atomic>
 
@@ -75,6 +74,16 @@ public:
     };
 
     /**
+     * @brief Determines electronic energy loss calculation
+     */
+    enum eloss_calculation_t {
+        EnergyLossOff = 0, /**< Electronic energy loss disabled */
+        EnergyLoss = 1,  /**< Only electronic energy loss is calculated */
+        EnergyLossAndStraggling = 2, /**< Both energy loss & straggling are calculated */
+        InvalidEnergyLoss = -1
+    };
+
+    /**
      * @brief Flight path selection algorithm
      *
      * Determines the algorithm to select the
@@ -86,17 +95,6 @@ public:
         MendenhallWeller = 3, /**< Algorithm from Mendenhall-Weller NIMB2005*/
         IPP = 4,            /**< IPP algorithm */
         InvalidPath = -1
-    };
-
-    /**
-     * @brief The model used to calculate electronic straggling
-     */
-    enum straggling_model_t {
-        NoStraggling = 0,       /**< No straggling calculated */
-        BohrStraggling,         /**< Bohr straggling model */
-        ChuStraggling,          /**< Chu straggling model */
-        YangStraggling,         /**< Yang straggling model */
-        InvalidStraggling = -1
     };
 
     /**
@@ -120,8 +118,10 @@ public:
         scattering_calculation_t scattering_calculation{Corteo4bitTable};
         /// Free flight path selection algorithm
         flight_path_type_t flight_path_type{AtomicSpacing};
-        /// Model to use for calculating electronic straggling
-        straggling_model_t straggling_model{YangStraggling};
+        /// Electronic energy loss calculation option
+        eloss_calculation_t eloss_calculation{EnergyLoss};
+        /// Model to use for calculating electronic straggling (if calculated)
+        StragglingModel straggling_model{StragglingModel::Bohr};
         /// Way to calculate NRT vacancies in multielement materials
         nrt_calculation_t nrt_calculation{NRT_element};
         /// The constant flight path (for algorithm flight_path_type_t=Constant) [nm]
@@ -138,18 +138,7 @@ public:
         float max_rel_eloss{0.05f};
     };
 
-    // interpolator type for dedx tables
-    typedef corteo_log_interp1D< dedx_index > dedx_interp_t;
-
 protected:
-
-    struct fp_selection_data {
-        float fp; // flight path
-        float ip; // impact parameter
-        float sqrt_fp; // sqrt of fp
-        const dedx_interp_t* dedx;
-        const float* de_stragg;
-    };
 
     ion_queue q_;
 
@@ -181,8 +170,8 @@ protected:
     ArrayND< abstract_xs_lab* > scattering_matrix_;
 
     // Electronic Stopping & Straggling Tables
-    ArrayND< dedx_interp_t* > dedx_; // stopping data (atoms x materials x energy)
-    ArrayNDf de_strag_; // straggling data (atoms x materials x energy)
+    ArrayND< dedx_interp* > dedx_; // stopping data (atoms x materials)
+    ArrayND< straggling_interp* > de_strag_; // straggling data (atoms x materials)
 
     // flight path selection par
     ArrayNDf mfp_, ipmax_, fp_max_, Tcutoff_;
@@ -196,6 +185,7 @@ public:
     void setMaxIons(unsigned int n) { max_no_ions_ = n; }
     void setCountOffset(uint n) { count_offset_ = n; }
     uint ions_done() { return nion_thread_.exchange(0); }
+    size_t ion_que_size() const { return q_.size(); }
 
     /// Returns the core simulation parameters
     const parameters& getParameters() const { return par_; }
@@ -228,8 +218,8 @@ public:
     void remove_stream_files();
 
     // dedx interpolators
-    ArrayND<dedx_interp_t*> dedx() const { return dedx_; }
-    ArrayNDf de_strag() const { return de_strag_; }
+    ArrayND<dedx_interp*> dedx() const { return dedx_; }
+    ArrayND<straggling_interp*> de_strag() const { return de_strag_; }
 
     // Tables of flight path selection parameters 
     ArrayNDf mfp() const { return mfp_; }
@@ -404,12 +394,15 @@ protected:
      * @param straggling_tbl pointer to the relevant straggling table [eV/sqrt{nm}]
      * @return the energy loss [eV]
      */
-    float calcDedx(const ion* i, const material* m, float fp, float sqrtfp,
-                 const dedx_interp_t* stopping_tbl, const float* straggling_tbl);
+    float calcDedx(const ion* i, const material* m,
+                   float fp, float sqrtfp,
+                   const dedx_interp* stopping_tbl,
+                   const straggling_interp* straggling_tbl);
 
     /// Get pointers to electronic loss and straggling tables for a specific ion/material combination
     int getDEtables(const atom* z1, const material* m,
-                    const dedx_interp_t *&dedx, const float *&de_stragg) const;
+                    const dedx_interp *&dedx,
+                    const straggling_interp *&de_stragg) const;
 
     int getMFPtables(const atom* z1, const material* m,
                     float& fp, float& sqrt_fp,
@@ -421,14 +414,15 @@ protected:
 };
 
 inline int mccore::getDEtables(const atom* z1, const material* m,
-                            const dedx_interp_t *&dedx, const float *&de_stragg) const
+                               const dedx_interp *&dedx,
+                               const straggling_interp *&de_stragg) const
 {
     assert(z1);
     assert(m);
     int ia = z1->id();
     int im = m->id();
     dedx = dedx_(ia,im);
-    de_stragg = &de_strag_(ia,im,0);
+    de_stragg = de_strag_(ia,im);
     return 0;
 }
 

@@ -358,14 +358,19 @@ try {
         for(dedx_index i; i<i.end(); i++) A(i) = *i;
         dump_array(h5f,"/eels/dEdx_erg",A,var_list,"dEdx table energy values [eV]");
 
-        ArrayND<mccore::dedx_interp_t*> D = s_->dedx();
+        ArrayND< dedx_interp* > D = s_->dedx();
         A = ArrayNDf(D.dim()[0],D.dim()[1],dedx_index::size);
         for(int i=0; i<A.dim()[0]; i++)
             for(int j=0; j<A.dim()[1]; j++)
                 memcpy(&A(i,j,0),D(i,j)->data(),dedx_index::size*sizeof(float));
-
         dump_array(h5f,"/eels/dEdx",A,var_list,"dEdx values [eV/nm]");
-        dump_array(h5f,"/eels/dEstrag",s_->de_strag(),var_list,"straggling values [eV/nm^(1/2)]");
+
+        ArrayND< straggling_interp* > Ds = s_->de_strag();
+        for(int i=0; i<A.dim()[0]; i++)
+            for(int j=0; j<A.dim()[1]; j++)
+                memcpy(&A(i,j,0),Ds(i,j)->data(),dedx_index::size*sizeof(float));
+        dump_array(h5f,"/eels/dEstrag",A,var_list,"straggling values [eV]");
+
         dump_array(h5f,"/eels/mfp",s_->mfp(),var_list,"ion mean free [nm]");
         dump_array(h5f,"/eels/ipmax",s_->ipmax(),var_list,"max impact parameter [nm]");
         dump_array(h5f,"/eels/fpmax",s_->fpmax(),var_list,"max free path [nm]");
