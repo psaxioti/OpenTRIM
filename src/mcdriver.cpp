@@ -361,11 +361,11 @@ mccore* mcdriver::options::createSimulation() const
     }
 
     grid3D& G = T.grid();
-    G.setX(0, Target.cell_count.x()*Target.cell_size.x(),
+    G.setX(Target.cell_count.x()*Target.cell_size.x(),
            Target.cell_count.x(), Target.periodic_bc.x());
-    G.setY(0, Target.cell_count.y()*Target.cell_size.y(),
+    G.setY(Target.cell_count.y()*Target.cell_size.y(),
            Target.cell_count.y(), Target.periodic_bc.y());
-    G.setZ(0, Target.cell_count.z()*Target.cell_size.z(),
+    G.setZ(Target.cell_count.z()*Target.cell_size.z(),
            Target.cell_count.z(), Target.periodic_bc.z());
 
     for(auto p : Target.regions) {

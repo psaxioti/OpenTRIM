@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <limits>
 
 #include <unsupported/Eigen/AlignedVector3>
 
@@ -81,6 +82,9 @@ typedef Eigen::AlignedBox3f box3D;
  * points, \f$ x_0,x_1,...,x_{N-1} \f$, which divides the region
  * between the 1st and the Nth point in \f$ N-1 \f$ cells.
  *
+ * By convention \f$ x_0 = 0\f$ and \f$ x_{N-1} = w\f$, where \f$w\f$
+ * is the width of the grid.
+ *
  * The cells do not have to be of equal width, however, currently only
  * equidistant grids have been employed.
  *
@@ -91,23 +95,26 @@ class grid1D : public std::vector<float> {
 
     typedef std::vector<float> vec_t;
 
-    float w_;
+    float w_, dx_;
     bool equispaced_;
     bool periodic_;
 
 public:
     /// Default constructor creates an empty grid
-    grid1D() : vec_t(), w_(0),
+    grid1D() : vec_t(), w_(0), dx_(0),
         equispaced_(false), periodic_(false)
     {}
     /// Copy constructor
     grid1D(const grid1D& g) : vec_t(g),
-        w_(g.w_), equispaced_(g.equispaced_),
+        w_(g.w_), dx_(g.dx_),
+        equispaced_(g.equispaced_),
         periodic_(g.periodic_)
     {}
 
     /// Returns the total width \f$ x_{N-1}-x_0 \f$
     float w() const { return w_; }
+    /// Returns cell width (if equispaced)
+    float dx() const { return dx_; }
     /// Returns true if all cells have the same width
     bool equispaced() const { return equispaced_; }
     /// Returns true if the grid has periodic boundary conditions
@@ -119,20 +126,27 @@ public:
     void set(const vec_t& x) {
         vec_t::assign(x.begin(),x.end());
         w_ = back() - front();
+        dx_ = 0;
+        float x0 = front();
+        front() = 0.f;
+        for(int i=1; i<size(); i++) at(i) += x0;
+        back() = w_;
         equispaced_ = false;
     }
     /// Create an equidistant grid from x0 to x1 divided in n cells
-    void set(const float& x0, const float& x1, int n) {
+    void set(float w, int n) {
         resize(n+1);
-        w_ = x1-x0;
-        w_ = w_/n;
-        for(int i=0; i<=n; i++) (*this)[i] = x0 + i*w_;
+        front() = 0.f;
+        w_ = w;
+        dx_ = w/n;
+        for(int i=1; i<=n; i++) at(i) = i*dx_;
+        back() = w;
         equispaced_ = true;
     }
 
     /// Returns true if x is within the grid region
     bool contains(const float& x) const {
-        return (x>=front()) && (x<back());
+        return (x>=0.f) && (x<w_);
     }
 
     /**
@@ -147,28 +161,32 @@ public:
      * @return true if x is within the grid
      */
     bool contains_with_bc(float& x) const {
-        if (x<front()) {
+        if (x<0.f) {
             if (periodic_) {
-                do x += w_; while (x<front());
-                assert(x<back());
+                do x += w_; while (x<0.f);
+                if (x == w_)
+                    x = std::nextafter(w_, std::numeric_limits<float>::lowest());
+                assert(x<w_);
                 return true;
             } else return false;
-        } else if (x>=back()) {
+        } else if (x>=w_) {
             if (periodic_) {
-                do x -= w_; while (x>=back());
-                assert(x>=front());
+                do x -= w_; while (x>=w_);
+                assert(x>=0.f);
                 return true;
             } else return false;
         } else return true;
     }
     void apply_bc(float& x) const {
         if (periodic_) {
-            if (x<front()) {
-                do x += w_; while (x<front());
-                assert(x<back());
-            } else if (x>=back()) {
-                do x -= w_; while (x>=back());
-                assert(x>=front());
+            if (x<0.f) {
+                do x += w_; while (x<0.f);
+                if (x == w_)
+                    x = std::nextafter(w_, std::numeric_limits<float>::lowest());
+                assert(x<w_);
+            } else if (x>=w_) {
+                do x -= w_; while (x>=w_);
+                assert(x>=0.f);
             }
         }
     }
@@ -178,12 +196,13 @@ public:
         return (x>=at(i)) && (x<at(i+1));
     }
 
-    /// Returns the cell index i for which \f$ x_i \leq x < x_{i+1} \f$. Should be called only if grid1D::contains(x) returns true
+    /// Returns the cell index i for which \f$ x_i \leq x < x_{i+1} \f$.
+    /// Should be called only if grid1D::contains(x) returns true
     int pos2cell(const float& x) const {
         assert(contains(x));
         if (size()==2) return 0;
         if (equispaced_) {
-            return std::floor((x - front())/w_);
+            return std::floor(x/dx_);
         }
         else
             return std::upper_bound(begin(), end(), x) - begin() - 1;
@@ -232,8 +251,8 @@ class grid3D
 
     void calcBox()
     {
-        box_.min() = box3D::VectorType(x_.front(),y_.front(),z_.front());
-        box_.max() = box3D::VectorType(x_.back(),y_.back(),z_.back());
+        box_.min() = box3D::VectorType(0.f,0.f,0.f);
+        box_.max() = box3D::VectorType(x_.w(),y_.w(),z_.w());
     }
 
 public:
@@ -248,9 +267,9 @@ public:
     /// Default constructor creates empty grid
     grid3D()
     {
-        x_.set(0.f,1.f,1);
-        y_.set(0.f,1.f,1);
-        z_.set(0.f,1.f,1);
+        x_.set(1.f,2);
+        y_.set(1.f,2);
+        z_.set(1.f,2);
         calcBox();
     }
     /// Copy constructor
@@ -259,14 +278,14 @@ public:
     {}
 
     /// Set the x-axis grid to an equidistant partition of n cells
-    void setX(const float& x0, const float& x1, int n, bool periodic)
-    { x_.set(x0,x1,n); calcBox(); x_.setPeriodic(periodic); }
+    void setX(float w, int n, bool periodic)
+    { x_.set(w,n); calcBox(); x_.setPeriodic(periodic); }
     /// Set the y-axis grid to an equidistant partition of n cells
-    void setY(const float& x0, const float& x1, int n, bool periodic)
-    { y_.set(x0,x1,n); calcBox(); y_.setPeriodic(periodic); }
+    void setY(float w, int n, bool periodic)
+    { y_.set(w,n); calcBox(); y_.setPeriodic(periodic); }
     /// Set the z-axis grid to an equidistant partition of n cells
-    void setZ(const float& x0, const float& x1, int n, bool periodic)
-    { z_.set(x0,x1,n); calcBox(); z_.setPeriodic(periodic); }
+    void setZ(float w, int n, bool periodic)
+    { z_.set(w,n); calcBox(); z_.setPeriodic(periodic); }
 
     /// Return the x-axis grid
     const grid1D& x() const { return x_; }
