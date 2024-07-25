@@ -42,7 +42,7 @@ end
 
 figure 1
 clf
-plot(th(2:end),sqrt(H),'.-')
+plot(th(2:end),H,'.-')
 xlabel('angle (rad)')
 ylabel('Prob. Density (sr^{-1})')
 legend(lbls)
