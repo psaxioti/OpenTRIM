@@ -2,7 +2,7 @@ clear
 
 pkg load hdf5oct
 
-th = linspace(0,0.2,41); # degrees
+th = linspace(0,0.2,100); # degrees
 mux = 0.5*(1-cos(th));
 dOmega = diff(mux)*4*pi;
 
@@ -19,7 +19,7 @@ tm = zeros(1,length(lbls));
 for i=1:length(lbls)
   fname = sprintf('../msc/HeinC/b%d/out.h5',i)
   A = h5read(fname,'/exit_events/event_data');
-  j = find(A(5,:)>=440 & A(2,:)==0);
+  j = find(A(5,:)<=440 & A(2,:)==0);
   mu = 0.5*(1-A(8,j));
   Th(i) = mean(sqrt(4*mu));
   h = histc(mu,mux);
