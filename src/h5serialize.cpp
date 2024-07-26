@@ -301,54 +301,39 @@ try {
     }
     var_list << endl;
 
+    // ion beam data
+    var_list << "Ion Beam" << endl;
+    {
+        auto p = s_->getSource().getParameters();
+        dump(h5f, "/ion_beam/E0", p.ionE0, var_list, "ion energy [eV]");
+        dump(h5f, "/ion_beam/Z", p.ionZ, var_list, "ion atomic number");
+        dump(h5f, "/ion_beam/M", p.ionM, var_list, "ion mass [amu]");
+    }
+
     // save tallys
     var_list << "Tallies" << endl;
     var_list << "  Results are mean values over the ion histories. " << endl
              << "  [VarName]_sem is the Standard Error of the Mean (SEM) for the quantity [VarName]." << endl;
-    // Totals
-    uint N = t.Nions();
-    double vm = t.Npkas()/N, dvm = std::sqrt((dt.Npkas()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Npkas", vm, dvm, var_list, "# of PKAs");
-    // Displacements
-    vm = t.Ndisp()/N; dvm = std::sqrt((dt.Ndisp()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Ndisp", vm, dvm, var_list, "# of displacements");
-    // Replacements
-    vm = t.Nrepl()/N; dvm = std::sqrt((dt.Nrepl()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Nrepl", vm, dvm, var_list, "# of replacements");
-    // Nimpl
-    vm = t.Nimpl()/N; dvm = std::sqrt((dt.Nimpl()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Nimpl", vm, dvm, var_list, "# of implanted/interstitial ions");
-    // Nvac
-    vm = t.Nvac()/N; dvm = std::sqrt((dt.Nvac()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Nvac", vm, dvm, var_list, "# of vacancies");
-    // Nlost
-    vm = t.Nlost()/N; dvm = std::sqrt((dt.Nlost()/N-vm*vm)/(N-1));
-    dump(h5f, "/tally/totals/Nlost", vm, dvm, var_list, "# of lost ions");
-
-    if (opt.Simulation.simulation_type == mccore::FullCascade) {
-
+    {
         bool ret = true;
-        int k = 1;
+        int k = 0;
 
         while(ret && k<tally::std_tallies) {
-            std::string name("/tally/");
-            name += tally::arrayGroup(k);
-            name += "/";
+            std::string name("/tally/");           
+            if (k) { // create groups except for k=0, totals
+                name += tally::arrayGroup(k);
+                name += "/";
+            }
             name += tally::arrayName(k);
-            std::string dname(name);
-            dname += "_std";
-            ret = ret && 
-                  dump_array(h5f, name, t.at(k), dt.at(k), var_list, tally::arrayDescription(k), t.Nions())==0;
+            ret = dump_array(h5f, name, t.at(k), dt.at(k), var_list, tally::arrayDescription(k), t.Nions())==0;
             k++;
         }
 
-        if (!ret) return -1;
-
-    } else {
-
-        bool ret = true;
+        ret = ret &&
+              dump(h5f, "/tally/Totals_ColumnNames", t.arrayNames(), var_list, "total sum tally columns")==0;
 
         if (!ret) return -1;
+
     }
 
     if (opt.Output.store_dedx) {

@@ -15,7 +15,7 @@ int ion::setPos(const vector3 &x)
 
 // assuming the object was cloned from
 // the projectile
-void ion::init_recoil(const atom* a, float T)
+void ion::init_recoil(const atom* a, double T)
 {
     // mark current pos and cell
     // as initial for this track
@@ -23,7 +23,7 @@ void ion::init_recoil(const atom* a, float T)
     cellid0_ = cellid_;
     prev_cellid_ = -1;
     // set the energy & atom
-    erg_ = T;
+    erg_ = erg0_ = T;
     atom_ = a;
     // increase recoil generation
     recoil_id_++;
@@ -33,7 +33,7 @@ void ion::init_recoil(const atom* a, float T)
 void ion::reset_counters()
 {
     ncoll_=0;
-    path_=ioniz_=phonon_=recoil_=0.f;
+    path_=ioniz_=phonon_=recoil_=0.0;
 }
 
 /**
@@ -60,6 +60,11 @@ void ion::reset_counters()
  * @param s the distance to propagate the ion [nm]
  * @return the type of boundary crossing (none, internal (cell change), external (ion left simulation))
  */
+
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
+
+
 BoundaryCrossing ion::propagate(float& s)
 {
     vector3 x = pos_ + s*dir_;  // calc new ion position
@@ -75,8 +80,10 @@ BoundaryCrossing ion::propagate(float& s)
             ivector3 ix = grid_->pos2cell(x);
             while (ix == icell_ && s1 < s) {
                 s1 += ds;
+                vector3 x0(x);
                 x = pos_ + s1*dir_;
                 grid_->apply_bc(x);
+                if (x==x0) break; // avoid endless loop lock
                 ix = grid_->pos2cell(x);
             };
             // new pos and cell
@@ -138,6 +145,8 @@ BoundaryCrossing ion::propagate(float& s)
         }
     }
 }
+
+//#pragma GCC pop_options
 
 
 

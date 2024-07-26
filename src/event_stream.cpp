@@ -40,8 +40,6 @@ void pka_event::init(const ion* i)
     buff_[ofAtomId] = i->myAtom()->id();
     buff_[ofCellId] = i->cellid();
     buff_[ofErg] = i->erg() + i->myAtom()->El(); // add lattice energy to recoil E=T-El -> T=E+El
-    buff_[ofTdam] = i->myAtom()->El(); // El is damage energy
-    addVac(i->myAtom()->id()-1);
 }
 
 int event_stream::open(const std::string& fname, const event& ev)

@@ -184,21 +184,11 @@ public:
 
     float& Tdam() { return buff_[ofTdam]; }
     const float& Tdam() const { return buff_[ofTdam]; }
-    void addVac(int atom_id)
-    {
-        assert(atom_id >= 0);
-        buff_[ofVac + atom_id] += 1.f;
-    }
+    float& Vac(int atom_id) { return buff_[ofVac + atom_id]; }
     const float& Vac(int atom_id) const { return buff_[ofVac + atom_id]; }
-    void addRepl(int atom_id) {
-        assert(atom_id >= 0);
-        buff_[ofVac + natoms_ + atom_id] += 1.f;
-    }
+    float& Repl(int atom_id) { return buff_[ofVac + natoms_ + atom_id]; }
     const float& Repl(int atom_id) const { return buff_[ofVac + natoms_ + atom_id]; }
-    void addImpl(int atom_id) {
-        assert(atom_id >= 0);
-        buff_[ofVac + 2*natoms_ + atom_id] += 1.f;
-    }
+    float& Impl(int atom_id) { return buff_[ofVac + 2*natoms_ + atom_id]; }
     const float& Impl(int atom_id) const { return buff_[ofVac + 2*natoms_ + atom_id]; }
 };
 

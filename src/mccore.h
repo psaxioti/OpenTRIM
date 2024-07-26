@@ -347,7 +347,7 @@ protected:
      * @param ev pointer to a pka_event object
      * @return 0 if succesfull
      */
-    int transport(ion* i, tally& t, pka_event* ev = nullptr);
+    int transport(ion* i, tally& t);
 
     /**
      * @brief Generate a new recoil ion
@@ -382,20 +382,20 @@ protected:
      * @brief Calculate electronic energy loss and straggling for the moving ion
      *
      * The specific stopping & straggling values are obtained by
-     * interpolation from the relevant tables by calling interp_dedx()
+     * calling interp_dedx() on the respective interpolator object
      *
      * Tables follow the corteo scheme, see \ref dedx_index.
      *
-     * @param i pointer to the moving ion
-     * @param m pointer to the material the ion is moving in
+     * @param E ion energy [eV]
      * @param fp flight path [nm]
-     * @param sqrtfp sqrt of the flight path (used for straggling)
-     * @param stopping_tbl pointer to the relevant stopping table [eV/nm]
-     * @param straggling_tbl pointer to the relevant straggling table [eV/sqrt{nm}]
+     * @param sqrtfp sqrt of fp/(atomic radius) (used for straggling)
+     * @param stopping_tbl pointer to stopping interpolator
+     * @param straggling_tbl pointer to straggling interpolator
      * @return the energy loss [eV]
+     *
+     * \sa dedx
      */
-    float calcDedx(const ion* i, const material* m,
-                   float fp, float sqrtfp,
+    float calcDedx(float E, float fp, float sqrtfp,
                    const dedx_interp* stopping_tbl,
                    const straggling_interp* straggling_tbl);
 
@@ -409,7 +409,7 @@ protected:
                     std::array<const float *, 3>& fp_par_tbl) const;
 
 
-    void pka_end(const ion* i, tally &t, const pka_event &pka);
+    void pka_mark(const ion* i, tally &t, pka_event &pka, bool start);
 
 };
 

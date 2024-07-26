@@ -281,8 +281,12 @@ ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil
                             const vector3& dir0, const float &sqrt_mass_ratio)
 {
     // clone the projectile ion
+    // this gets the correct position and cell id
     ion* j = q_.new_ion(proj);
-    j->init_recoil(target, recoil_erg);
+    // init the recoil with target atomic species and
+    // recoil kinetic energy
+    // subtract the lattice energy (FP creation energy)
+    j->init_recoil(target, recoil_erg - target->El());
     j->reset_counters();
 
     // calc recoil direction from momentum conserv.
@@ -314,37 +318,42 @@ int mccore::run()
 
         // transport the ion
         transport(i,tion_);
-        // free the ion buffer
-        q_.free_ion(i);
 
         // transport all PKAs
         ion* j;
         while ((j = q_.pop_pka()) != nullptr) {
             // transport PKA
-            pka.init(j);
+            //pka.init(j);
             ion j1(*j); // keep a clone ion to have initial position
+            pka_mark(&j1,tion_,pka,true);
 
             // FullCascade or CascadesOnly
             if (par_.simulation_type != IonsOnly) {
-                transport(j,tion_,&pka);
+                transport(j,tion_);
                 // transport all secondary recoils
                 ion* k;
                 while ((k = q_.pop_recoil())!=nullptr) {
-                    transport(k,tion_,&pka);
+                    transport(k,tion_);
                     // free the ion buffer
                     q_.free_ion(k);
                 }
             }
             // free the ion buffer
             q_.free_ion(j);
-            pka_end(&j1,tion_,pka);
+            pka_mark(&j1,tion_,pka,false);
             pka_stream_.write(&pka);
         } // pka loop
 
+        // compute total sums and
         // add this ion's tally to total score
+        tion_.computeSums();
+        //assert(tion_.debugCheck(i->erg0()));
         tally_ += tion_;
         dtally_.addSquared(tion_);
         tion_.clear();
+
+        // free the ion buffer
+        q_.free_ion(i);
 
         // update thread counter
         nion_thread_++;
@@ -357,17 +366,16 @@ int mccore::run()
     return 0;
 }
 
-float mccore::calcDedx(const ion *i, const material* m,
-                       float fp, float sqrtfp,
+float mccore::calcDedx(float E, float fp, float sqrtfp,
                        const dedx_interp *stopping,
                        const straggling_interp *straggling)
 {
-    dedx_index ie(i->erg());
 
-    float de_stopping = fp * (*stopping)(i->erg());
+
+    float de_stopping = fp * (*stopping)(E);
     if (par_.eloss_calculation == EnergyLossAndStraggling)
     {
-
+        dedx_index ie(E);
         float de_straggling = straggling->data()[ie] * rng.normal() * sqrtfp;
 
         /* IRADINA
@@ -392,8 +400,8 @@ float mccore::calcDedx(const ion *i, const material* m,
      * Therefore, we do sqrt downscaling of electronic
      * stopping below 16 eV.
      */
-    if (i->erg() < dedx_index::minVal)
-        de_stopping *= std::sqrt(i->erg() / dedx_index::minVal);
+    if (E < dedx_index::minVal)
+        de_stopping *= std::sqrt(E / dedx_index::minVal);
 
     /*
      * This is due to some rare low-energy events (ion E<100 eV)
@@ -404,13 +412,13 @@ float mccore::calcDedx(const ion *i, const material* m,
      * The code below changes that to almost stopping the ion,
      * E - stopping ~ 0
      */
-    if (de_stopping > i->erg())
-        de_stopping = 0.99*i->erg();
+    if (de_stopping > E)
+        de_stopping = 0.99*E;
 
     return de_stopping;
 }
 
-int mccore::transport(ion* i, tally &t, pka_event *pka)
+int mccore::transport(ion* i, tally &t)
 {
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
@@ -436,10 +444,6 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
         if(i->erg() < par_.min_energy){ 
             /* projectile has to stop. Store as implanted/interstitial atom*/
             t(Event::IonStop,*i);
-            if (pka) {
-                pka->addImpl(i->myAtom()->id()-1);
-                pka->Tdam() += i->erg();
-            }
             return 0; // history ends
         } 
 
@@ -471,7 +475,6 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
                     exit_ev.set(i);
                     exit_stream_.write(&exit_ev);
                 }
-                if (pka) pka->Tdam() += i->erg();
                 return 0; // ion history ends!
             }
             continue; // go to next iter
@@ -485,7 +488,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
         // subtract ionization & straggling
         if (par_.eloss_calculation != EnergyLossOff) {
-            float de = calcDedx(i, mat, fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+            float de = calcDedx(i->erg(), fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
             i->de_ioniz(de);
         }
 
@@ -510,7 +513,6 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
                 exit_ev.set(i);
                 exit_stream_.write(&exit_ev);
             }
-            if (pka) pka->Tdam() += i->erg();
             return 0; // ion history ends!
         default:
             break;
@@ -553,7 +555,7 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
 
             // Create recoil (it is stored in the ion queue)
             i->de_recoil(T);
-            ion* j = new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio());
+            new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio());
 
             /*
              * Now check whether the projectile might replace the recoil
@@ -564,11 +566,8 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
              * Z1==Z2 && M1==M2
              */
             if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
-                j->de_phonon(z2->El());
                 // Replacement event, ion energy goes to Phonons
                 t(Event::Replacement,*i,z2);
-                // the energy is also added to the PKA's Tdam
-                if (pka) pka->Tdam() += i->erg()+z2->El();
                 return 0; // end of ion history
             }
 
@@ -577,17 +576,11 @@ int mccore::transport(ion* i, tally &t, pka_event *pka)
              * Z2 vacancy is created and ion continues
              */
             //t(Event::Vacancy,*j);
-            j->de_phonon(z2->El());
-            if (pka) {
-                pka->Tdam() += z2->El();
-                pka->addVac(z2->id()-1);
-            }
 
         } else { // T<E_d, recoil cannot be displaced
             // energy goes to phonons
             // t(Event::Phonon,*i,&T);
             i->de_phonon(T);
-            if (pka) pka->Tdam() += T;
         }
 
     } // main ion transport loop
@@ -609,7 +602,7 @@ bool mccore::flightPath(const ion* i, const material* mat, float& fp, float& ip,
         ip = ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
         break;
     case MendenhallWeller:
-        ie = dedx_index(i->erg());
+        ie = dedx_index(float(i->erg()));
         ip = ipmax_tbl[ie];
         fp = mfp_tbl[ie];
         if (ip < mat->meanImpactPar())
@@ -624,7 +617,7 @@ bool mccore::flightPath(const ion* i, const material* mat, float& fp, float& ip,
         }
         break;
     case IPP:
-        ie = dedx_index(i->erg());
+        ie = dedx_index(float(i->erg()));
         fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
         doCollision = fp <= fpmax_tbl[ie];
         if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
@@ -639,37 +632,72 @@ bool mccore::flightPath(const ion* i, const material* mat, float& fp, float& ip,
     return doCollision;
 }
 
-void mccore::pka_end(const ion* i, tally &t, const pka_event& pka)
+void mccore::pka_mark(const ion* i, tally &t, pka_event &pka, bool start)
 {
-    const atom* z2;
-    const material* m;
-    std::array<float, 5> dp;
-    dp.fill(0.f);
-    dp[0] = pka.recoilE();
-    switch (par_.nrt_calculation) {
-    case NRT_element:
-        // NRT/LSS damage based on element
-        z2 = i->myAtom();
-        dp[1] = z2->LSS_Tdam(pka.recoilE());
-        dp[2] = z2->NRT(dp[1]);
-        // NRT damage based on element with true Tdam
-        dp[3] = pka.Tdam();
-        dp[4] = z2->NRT(dp[3]);
-
-        break;
-    case NRT_average:
-        m = target_->cell(i->cellid());
-        // NRT/LSS damage based on material / average Ed, Z, M
-        dp[1] = m->LSS_Tdam(pka.recoilE());
-        dp[2] = m->NRT(dp[1]);
-        // NRT damage based on material with true Tdam
-        dp[3] = pka.Tdam();
-        dp[4] = m->NRT(dp[3]);
-        break;
-    default:
-        break;
+    double sT(0.);
+    int ncell = target_->grid().ncells();
+    int natoms = target_->atoms().size();
+    std::vector<double> sV(natoms,0.), sI(natoms,0.), sR(natoms,0);
+    for(int i=1; i<natoms; i++) {
+        const double * ps = &t.stored()(i,0);
+        const double * pl = &t.lattice()(i,0);
+        const double * pv = &t.vacancies()(i,0);
+        const double * pr = &t.replacements()(i,0);
+        const double * pi = &t.implantations()(i,0);
+        for(int j=0; j<ncell; j++) {
+            sT += *ps++ + *pl++;
+            sV[i] += *pv++;
+            sI[i] += *pi++;
+            sR[i] += *pr++;
+        }
     }
-    t(Event::CascadeComplete,*i,dp.data());
+
+    if (start) {
+        pka.init(i);
+        pka.Tdam() = sT;
+        for(int i=1; i<natoms; i++) {
+            pka.Vac(i-1) = sV[i];
+            pka.Repl(i-1)= sR[i];
+            pka.Impl(i-1)= sI[i];
+        }
+    } else {
+        pka.Tdam() = sT - pka.Tdam() + i->myAtom()->El();
+        for(int i=1; i<natoms; i++) {
+            pka.Vac(i-1) = sV[i] - pka.Vac(i-1);
+            pka.Repl(i-1)= sR[i] - pka.Repl(i-1);
+            pka.Impl(i-1)= sI[i] - pka.Impl(i-1);
+        }
+
+        const atom* z2;
+        const material* m;
+        std::array<float, 5> dp;
+        dp.fill(0.f);
+        dp[0] = pka.recoilE();
+        switch (par_.nrt_calculation) {
+        case NRT_element:
+            // NRT/LSS damage based on element
+            z2 = i->myAtom();
+            dp[1] = z2->LSS_Tdam(pka.recoilE());
+            dp[2] = z2->NRT(dp[1]);
+            // NRT damage based on element with true Tdam
+            dp[3] = pka.Tdam();
+            dp[4] = z2->NRT(dp[3]);
+
+            break;
+        case NRT_average:
+            m = target_->cell(i->cellid());
+            // NRT/LSS damage based on material / average Ed, Z, M
+            dp[1] = m->LSS_Tdam(pka.recoilE());
+            dp[2] = m->NRT(dp[1]);
+            // NRT damage based on material with true Tdam
+            dp[3] = pka.Tdam();
+            dp[4] = m->NRT(dp[3]);
+            break;
+        default:
+            break;
+        }
+        t(Event::CascadeComplete,*i,dp.data());
+    }
 }
 
 void mccore::merge(const mccore& other)

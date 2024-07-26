@@ -54,7 +54,8 @@ class ion
     vector3 pos_; // position = x,y,z in nm
     vector3 pos0_; // initial position (start of track)
     vector3 dir_; // direction cosines
-    float erg_; // energy in eV
+    double erg_; // energy in eV
+    double erg0_; // initial energy
     ivector3 icell_;
     int cellid_, // current cell id
         prev_cellid_, // previous cell id
@@ -67,7 +68,7 @@ class ion
     // counters
     // they are reset when ion changes cell, stops or exits
     uint ncoll_; // # of collisions
-    float path_, // total path length
+    double path_, // total path length
         ioniz_, // total E loss to ionization
         phonon_, // total E loss to phonons
         recoil_; // total E loss to recoils
@@ -78,7 +79,7 @@ public:
     ion() :
         pos_(0.f,0.f,0.f),
         dir_(0.f,0.f,1.f),
-        erg_(1.f),
+        erg_(1.f), erg0_(1.f),
         icell_(), cellid_(-1), prev_cellid_(-1),
         ion_id_(0), recoil_id_(0),
         atom_(nullptr), grid_(nullptr),
@@ -93,7 +94,10 @@ public:
     const vector3& dir() const { return dir_; }
 
     /// Returns the ion's kinetic energy
-    float erg() const { return erg_; }
+    const double& erg() const { return erg_; }
+
+    /// Returns the ion's initial kinetic energy
+    const double& erg0() const { return erg0_; }
 
     /// Returns the index vector of the cell the ion is currently in
     const ivector3& icell() const { return icell_; }
@@ -102,7 +106,7 @@ public:
     int cellid() const { return cellid_; }
 
     /// Returns the id of the cell the ion started in
-    int cellid0() const { return cellid_; }
+    int cellid0() const { return cellid0_; }
 
     /// Returns the id of the cell the ion was previously in
     int prev_cellid() const { return prev_cellid_; }
@@ -122,26 +126,31 @@ public:
     /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
     const atom* myAtom() const { return atom_; }
 
-    void de_phonon(float de) {
-        erg_ -= de; phonon_ += de;
+    void de_phonon(double de) {
+        erg_ -= de;
+        phonon_ += de;
         assert(erg_>=0);
         assert(finite(erg_));
     }
-    void de_ioniz(float de) {
-        erg_ -= de; ioniz_ += de;
+    void de_ioniz(double de) {
+        erg_ -= de;
+        ioniz_ += de;
         assert(erg_>0);
         assert(finite(erg_));
     }
-    void de_recoil(float de) {
-        erg_ -= de;
-        recoil_ += de;
+    void de_recoil(double T) {
+        // This is needed because recoil T is calculated in single precision
+        // and it can happen that T > erg by a small amount, e.g. 1e-6
+        if (T >= erg_ ) T = erg_;
+        erg_ -= T;
+        recoil_ += T;
         assert(erg_>=0);
         assert(finite(erg_));
     }
-    float phonon() const { return phonon_; }
-    float ioniz() const { return ioniz_; }
-    float recoil() const { return recoil_; }
-    float path() const { return path_; }
+    const double& phonon() const { return phonon_; }
+    const double& ioniz() const { return ioniz_; }
+    const double& recoil() const { return recoil_; }
+    const double& path() const { return path_; }
     uint ncoll() const { return ncoll_; }
 
     void add_coll() { ncoll_++; }
@@ -162,8 +171,8 @@ public:
         atom_ = a;
     }
     /// Set the initial energy of the ion
-    void setErg(float e) {
-        erg_ = e;
+    void setErg(double e) {
+        erg_ = erg0_ = e;
         assert(finite(erg_));
         assert(erg_>0);
     }
@@ -184,7 +193,7 @@ public:
         grid_ = g;
     }
 
-    void init_recoil(const atom* a, float T);
+    void init_recoil(const atom* a, double T);
 
     /**
      * @brief Deflect the ion after scattering.
@@ -194,7 +203,10 @@ public:
      * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta) \f$
      * @see  \ref deflect_vector()
      */
-    void deflect(const vector3& n) { deflect_vector(dir_,n); }
+    void deflect(const vector3& n)
+    {
+        deflect_vector(dir_,n);
+    }
 
     /// reset all accumulators (path, energy etc)
     void reset_counters();

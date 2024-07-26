@@ -82,23 +82,26 @@ public:
 
     /// @brief The type of tally table
     enum tally_t {
-        cT = 0, /**< Table of total counts (histories, PKAs, Vacancies, etc)  */
-        cV = 1, /**< Vacancies  */
-        cI = 2, /**< Interstitials or Implanted ions  */
-        cR = 3, /**< Replacements  */
-        cP = 4, /**< PKAs  */
-        cL = 5, /**< Lost ions (they exit the simulation)  */
-        eIoniz = 6, /**< Ionization energy  */
-        ePhonon = 7, /**< Phonon energy  */
-        ePKA = 8, /**< PKA recoil energy  */
-        eLost = 9, /**< Energy of lost ions  */
-        dpTdam = 10, /**< Damage energy  */
-        dpTdam_LSS = 11, /**< Damage energy predicted by LSS theory */
-        dpVnrt = 12, /**< NRT Vacancies based on Tdam */
-        dpVnrt_LSS = 13, /**< NRT Vacancies based on Tdam_LSS */
-        isFlightPath = 14, /**< Ion flight path */
-        isCollision = 15, /**< Ion collisions */
-        tEnd = 16
+        cT = 0, /**< Table of totals (for all the following quantities) */
+        cV, /**< Vacancies  */
+        cI, /**< Interstitials or Implanted ions  */
+        cR, /**< Replacements  */
+        cP, /**< PKAs  */
+        cL, /**< Lost ions (they exit the simulation)  */
+        eIoniz, /**< Ionization energy  */
+        ePhonon, /**< Phonon energy = (Lattice + Stored)  */
+        eLattice, /**< Lattice energy = thermal energy deposited to the lattice */
+        eStored, /**< Energy stored in lattice defects (Frenkel Pairs) */
+        eRecoil, /**< Energy transfered to recoil atoms */
+        ePKA, /**< PKA recoil energy  */
+        eLost, /**< Energy of lost ions  */
+        dpTdam, /**< Damage energy  */
+        dpTdam_LSS, /**< Damage energy predicted by LSS theory */
+        dpVnrt, /**< NRT Vacancies based on Tdam */
+        dpVnrt_LSS, /**< NRT Vacancies based on Tdam_LSS */
+        isFlightPath, /**< Ion flight path */
+        isCollision, /**< Ion collisions */
+        tEnd
     };
 
     /// Number of standard tally tables
@@ -131,8 +134,7 @@ protected:
         I = 2,
         R = 3,
         P = 4,
-        L = 5,
-        D = 6
+        L = 5
     };
 
     
@@ -145,8 +147,6 @@ public:
     const double& Nions() const { return A[cT](H); }
     /// Return the total # of PKAs
     const double& Npkas() const { return A[cT](P); }
-    /// Return the total # of displacements
-    const double& Ndisp() const { return A[cT](D); }
     /// Return the total # of replacements
     const double& Nrepl() const { return A[cT](R); }
     /// Return the total # of interstitials or implantations
@@ -156,6 +156,8 @@ public:
     /// Return the total # of lost ions (the ones that exited the simulation volume)
     const double& Nlost() const { return A[cT](L); }
 
+    std::vector<std::string> arrayNames() const;
+
     const ArrayNDd& vacancies() const { return A[cV]; }
     const ArrayNDd& implantations() const { return A[cI]; }
     const ArrayNDd& replacements() const { return A[cR]; }
@@ -164,6 +166,8 @@ public:
 
     const ArrayNDd& ionization() const { return A[eIoniz]; }
     const ArrayNDd& phonons() const { return A[ePhonon]; }
+    const ArrayNDd& stored() const { return A[eStored]; }
+    const ArrayNDd& lattice() const { return A[eLattice]; }
     const ArrayNDd& lostE() const { return A[eLost]; }
     const ArrayNDd& pkaE() const { return A[ePKA]; }
 
@@ -177,7 +181,7 @@ public:
 
     /// @brief Initialize tally buffers for given # of atoms and cells 
     void init(int natoms, int ncells) {
-        A[0] = ArrayNDd(7);
+        A[0] = ArrayNDd(std_tallies);  // the "total sums" for all tallies
         for(int i=1; i<std_tallies; i++)
             A[i] = ArrayNDd(natoms,ncells);
     }
@@ -186,6 +190,14 @@ public:
     void clear() {
         for(int i=0; i<std_tallies; i++)
             A[i].clear();
+    }
+
+    /// Compute sums of all tallies
+    void computeSums() {
+        A[0][0] = 1; // 1 history
+        for(size_t i=1; i<std_tallies; i++)
+            for(size_t j=0; j<A[i].size(); j++)
+                A[0][i] += A[i][j];
     }
 
     /// @brief Add the scores from another tally
@@ -215,81 +227,12 @@ public:
     /// @param ev the event type
     /// @param i the ion causing the event
     /// @param pv pointer to additional data, if available
-    inline void operator()(Event ev, const ion& i, const void* pv = 0)
-    {
-        int iid = i.myAtom()->id(), cid=i.cellid(), pid=i.prev_cellid();
-        const float* p;
-        const atom* a;
-        switch (ev) {
-        case Event::BoundaryCrossing:
-            A[isCollision](iid,pid) += i.ncoll();
-            A[isFlightPath](iid,pid) += i.path();
-            A[ePhonon](iid,pid) += i.phonon();
-            A[eIoniz](iid,pid) += i.ioniz();
-            break;
-        case Event::Replacement:
-            // add a replacement
-            A[cT](R)++;
-            A[cR](iid,cid)++; // this atom, current cell
-            // Remove a Vac
-            A[cT](V)--;
-            // for the replaced atom (id passed in pointer pv), in current cell
-            a = reinterpret_cast<const atom*>(pv);
-            A[cV](a->id(),cid)--;
-            // if this was a recoil, add a V at the starting cell
-            if (i.recoil_id()) {
-                A[cT](D)++;
-                A[cT](V)++;
-                A[cV](iid,i.cellid0())++;
-            } else A[cT](H)++;
-            A[isCollision](iid,cid) += i.ncoll();
-            A[isFlightPath](iid,cid) += i.path();
-            A[eIoniz](iid,cid) += i.ioniz();
-            A[ePhonon](iid,cid) += i.erg() + i.phonon();
-            break;
-        case Event::IonStop:
-            A[cT](I)++;
-            A[cI](iid,cid)++;
-            if (i.recoil_id()) {
-                A[cT](D)++;
-                A[cT](V)++;
-                A[cV](iid,i.cellid0())++;
-            }  else A[cT](H)++;
-            A[isCollision](iid,cid) += i.ncoll();
-            A[isFlightPath](iid,cid) += i.path();
-            A[eIoniz](iid,cid) += i.ioniz();
-            A[ePhonon](iid,cid) += i.erg() + i.phonon();
-            break;
-        case Event::IonExit:
-            A[cT](L)++;
-            A[cL](iid,pid)++;
-            if (i.recoil_id()) {
-                A[cT](D)++;
-                A[cT](V)++;
-                A[cV](iid,i.cellid0())++;
-            } else A[cT](H)++;
-            A[isCollision](iid,pid) += i.ncoll();
-            A[isFlightPath](iid,pid) += i.path();
-            A[eIoniz](iid,pid) += i.ioniz();
-            A[ePhonon](iid,pid) += i.phonon();
-            A[eLost](iid,pid) += i.erg();
-            break;
-        case Event::CascadeComplete:
-            A[cT](P) += 1;
-            A[cP](iid,cid)++;
-            p = reinterpret_cast<const float*>(pv);
-            A[ePKA](iid,cid) += p[0];
-            A[dpTdam_LSS](iid,cid) += p[1];
-            A[dpVnrt_LSS](iid,cid) += p[2];
-            A[dpTdam](iid,cid) += p[3];
-            A[dpVnrt](iid,cid) += p[4];
-            break;
-        default:
-            break;
-        }
+    void operator()(Event ev, const ion& i, const void* pv = 0);
 
-    }
-
+    bool debugCheck(int id, double E0);
+    bool debugCheck(double E0);
+    double totalErg(int id);
+    double totalErg();
 
 };
 
