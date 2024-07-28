@@ -67,7 +67,7 @@ class ion
 
     // counters
     // they are reset when ion changes cell, stops or exits
-    uint ncoll_; // # of collisions
+    size_t ncoll_; // # of collisions
     double path_, // total path length
         ioniz_, // total E loss to ionization
         phonon_, // total E loss to phonons
@@ -151,7 +151,7 @@ public:
     const double& ioniz() const { return ioniz_; }
     const double& recoil() const { return recoil_; }
     const double& path() const { return path_; }
-    uint ncoll() const { return ncoll_; }
+    size_t ncoll() const { return ncoll_; }
 
     void add_coll() { ncoll_++; }
 

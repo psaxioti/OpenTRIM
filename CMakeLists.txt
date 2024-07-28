@@ -27,7 +27,7 @@ include (GNUInstallDirs)
 # by default, install into $HOME/.local (not /usr/local), so that no root access (and sudo!!) is needed
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if((CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (NOT CMAKE_CROSSCOMPILING))
-    set(CMAKE_INSTALL_PREFIX "$ENV{USERPROFILE}/iradina++" CACHE PATH "Default install path" FORCE)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/iradinapp" CACHE PATH "Default install path" FORCE)
   else()
     set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/.local" CACHE PATH "Default install path" FORCE)
   endif()
@@ -145,8 +145,12 @@ set(installable_libs
     iondedx
     xs_zbl xs_lj xs_krc xs_moliere
     iradinapp )
+
 install(TARGETS ${installable_libs} DESTINATION lib)
 install(FILES ${IRADINAPP_HEADERS} DESTINATION include)
 install(TARGETS iradina++ DESTINATION bin)
+
+
+
 
 
