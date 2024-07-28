@@ -316,21 +316,19 @@ try {
              << "  [VarName]_sem is the Standard Error of the Mean (SEM) for the quantity [VarName]." << endl;
     {
         bool ret = true;
-        int k = 0;
+        int k = 1;
 
         while(ret && k<tally::std_tallies) {
             std::string name("/tally/");           
-            if (k) { // create groups except for k=0, totals
-                name += tally::arrayGroup(k);
-                name += "/";
-            }
+            name += tally::arrayGroup(k);
+            name += "/";
             name += tally::arrayName(k);
             ret = dump_array(h5f, name, t.at(k), dt.at(k), var_list, tally::arrayDescription(k), t.Nions())==0;
             k++;
         }
 
-        ret = ret &&
-              dump(h5f, "/tally/Totals_ColumnNames", t.arrayNames(), var_list, "total sum tally columns")==0;
+        dump_array(h5f, "/tally/totals/data", t.at(0), dt.at(0), var_list, "tally totals", t.Nions());
+        dump(h5f, "/tally/totals/column_names", t.arrayNames(), var_list, "names of totals");
 
         if (!ret) return -1;
 

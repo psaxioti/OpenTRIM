@@ -236,17 +236,15 @@ Dimensions of tables depend on:
       - `Ionization`: [\f$N_{at}\times N_c\f$0], Energy deposited to electron ionization [eV]
       - `Lost`: [\f$N_{at}\times N_c\f$], Energy lost due to ions exiting the simulation [eV]
       - `PKA`: [\f$N_{at}\times N_c\f$], PKA recoil energy [eV]
-      - `Phonons`: [\f$N_{at}\times N_c\f$], Energy deposited to the lattice [eV]
+      - `Phonons`: [\f$N_{at}\times N_c\f$], Energy deposited to the lattice [eV], Phonons = Stored+Lattice
+      - `Stored`: [\f$N_{at}\times N_c\f$], Energy stored in lattice defects [eV]
+      - `Lattice`: [\f$N_{at}\times N_c\f$], Thermal energy deposited to the lattice [eV]
     - `ion_stat/`
       - `collisions`: [\f$N_{at}\times N_c\f$], ion collisions
       - `flight_path`: [\f$N_{at}\times N_c\f$], flight path [nm]
     - `totals/`
-      - `Ndisp`: [1x1], total # of displacements
-      - `Nimpl`: [1x1], total # of implanted/interstitial ions
-      - `Nlost`: [1x1], total # of lost ions
-      - `Npkas`: [1x1], total # of PKAs
-      - `Nrepl`: [1x1], total # of replacements
-      - `Nvac`: [1x1], total # of vacancies
+      - `data`: \f$[19\times 1]\f$ for each tally, sum of scores from all atoms and all cells
+      - `column_names`: name of each column in `data`	
   - `version_info/`
     - `build_system`: [1x1], build operating system
     - `build_time`: [1x1], build timestamp
