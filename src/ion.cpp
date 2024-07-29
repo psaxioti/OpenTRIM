@@ -29,13 +29,6 @@ void ion::init_recoil(const atom* a, double T)
     recoil_id_++;
 }
 
-
-void ion::reset_counters()
-{
-    ncoll_=0;
-    path_=ioniz_=phonon_=recoil_=0.0;
-}
-
 /**
  * @brief Propagate the ion for a distance s [nm] taking care of boundary crossings
  *
@@ -61,8 +54,8 @@ void ion::reset_counters()
  * @return the type of boundary crossing (none, internal (cell change), external (ion left simulation))
  */
 
-//#pragma GCC push_options
-//#pragma GCC optimize("O0")
+// #pragma GCC push_options
+// #pragma GCC optimize("O0")
 
 
 BoundaryCrossing ion::propagate(float& s)
@@ -70,24 +63,11 @@ BoundaryCrossing ion::propagate(float& s)
     vector3 x = pos_ + s*dir_;  // calc new ion position
     if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
         if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
-            // get our distance to the boundary
-            float s1 = distance2boundary(grid_->box(icell_), pos_, dir_);
-            // slightly increase s so that we get just outside the box
-            float ds = std::max(s1,1.f)*std::numeric_limits<float>::epsilon()*100;
-            s1 += ds;
-            x = pos_ + s1*dir_;
-            grid_->apply_bc(x);
+            // propagate to the boundary
+            x = pos_;
+            s = bring2boundary(grid_->box(icell_), x, dir_);
+            grid_->apply_bc(x); 
             ivector3 ix = grid_->pos2cell(x);
-            while (ix == icell_ && s1 < s) {
-                s1 += ds;
-                vector3 x0(x);
-                x = pos_ + s1*dir_;
-                grid_->apply_bc(x);
-                if (x==x0) break; // avoid endless loop lock
-                ix = grid_->pos2cell(x);
-            };
-            // new pos and cell
-            s = s1;
             path_ += s;
             pos_ = x;
             if (ix != icell_) {
@@ -96,7 +76,7 @@ BoundaryCrossing ion::propagate(float& s)
                 cellid_ = grid_->cellid(icell_);
                 return BoundaryCrossing::Internal;
             } else {
-                /* This is a very rare case where although grid_->contains(icell_,x)
+                /* This is a rare case where although grid_->contains(icell_,x)
                  * returned false in the end the particle does not change cell.
                  * This can happen if the following 2 conditions hold simultaneously:
                  *   A) x_i = (pos + s*dir)_i == L1, where L1 is the boundary of the simulation
@@ -108,7 +88,7 @@ BoundaryCrossing ion::propagate(float& s)
                  * the boundary and this is considered "outside the cell" (condition= "x0 <= x < x1").
                  * Note that contains(icell_,x) does not check for periodic BCs.
                  */
-                return BoundaryCrossing::None;
+                return BoundaryCrossing::InternalPBC;
             }
         } else { // we remain in the cell
             path_ += s;
@@ -118,15 +98,8 @@ BoundaryCrossing ion::propagate(float& s)
     } else { // ion is bound to exit simulation
         // 1. Reduce s to just cross the boundary
         s = distance2boundary(grid_->box(icell_),pos_,dir_);
-        float ds = std::max(s,1.f)*std::numeric_limits<float>::epsilon()*100;
-        s += ds;
         x = pos_ + s*dir_;
         grid_->apply_bc(x);
-        while (grid_->contains(icell_,x)) {
-            s += ds;
-            x = pos_ + s*dir_;
-            grid_->apply_bc(x);
-        };
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
             pos_ = x;
@@ -146,7 +119,7 @@ BoundaryCrossing ion::propagate(float& s)
     }
 }
 
-//#pragma GCC pop_options
+// #pragma GCC pop_options
 
 
 

@@ -514,6 +514,9 @@ int mccore::transport(ion* i, tally &t)
                 exit_stream_.write(&exit_ev);
             }
             return 0; // ion history ends!
+        case BoundaryCrossing::InternalPBC:
+            doCollision = false;
+            break;
         default:
             break;
         }

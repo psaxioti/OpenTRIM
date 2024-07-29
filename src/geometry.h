@@ -438,6 +438,83 @@ float distance2boundary(const box3D& b, const vector3& pos, const vector3& dir)
 }
 
 /**
+ * @brief Propagates a particle to the cell boundary
+ *
+ * The algorithm assumes that the particle is inside a rectangular box b.
+ *
+ * First, the distance \f$d\f$ is found to the boundary that the particle will
+ * cross, similarly to \ref distance2boundary().
+ *
+ * If the particle crosses the boundary perpendicular to, e.g., the \f$x\f$-axis, then
+ * its \f$x\f$ coordinate is updated to
+ *
+ * \f[
+ * x' = x_{max} + \delta, \quad  \mbox{if} \; n_x > 0
+ * \f]
+ *
+ * OR
+ *
+ * \f[
+ * x' = x_{min} - \delta, \quad  \mbox{if} \; n_x < 0
+ * \f]
+ *
+ * where \f$(x_{min},x_{max})\f$ are the cell boundaries along the \f$x\f$-axis and 
+ * \f$\delta\f$ is a small number so that the new position is guaratied to lie
+ * outside of the box. This is accomplished by using the std::nextafter() function of
+ * the std. math library.
+ *
+ * The other two coordinates are updated normally by
+ * \f[
+ * y' = y + n_y\,d, \quad  z' = z + n_z\,d
+ * \f]
+ *
+ * @param b   Rectangular box
+ * @param pos particle position vector
+ * @param dir particle direction vector
+ * @return float distance travelled to the box boundary
+ *
+ * @ingroup Geometry
+ */
+inline
+float bring2boundary(const box3D& b, vector3& pos, const vector3& dir)
+{
+    assert(b.contains(pos));
+
+    float d, d1;
+    int imax = 0;
+    d = (dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x()) / dir.x();
+    d1 = (dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y()) / dir.y();
+    if (d1 < d) { d = d1; imax = 1; }
+    d1 = (dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z()) / dir.z();
+    if (d1 < d) { d = d1; imax = 2; }
+
+    switch (imax) {
+    case 0:
+        pos.x() = (dir.x()>0) ? std::nextafter(b.max().x(), std::numeric_limits<float>::max()) :
+                      std::nextafter(b.min().x(), std::numeric_limits<float>::lowest());
+        pos.y() += dir.y()*d;
+        pos.z() += dir.z()*d;
+        break;
+    case 1:
+        pos.y() = (dir.y()>0) ? std::nextafter(b.max().y(), std::numeric_limits<float>::max()) :
+                      std::nextafter(b.min().y(), std::numeric_limits<float>::lowest());
+        pos.x() += dir.x()*d;
+        pos.z() += dir.z()*d;
+        break;
+    case 2:
+        pos.z() = (dir.z()>0) ? std::nextafter(b.max().z(), std::numeric_limits<float>::max()) :
+                      std::nextafter(b.min().z(), std::numeric_limits<float>::lowest());
+        pos.y() += dir.y()*d;
+        pos.x() += dir.x()*d;
+        break;
+    default:
+        assert(0);
+    }
+
+    return d;
+}
+
+/**
  * @brief Rotates the direction vector of a particle according to the scattering angles \f$ (\theta,\phi) \f$
  * 
  * The 1st argument represents the particle's direction vector \f$ \mathbf{m} \f$.
@@ -455,6 +532,8 @@ float distance2boundary(const box3D& b, const vector3& pos, const vector3& dir)
  * m'_y &=& m_y\, n_z + \frac{m_y\, m_z\, n_x - m_x\, n_y}{\sqrt{1-m_z^2}}  \\
  * m'_z &=& m_z\, n_z - n_x\, \sqrt{1-m_z^2}
  * \f}
+ * 
+ * \f$\mathbf{m'}\f$ is again normalized to minimize round-off errors.
  * 
  * @param m direction vector
  * @param n deflection vector

@@ -31,8 +31,9 @@ class atom;
  */
 enum class BoundaryCrossing {
     None,       /**< No boundary crossing occured. */
-    Internal,   /**< The ion crossed an internal cell boundary. The ion changes cell */ 
-    External    /**< The ion crossed an external boundary of the simulation volume. The ion exits the simulation */ 
+    Internal,   /**< The ion crossed an internal cell boundary. The ion changes cell */
+    External,    /**< The ion crossed an external boundary of the simulation volume. The ion exits the simulation */
+    InternalPBC   /**< Special case: internal boundary crossing due to periodic boundary conditions */
 };
 
 /**
@@ -209,8 +210,11 @@ public:
     }
 
     /// reset all accumulators (path, energy etc)
-    void reset_counters();
-
+    void reset_counters()
+    {
+        ncoll_=0;
+        path_=ioniz_=phonon_=recoil_=0.0;
+    }
 
     BoundaryCrossing propagate(float& s);
 };
