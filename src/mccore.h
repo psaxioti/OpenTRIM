@@ -276,47 +276,50 @@ public:
 protected:
 
     /**
-     * @brief flightPath selects the ion's flight path and impact parameter
+     * @brief Select the ion's flight path and impact parameter
      *
-     * The selection is performed according to the specified algorithm by
-     * mccore::flight_path_type_t.
+     * The selection is performed according to the algorithm specified by
+     * parameters::flight_path_type, which can be any of the types defined by
+     * the mccore::flight_path_type_t enum.
      * 
-     * If mccore::flight_path_type_t is equal to \ref AtomicSpacing or \ref Constant
+     * If parameters::flight_path_type is equal to \ref AtomicSpacing or \ref Constant
      * then the flight path \f$\ell\f$ is precalculated and equal to either the material's atomic radius
      * \f$ R_{at} = \left(\frac{3}{4\pi}N\right)^{1/3} \f$ or 
      * to \ref parameters::flight_path_const, respectively.
      * 
      * In both of these cases the impact parameter \f$p\f$ is calculated as
      * $$
-     * p = p_{max}\sqrt{u}, \quad p_{max} = (\pi \ell N)^{-1/2}
+     * p = (\pi \ell N)^{-1/2}\sqrt{u},
      * $$
      * where \f$u \in (0,1)\f$ is a random number.
      * 
+     * For the other algorithms there are precomputed tables as a function of energy
+     * of mean free path \$\ell_0\f$, max. impact parameter \f$p_{max}\f$ and 
+     * maximum fligth path \$\ell_{max}\f$. For more information see \ref flightpath.
+     * 
      * The \ref MendenhallWeller algorithm is as follows:
-     * - Get precomputed tables based on ion energy: \f$\ell = \ell(E)\f$, \f$p_{max} = p_{max}(E)\f$
-     * - If \f$p_{max}<(\pi R_{at} N)^{-1/2}\f$
+     * - If \f$p_{max}(E)<(\pi R_{at} N)^{-1/2}\f$ set
      * $$
-     * p = p_{max}\sqrt{-\log{u}}
+     * p = p_{max}\sqrt{-\log{u}} \quad \mbox{and} \quad \ell=\ell_0(E).
      * $$
-     * and reject collision if \f$p>p_{max}\f$.
-     * - otherwise \f$\ell = R_{at}\f$ and:
+     * Reject collision if \f$p>p_{max}\f$.
+     * - otherwise:
      * $$
-     * p = p_{max}\sqrt{u}, \quad p_{max} = (\pi \ell N)^{-1/2}
+     * \ell = R_{at} \quad \mbox{and} \quad p = (\pi \ell N)^{-1/2}\sqrt{u}.
      * $$
      * 
      * Finally, the \ref IPP algorithm does the following:
-     * - Get precomputed tables based on ion energy: \f$\ell_0 = \ell_0(E)\f$, \f$p_{max} = p_{max}(E)\f$
-     * - \f$\ell = -\ell_0 \log{u_1}\f$
-     * - \f$p = p_{max}\sqrt{u_2}\f$
-     * - Reject collision if \f$\ell > \ell_{max}\f$
+     * - \f$\ell = -\ell_0(E) \log{u_1}\f$
+     * - \f$p = p_{max}(E)\sqrt{u_2}\f$
+     * - Reject collision if \f$\ell > \ell_{max}(E)\f$
      * 
      * 
      * @param[in] i pointer to the moving ion object
      * @param[in] m pointer to the material the ion is in
      * @param[out] fp  the selected flight path [nm]
      * @param[out] ip the selected impact parameter [nm]
-     * @param[out]  sqrtfp the square root of the selected flight path
-     * @return true is the ion should collide at the end of its flight path
+     * @param[out] sqrtfp the square root of flight path over atomic radius \f$\sqrt{\ell/R_{at}}\f$
+     * @return true if the ion should collide at the end of its flight path
      * 
      * @sa \ref flightpath
      */
@@ -328,23 +331,22 @@ protected:
      *
      * This function propagates an ion by repeating the following steps in a loop:
      *   - Call flightPath() to select flight path and impact parameter
-     *   - Call doDedx() to subtract electronic stopping
-     *   - Select collision partner and call xs_lab::scatter
-     *   - Generate a recoil if conditions allow by calling new_recoil()
+     *   - Call ion::propagate() to advance the ion position
+     *   - Call calcDedx() to calculate stopping and straggling and subtract it from the ion energy
+     *   - Select collision partner and call xs_lab::scatter() to obtain scattering angle and recoil energy \f$T\f$
+     *   - If \f$T>E_d\f$, where \f$E_d\f$ is the \ref atom::parameters::Ed "displacement energy", call new_recoil() to create a recoil ion and put it the \ref ion_queue "simulation queue"
+     *   - Otherwise \f$T\f$ is deposited as lattice vibrations 
      *
      * The loop is repeated until either the ion exits the target or
-     * its energy becomes less than parameters::min_energy.
+     * its energy becomes less than parameters::min_energy whereupon the ion
+     * stops and remains implanted in the target.
      *
-     * Events (recoil generation, ion exit, etc) and energy changes (ionization, phonons, etc)
-     *  are registered in the \ref tally object \p t.
-     *
-     * If \p ev is not null then this ion is part of a recoil cascade
-     * and relevant information (e.g., damage energy, vacancies, etc.) if collected in
-     * the \ref pka_event object.
+     * Tally scoring is performed at specific simulation events 
+     * (cell change, ion exit, implantation) 
+     * using the \ref tally object \p t.
      *
      * @param i pointer to the ion object
      * @param t reference to the tally object
-     * @param ev pointer to a pka_event object
      * @return 0 if succesfull
      */
     int transport(ion* i, tally& t);
@@ -353,16 +355,11 @@ protected:
      * @brief Generate a new recoil ion
      *
      * This function creates a new recoil ion of atomic species \p target
-     * with energy \p recoil_erg, it then calculates its direction of motion
-     * based on the initial direction of the scattered ion, \p dir0.
-     *
-     * The \ref tally object \p t is needed to register the lattice binding energy
-     * (if the recoiling atom specifies a non-zero) that is released to phonons.
-     *
-     * If \p pka is not null then this recoil is part of a cascade
-     * and the lattice binding energy is added to the damage energy of
-     * the \ref pka_event object.
-     *
+     * with energy \p recoil_erg.
+     * 
+     * It then calculates its direction of motion
+     * using also the initial direction of the scattered ion, \p dir0.
+     * 
      * The newly created recoil is put on the respective \ref ion_queue in order to
      * be transported later.
      *
@@ -370,21 +367,19 @@ protected:
      * @param target pointer to the atomic species of the target atom
      * @param recoil_erg recoil energy of the target atom
      * @param dir0 initial projectile direction
-     * @param mass_ratio mass ratio projectile/target
-     * @param t reference to a tally object
-     * @param pka pointer to a pka event object
+     * @param sqrt_mass_ratio mass ratio projectile/target
      * @return a pointer to the newly created moving ion
      */
     ion *new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
                     const vector3& dir0, const float& sqrt_mass_ratio);
 
     /**
-     * @brief Calculate electronic energy loss and straggling for the moving ion
+     * @brief Calculate electronic energy loss and straggling of the moving ion
      *
      * The specific stopping & straggling values are obtained by
-     * calling interp_dedx() on the respective interpolator object
+     * calling dedx_interp() on the respective interpolator object.
      *
-     * Tables follow the corteo scheme, see \ref dedx_index.
+     * Tables follow the corteo indexing scheme, see \ref dedx_index.
      *
      * @param E ion energy [eV]
      * @param fp flight path [nm]

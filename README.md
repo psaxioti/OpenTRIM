@@ -18,7 +18,7 @@ Documentation can be found here: https://ir2-lab.gitlab.io/iradinapp
 
 ### Installation
 
-On Linux the project can be built and installed with `cmake`.
+On **Linux** the project can be built and installed with `cmake`.
 
 The `Eigen` and `HDF5` libraries are needed for building. Install them with
 ```bash
@@ -43,7 +43,7 @@ make install
 The default install location is `$HOME/.local`, thus `sudo` is not required.
 Override this by setting the option `-DCMAKE_INSTALL_PREFIX="/your/install/location"` when calling `cmake`. 
 
-In Windows please download the latest binary distribution release provided as a zip file.
+On **Windows** please download the latest binary distribution release provided as a zip file and extract to some location. To be able to run the program from the windows command line, add the program folder to the user or system path.
 
 ### Usage
 

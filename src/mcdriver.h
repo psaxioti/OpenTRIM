@@ -34,6 +34,9 @@
  * A typical usage scenario would be:
  *
  * @code{.cpp}
+ * #include "mcdriver.h"
+ * #include <iostream>
+ * 
  * mcdriver::options opt;
  * opt.parseJSON(std::cin);
  * mcdriver d;

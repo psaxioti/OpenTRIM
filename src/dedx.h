@@ -22,17 +22,25 @@
  * Tables are provided for all projectile (\f$Z=Z_1\f$) / target (\f$Z=Z_2\f$) compinations with \f$ 1 \leq Z_1, Z_2 \leq 92\f$ 
  *
  * The data are compiled into a dynamic library (libdedx.so or .dll).
- * Access is provided by the function \ref dedx().
+ * 
+ * The \ref dedx_interp interpolator object can be used for stopping
+ * calculations in mono- and polyatomic materials. The stopping at a given 
+ * ion energy is obtained by log-log interpolation.
+ * 
+ * \ref straggling_interp is a similar interpolator class for calculating
+ * energy straggling.
+ * 
+ * Direct access to the stopping tables is provided by the function \ref raw_dedx().
  *
  * @}
  *
  */
 
 /**
- * @brief A 4-bit corteo_index for tables of ion energy loss dE/dx
+ * @brief A 4-bit corteo::index for tables of ion stopping, \f$dE/dx\f$
  *
  * This index provides fast access to a log-spaced table of ion energy values.
- * They are intended for interpolating tables of energy loss, dE/dx.
+ * They are intended for indexing interpolation tables of ion stopping.
  *
  * The number of tabulated values is (30-4)*2^4 + 1 = 417,
  * in the range \f$ 2^4 = 16 \leq E \leq 2^{30} \sim 10^9 \f$ in [eV].
@@ -69,7 +77,7 @@ const float* raw_dedx(int Z1, int Z2);
  * Initialize the class with the projectile's atomic number and mass
  * and the composition and atomic density of the target.
  *
- * Monoatomic and polyatomic targeys are covered by
+ * Monoatomic and polyatomic targets are covered by
  * the two different constructors. In polyatomic materials the Bragg
  * mixing rule is applied.
  *
@@ -103,6 +111,13 @@ public:
          int Z2, float N = 1.f);
     /**
      * @brief Construct an interpolator for polyatomic targets
+     * 
+     * The total stopping power is given by the Bragg mixing rule:
+     * \f[
+     * dE/dx = N\sum_i{X_i (dE/dx)_i}
+     * \f]
+     * where the sum is over all atomic species in the target.
+     * 
      * @param Z1 projectile atomic number
      * @param M1 projectile atomic mass
      * @param Z2 vector of target atom atomic numbers
@@ -119,6 +134,8 @@ public:
  * @brief The model used to calculate electronic energy straggling of ions
  * 
  * The implementation of the different models is from Yang et al (1991) NIMB
+ * 
+ *  @ingroup dedx
  */
 enum class StragglingModel {
     Bohr = 0,         /**< Bohr straggling model */
@@ -169,6 +186,13 @@ public:
                       int Z2, float N = 1.f);
     /**
      * @brief Construct an interpolator for polyatomic targets
+     * 
+     * The total straggling is given by the Bragg mixing rule:
+     * \f[
+     * \Omega^2 = N\sum_i{X_i \Omega_i^2}
+     * \f]
+     * where the sum is over all atomic species in the target.
+     * 
      * @param model The \ref StragglingModel to apply
      * @param Z1 projectile atomic number
      * @param M1 projectile atomic mass

@@ -38,7 +38,7 @@ Override this by setting the option `-DCMAKE_INSTALL_PREFIX="/your/install/locat
 
 Download the latest binary distribution release as a zip file and extract to some location.
 
-To run the program from the windows command line, add the bin/ subfolder to the system or user path.
+To run the program from the windows command line, add the program folder to the system or user path.
 
 ## Using the command line application {#cliapp}
 
@@ -232,7 +232,7 @@ Dimensions of tables depend on:
       - `PKAs`: [\f$N_{at}\times N_c\f$], PKAs
       - `Replacements`: [\f$N_{at}\times N_c\f$], Replacements
       - `Vacancies`: [\f$N_{at}\times N_c\f$], Vacancies
-    - `energy_deposition/`
+    - `energy_deposition/` (see also \ref energy_part)
       - `Ionization`: [\f$N_{at}\times N_c\f$0], Energy deposited to electron ionization [eV]
       - `Lost`: [\f$N_{at}\times N_c\f$], Energy lost due to ions exiting the simulation [eV]
       - `PKA`: [\f$N_{at}\times N_c\f$], PKA recoil energy [eV]
