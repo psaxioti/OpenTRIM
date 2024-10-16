@@ -85,7 +85,7 @@ void material::init()
         int ionZ = target_->projectile()->Z();
         float ionM = target_->projectile()->M();
         meanA_ = screening_function<Screening::ZBL>::screeningLength(ionZ, meanZ_); // nm
-        meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2 );
+        meanF_ = meanA_ * meanM_ / ( ionZ * meanZ_ * (ionM + meanM_) * E2C2 );
         meanMinRedTransfer_ = dedx_index::minVal * meanF_ * (ionM + meanM_)*(ionM + meanM_) / (4*ionM*meanM_) ;
     }
 

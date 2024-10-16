@@ -8,7 +8,7 @@
 
 #define BOHR_RADIUS 0.05291772108 /* Bohr radius [nm] */
 #define SCREENCONST 0.88534 /* Lindhard screening length constant */
-#define E2 1.43996445      /* e^2 / 4 pi eps0 = e^2 c^2 in [eV][nm] */
+#define E2C2 1.43996445      /* e^2 / 4 pi eps0 = e^2 c^2 in [eV][nm] */
 #define AMUbyE 1.036426883E-8 /* amu/e = 1.660538782E-27/1.602176487E-19 */
 #define ELEMENTARY_CHARGE 1.602176487E-19
 
@@ -924,7 +924,7 @@ protected:
         mass_ratio_       = M1/M2;
         sqrt_mass_ratio_  = std::sqrt(mass_ratio_);
         gamma_            = 4*mass_ratio_ / ((mass_ratio_+1) * (mass_ratio_+1));
-        red_E_conv_       = screening_length_ / ((mass_ratio_+1) * Z1 * Z2 * E2);
+        red_E_conv_       = screening_length_ / ((mass_ratio_+1) * Z1 * Z2 * E2C2);
         sig0_             = M_PI*screening_length_*screening_length_;
     }
 
