@@ -1,5 +1,4 @@
 #include "mcdriver.h"
-#include "elements.h"
 
 #include <chrono>
 #include <iomanip>
@@ -301,7 +300,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
             int natoms = md.Z.size();
             if (std::any_of(md.Z.begin(),
                             md.Z.end(),
-                            [](int z){ return (z < 1) || (z > elements::max_atomic_num);}))
+                            [](int z){ return (z < 1) || (z > dedx_max_Z);}))
             {
                 throw std::invalid_argument("Invalid Z number in material" + md.id);
             }

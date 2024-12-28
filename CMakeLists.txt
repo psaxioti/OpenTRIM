@@ -56,9 +56,23 @@ include_directories(${HDF5_INCLUDE_DIRS})
 message(STATUS "HDF5 include: ${HDF5_INCLUDE_DIRS}")
 message(STATUS "HDF5 libs: ${HDF5_LIBRARIES}")
 
+include_directories(src)
+
+add_executable(genptable
+    src/genptable.cpp)
+
+set(ISOTOPE_CSV ${CMAKE_CURRENT_SOURCE_DIR}/extern/isotope-data/isotopes_data.csv)
+set(PTABLE_CSV ${CMAKE_CURRENT_SOURCE_DIR}/extern//Periodic-Table-JSON/PeriodicTableCSV.csv)
+set(PTABLE_DATA_CPP periodic_table.cpp)
+
+add_custom_command(OUTPUT ${PTABLE_DATA_CPP}
+    COMMAND genptable ${ISOTOPE_CSV} ${PTABLE_CSV} ${PTABLE_DATA_CPP}
+    DEPENDS genptable)
+
 add_executable(gendedx
     src/gendedx.cpp
-    src/elements.h src/elements.cpp)
+    src/periodic_table.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${PTABLE_DATA_CPP})
 
 file(GLOB gendedx_files CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/dedx/*.cpp)
@@ -67,8 +81,6 @@ add_library(dedx SHARED
     src/corteo.h
     src/dedx.h
     src/dedx.cpp
-    src/elements.h
-    src/elements.cpp
     src/straggling.cpp
     ${gendedx_files})
 
@@ -95,7 +107,7 @@ set (PROJECT_HEADERS
     src/corteo.h   
     src/corteo_xs.h
     src/xs.h
-    src/elements.h
+    src/periodic_table.h
     src/ion.h 
     src/random_vars.h
     src/target.h 
@@ -118,7 +130,7 @@ set (EXE_TARGET ${PROJECT_NAME}_exe)
 add_library(${LIB_TARGET} SHARED
     ${PROJECT_HEADERS}
     ${PROJECT_HEADERS_PRIVATE}
-    src/elements.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${PTABLE_DATA_CPP}
     src/ion.cpp   
     src/target.cpp
     src/mccore.cpp   
@@ -194,8 +206,6 @@ set(GUI_SOURCES
     src/gui/periodictablewidget.cpp
     src/gui/materialsdefview.h 
     src/gui/materialsdefview.cpp
-    src/gui/periodictable.h 
-    src/gui/periodictable.cpp
     src/gui/optionsmodel.h 
     src/gui/optionsmodel.cpp
     src/gui/floatlineedit.h 

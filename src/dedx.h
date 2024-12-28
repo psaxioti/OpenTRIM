@@ -71,6 +71,8 @@ typedef corteo::index<float, int, 4, 4, 30> dedx_index;
  */
 const float* raw_dedx(int Z1, int Z2);
 
+constexpr int dedx_max_Z{92};
+
 /**
  * @brief Interpolator class for ion electronic stopping calculations
  *

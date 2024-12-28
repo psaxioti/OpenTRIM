@@ -1,6 +1,7 @@
 #include "periodictablewidget.h"
 
-#include "periodictable.h"
+#include "periodic_table.h"
+#include "dedx.h"
 
 #include <QGridLayout>
 #include <QVBoxLayout>
@@ -10,28 +11,28 @@
 #include <QAction>
 #include <QDialogButtonBox>
 
-#define ZMAX 103
+#define ZMAX dedx_max_Z
 
 QString ElementButton::getIsotopeDesc(int z, int i)
 {
-    const Element& E = PeriodicTable::at(z);
-    const QVector<Element::Isotope>& I = E.isotopes();
+    auto& E = periodic_table::at(z);
+    auto& I = E.isotopes;
 
     if (i>I.size() || i<0) return QString();
 
     if (i==I.size()) {
         return QString("%1 | <m> %2")
-            .arg(E.symbol())
-            .arg(E.mass(),7,'f',3);
+            .arg(E.symbol.c_str())
+            .arg(E.mass,7,'f',3);
     } else {
         if (I[i].abundance > 0.0)
             return QString("%1 | m %2 | a %3")
-                .arg(I[i].symbol)
+                .arg(I[i].symbol.c_str())
                 .arg(I[i].mass,7,'f',3)
                 .arg(I[i].abundance,7,'g');
         else
             return QString("%1 | m %2 | a -")
-                .arg(I[i].symbol)
+                .arg(I[i].symbol.c_str())
                 .arg(I[i].mass,7,'f',3);
     }
 }
@@ -39,18 +40,18 @@ QString ElementButton::getIsotopeDesc(int z, int i)
 ElementButton::ElementButton(int z, PeriodicTableWidget *pt, QWidget *parent)
     : QToolButton(parent), ptable(pt), Z_(z)
 {
-    const Element& Z = PeriodicTable::at(z);
+    auto& Z = periodic_table::at(z);
 
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    setText(Z.symbol());
+    setText(Z.symbol.c_str());
     setPopupMode(QToolButton::InstantPopup);
-    setToolTip(QString("%1, Z=%2").arg(Z.name()).arg(Z.Z()));
+    setToolTip(QString("%1, Z=%2").arg(Z.name.c_str()).arg(Z.Z));
 
     if (pt->getIsotopes_) {
         QMenu* toolMenu = new QMenu;
-        int n = Z.isotopes().size();
+        int n = Z.isotopes.size();
         if (n>1) {
-            if (Z.mass() > 0.0) {
+            if (Z.mass > 0.0) {
                 QAction* action = toolMenu->addAction(
                     getIsotopeDesc(z,n)
                     );
@@ -166,23 +167,23 @@ void PeriodicTableWidget::singleElementSelect()
 
     if (bt) {
         _selectedElement = bt->Z();
-        _selectedMass = PeriodicTable::at(_selectedElement).mass();
-        _selectedIonSymbol = PeriodicTable::at(_selectedElement).symbol();
+        _selectedMass = periodic_table::at(_selectedElement).mass;
+        _selectedIonSymbol = QString::fromStdString(periodic_table::at(_selectedElement).symbol);
         emit elementSelected();
     }
 }
 
 void PeriodicTableWidget::isotopeSelect()
 {
-    const Element& at = PeriodicTable::at(_selectedElement);
-    if (_selectedIsotope == at.isotopes().size()) {
-        _selectedMass = at.mass();
-        _selectedIonSymbol = at.symbol();
+    auto& at = periodic_table::at(_selectedElement);
+    if (_selectedIsotope == at.isotopes.size()) {
+        _selectedMass = at.mass;
+        _selectedIonSymbol = QString::fromStdString(at.symbol);
     }
     else {
-        const Element::Isotope& I = at.isotopes().at(_selectedIsotope);
+        auto& I = at.isotopes.at(_selectedIsotope);
         _selectedMass = I.mass;
-        _selectedIonSymbol = I.symbol;
+        _selectedIonSymbol = QString::fromStdString(I.symbol);
     }
     emit elementSelected();
 }

@@ -3,7 +3,7 @@
 
 #include "geometry.h"
 #include "arrays.h"
-#include "elements.h"
+#include "periodic_table.h"
 
 #include <string>
 #include <vector>
@@ -126,7 +126,7 @@ public:
     /// A pointer to the target material this atom belongs to. For the beam atom nullptr is returned.
     const material* mat() const { return mat_; }
     /// Returns the chemical name of the atom
-    const char* name() const { return elements::name(p_.Z); }
+    const char* name() const { return periodic_table::at(p_.Z).symbol.c_str(); }
     /// Returns the atomic number
     int Z() const { return p_.Z; }
     /// Returns the atomic mass

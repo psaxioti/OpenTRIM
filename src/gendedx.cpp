@@ -26,7 +26,7 @@
  */
 
 #include "dedx.h"
-#include "elements.h"
+#include "periodic_table.h"
 
 #include <cmath>
 #include <cfloat>
@@ -45,6 +45,31 @@ const char endline[] = "\r\n";
 
 namespace fs = std::filesystem;
 using namespace std;
+
+double mostAbundantIsotopeMass(int Z)
+{
+    auto& e = periodic_table::at(Z);
+
+    if (e.isotopes.empty()) return 0.0;
+
+    double max_abnd = 0;
+    const periodic_table::isotope* i_max_abnd = nullptr;
+    double max_hl = 0;
+    const periodic_table::isotope*  i_max_hl = nullptr;
+    for (const periodic_table::isotope& i : e.isotopes) {
+        if (i.abundance > max_abnd) {
+            max_abnd = i.abundance;
+            i_max_abnd = &i;
+        }
+        if (i.half_life > max_hl) {
+            max_hl = i.half_life;
+            i_max_hl = &i;
+        }
+    }
+    if (i_max_abnd!=nullptr) return i_max_abnd->mass;
+    else if (i_max_hl!=nullptr) return i_max_hl->mass;
+    else return 0.0;
+}
 
 
 string srmodule_folder;
@@ -86,7 +111,7 @@ int run_srim(int Z1, int Z2, vector<float>& data)
         os << endline << endline
            << "SR_OUTPUT.txt"
            << endline << endline
-           << Z1 << ' ' << elements::mostAbundantIsotope(Z1)
+           << Z1 << ' ' << mostAbundantIsotopeMass(Z1)
            << endline << endline
            << " 0 1 0"
            << endline << endline
@@ -151,9 +176,9 @@ std::ostream& printfloat(std::ostream& os, float x)
 int print_cpp_matrix(ofstream& Z1cpp, int Z1, int Z2, const vector<float>& data)
 {
     Z1cpp << "static const float "
-          << elements::name(Z1)
+          << periodic_table::at(Z1).symbol
           << "_on_"
-          << elements::name(Z2)
+          << periodic_table::at(Z2).symbol
           << "[] = {";
     const int val_per_line = 10;
     for(int i=0; i<data.size()-1; ++i) {
@@ -168,14 +193,14 @@ int print_cpp_matrix(ofstream& Z1cpp, int Z1, int Z2, const vector<float>& data)
 int print_cpp_element_matrix(ofstream& Z1cpp, int Z1, int Z2max)
 {
     Z1cpp << "const float* dedx"
-          << elements::name(Z1)
+          << periodic_table::at(Z1).symbol
           << "[] = { nullptr,";
     const int val_per_line = 5;
     for(int Z2=1; Z2<=Z2max; Z2++) {
         if (((Z2-1) % val_per_line) == 0) Z1cpp << endl << "    ";
-        Z1cpp << elements::name(Z1)
+        Z1cpp << periodic_table::at(Z1).symbol
               << "_on_"
-              << elements::name(Z2);
+              << periodic_table::at(Z2).symbol;
         if (Z2<Z2max) Z1cpp << ", ";
         else Z1cpp << "};" << endl << endl;
     }
@@ -188,14 +213,14 @@ int doit()
 
     vector<float> data(dedx_index::size);
 
-    int Zmax = elements::max_atomic_num;
+    int Zmax = dedx_max_Z;
     cout << "Generating dedx data:" << endl;
     for(int Z1=1; Z1<=Zmax; Z1++) {
-        cout << elements::name(Z1) << ' ';
+        cout << periodic_table::at(Z1).symbol << ' ';
         cout.flush();
         string fname(out_folder);
         fname += "/";
-        fname += elements::name(Z1);
+        fname += periodic_table::at(Z1).symbol;
         fname += ".cpp";
         ofstream Z1cpp(fname);
         // Z1cpp << fixed << setprecision(4);
@@ -219,7 +244,7 @@ int doit()
 
         for(int Z1=1; Z1<=Zmax; Z1++) {
             cpp << "extern const float* dedx"
-                << elements::name(Z1) << "[];" << endl;
+                << periodic_table::at(Z1).symbol << "[];" << endl;
         }
         cpp << endl;
 
@@ -227,11 +252,25 @@ int doit()
         const int val_per_line = 5;
         for(int Z1=1; Z1<=Zmax; Z1++) {
             if (((Z1-1) % val_per_line) == 0) cpp << endl << "    ";
-            cpp << "dedx" << elements::name(Z1);
+            cpp << "dedx" << periodic_table::at(Z1).symbol;
             if (Z1<Zmax) cpp << ", ";
             else cpp << "};" << endl << endl;
         }
-     }
+    }
+
+    { // generate most_abundant_isotope_mass.cpp
+        ofstream cpp("most_abundant_isotope_mass.cpp");
+        cpp << setprecision(15);
+        cpp << preample;
+
+        cpp << "static const double most_abundant_isotope_mass_[] = {\n    0";
+        for(int Z=1; Z<periodic_table::size(); Z++) {
+            cpp << ',' << endl << "    " << mostAbundantIsotopeMass(Z);
+        }
+        cpp << "\n};\n";
+        cpp << "const double* most_abundant_isotope_mass = most_abundant_isotope_mass_;\n\n";
+    }
+
 
     return 0;
 }

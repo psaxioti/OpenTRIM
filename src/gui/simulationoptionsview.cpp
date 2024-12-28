@@ -1,5 +1,5 @@
 #include "simulationoptionsview.h"
-#include "periodictable.h"
+#include "periodic_table.h"
 #include "periodictablewidget.h"
 #include "materialsdefview.h"
 #include "regionsview.h"
@@ -28,6 +28,25 @@
 #include <QMessageBox>
 
 #include "jsedit/jsedit.h"
+
+const char* closestIsotopeSymbol(int Z, double M)
+{
+    auto& elmnt = periodic_table::at(Z);
+
+    if (elmnt.isotopes.empty()) return elmnt.symbol.c_str();
+
+    int i = 0;
+    double diff = std::abs(elmnt.isotopes[i].mass - M);
+    for(int j=1; j<elmnt.isotopes.size(); ++j) {
+        double d = std::abs(elmnt.isotopes[j].mass - M);
+        if (d<diff) {
+            i = j;
+            diff = d;
+        }
+    }
+    return elmnt.isotopes[i].symbol.c_str();
+}
+
 
 SimulationOptionsView::SimulationOptionsView(IonsUI *iui, QWidget *parent)
     : QWidget{parent}, ionsui(iui)
@@ -88,8 +107,8 @@ SimulationOptionsView::SimulationOptionsView(IonsUI *iui, QWidget *parent)
                 sb->setReadOnly(true);
 
             btSelectIon = new QPushButton("Select Ion");
-            const Element::Isotope& H1 = PeriodicTable::at(1).isotopes()[0];
-            ionLabel = new QLabel(H1.symbol);
+            auto& H1 = periodic_table::at(1).isotopes[0];
+            ionLabel = new QLabel(H1.symbol.c_str());
             flayout->insertRow(row,(QWidget*)btSelectIon,ionLabel);
             connect(btSelectIon,&QPushButton::clicked,
                     this, &SimulationOptionsView::selectIonZ);
@@ -265,7 +284,7 @@ void SimulationOptionsView::revert()
 
     // fix the isotope label
     ionLabel->setText(
-        PeriodicTable::closestIsotope(opt.IonBeam.ionZ,opt.IonBeam.ionM).symbol
+        closestIsotopeSymbol(opt.IonBeam.ionZ,opt.IonBeam.ionM)
         );
 
     applyRules();

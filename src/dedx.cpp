@@ -1,5 +1,6 @@
 #include "dedx.h"
-#include "elements.h"
+
+extern const double* most_abundant_isotope_mass;
 
 void calcStraggling(const dedx_interp& dedx_ion,
                     const dedx_interp& dedx_H,
@@ -12,8 +13,8 @@ extern const float** dedx_data[];
 const float* raw_dedx(int Z1, int Z2)
 {
     return (Z1 && Z2 &&
-            Z1>=1 && Z1<=elements::max_atomic_num &&
-            Z2>=1 && Z2<=elements::max_atomic_num) ?
+            Z1>=1 && Z1<=dedx_max_Z &&
+            Z2>=1 && Z2<=dedx_max_Z) ?
             dedx_data[Z1][Z2] : nullptr;
 }
 
@@ -40,7 +41,7 @@ int dedx_interp::init(int Z1, float M1,
     assert(Z2.size() >= 1);
 
     std::vector<float> buff(dedx_index::size, 0.f);
-    float amuRatio = elements::mostAbundantIsotope(Z1) / M1;
+    float amuRatio = most_abundant_isotope_mass[Z1] / M1;
 
     for (int j = 0; j < Z2.size(); j++)
     {
@@ -110,7 +111,7 @@ int straggling_interp::init(StragglingModel model,
                             float atomicDensity)
 {
     dedx_interp dedx_ion(Z1, M1, Z2, X2, atomicDensity);
-    dedx_interp dedx_H(1, elements::mostAbundantIsotope(1),
+    dedx_interp dedx_H(1, most_abundant_isotope_mass[1],
                        Z2, X2, atomicDensity);
 
     std::vector<float> buff(dedx_index::size, 0.f);

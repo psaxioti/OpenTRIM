@@ -1,10 +1,9 @@
 #include "materialsdefview.h"
 
-#include "periodictable.h"
+#include "periodic_table.h"
 #include "periodictablewidget.h"
 #include "floatlineedit.h"
 #include "optionsmodel.h"
-#include "qjsonarray.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -280,7 +279,7 @@ QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) cons
     if (i<0 || i>=mat->Z.size()) return QVariant();
 
     switch (j) {
-    case 0: return PeriodicTable::at(mat->Z[i]).symbol();
+    case 0: return periodic_table::at(mat->Z[i]).symbol.c_str();
     case 1: return mat->M[i];
     case 2: return mat->X[i];
     case 3: return mat->Ed[i];
