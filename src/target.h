@@ -3,7 +3,6 @@
 
 #include "geometry.h"
 #include "arrays.h"
-#include "periodic_table.h"
 
 #include <string>
 #include <vector>
@@ -72,10 +71,14 @@ public:
      * @brief The atom class parameters
      */
     struct parameters {
+        /// element symbol
+        std::string symbol;
         /// atomic number
         int Z;
-        /// mass of the atom
+        /// atomic mass
         float M;
+        /// atomic fraction
+        float X;
         /// Displacement threshold energy (eV) of target atoms
         float Ed;
         /// Lattice energy (eV) of target atoms
@@ -126,7 +129,7 @@ public:
     /// A pointer to the target material this atom belongs to. For the beam atom nullptr is returned.
     const material* mat() const { return mat_; }
     /// Returns the chemical name of the atom
-    const char* name() const { return periodic_table::at(p_.Z).symbol.c_str(); }
+    const std::string& symbol() const { return p_.symbol; }
     /// Returns the atomic number
     int Z() const { return p_.Z; }
     /// Returns the atomic mass
@@ -170,6 +173,7 @@ class material : public target_item
 
     std::vector<atom*> atoms_;
     std::vector<float> X_;
+    std::vector<int> Z_;
     std::vector<float> cumX_;
 
     float atomicRadius_; // nm
@@ -199,14 +203,7 @@ public:
     struct material_desc_t {
         std::string id;
         float density{1.f};
-        bool isMassDensity{true};
-        std::vector<int> Z;
-        std::vector<float> M;
-        std::vector<float> X;
-        std::vector<float> Ed;
-        std::vector<float> El;
-        std::vector<float> Es;
-        std::vector<float> Er;
+        std::vector<atom::parameters> composition;
     };
 
     explicit material(const char* name);
@@ -254,7 +251,7 @@ public:
      * @param x concentration
      * @return a pointer to the created atom object
      */
-    atom* addAtom(const atom::parameters& p, float x);
+    atom* addAtom(const atom::parameters& p);
 
     /**
      * @brief Perform initialization of internal material parameters.
@@ -304,8 +301,10 @@ public:
 
     int id() const { return id_; }
 
+    /// Returns a vector of atomic numbers of elements in the material
+    const std::vector<int>& Z() const { return Z_; }
     /// Returns a vector of atomic concentration of elements in the material
-    const std::vector<float>& X();
+    const std::vector<float>& X() const { return X_; }
     /// Returns a vector of pointers to atom objects
     const std::vector<atom*>& atoms() const { return atoms_; }
 

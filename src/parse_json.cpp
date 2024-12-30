@@ -135,20 +135,19 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::region,
                                           material_id,
                                           min, max)
 
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(atom::parameters,
+                                          symbol, Z, M, X,
+                                          Ed, El, Es, Er)
+
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(material::material_desc_t,
                                    id,
-                                   density, isMassDensity,
-                                   Z, M, X, Ed, El, Es, Er)
-
-
+                                   density,
+                                   composition)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ion_beam::parameters,
                                    ion_distribution,
                                    ionZ, ionM, ionE0,
                                    dir, pos)
-
-
-
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
                                           simulation_type, screening_type,

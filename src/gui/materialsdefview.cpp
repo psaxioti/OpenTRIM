@@ -1,6 +1,5 @@
 #include "materialsdefview.h"
 
-#include "periodic_table.h"
 #include "periodictablewidget.h"
 #include "floatlineedit.h"
 #include "optionsmodel.h"
@@ -259,11 +258,11 @@ int MaterialCompositionModel::rowCount(const QModelIndex & /* parent */) const
 {
     auto mat = getMaterial();
     if (mat==nullptr) return 0;
-    return mat->Z.size();
+    return mat->composition.size();
 }
 int MaterialCompositionModel::columnCount(const QModelIndex & /* parent */) const
 {
-    return col_names_.size(); // Z, M, X, Ed, El, Es, Er
+    return col_labels_.size(); // symbol, M, X, Ed, El, Es, Er
 }
 QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) const
 {
@@ -276,16 +275,18 @@ QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) cons
     auto mat = getMaterial();
     if (mat==nullptr) return QVariant();
 
-    if (i<0 || i>=mat->Z.size()) return QVariant();
+    if (i<0 || i>=mat->composition.size()) return QVariant();
+
+    auto& at = mat->composition[i];
 
     switch (j) {
-    case 0: return periodic_table::at(mat->Z[i]).symbol.c_str();
-    case 1: return mat->M[i];
-    case 2: return mat->X[i];
-    case 3: return mat->Ed[i];
-    case 4: return mat->El[i];
-    case 5: return mat->Es[i];
-    case 6: return mat->Er[i];
+    case 0: return at.symbol.c_str();
+    case 1: return at.M;
+    case 2: return at.X;
+    case 3: return at.Ed;
+    case 4: return at.El;
+    case 5: return at.Es;
+    case 6: return at.Er;
     default: return QVariant();
     }
 }
@@ -295,6 +296,8 @@ QVariant MaterialCompositionModel::headerData(int c,
 {
     if (role == Qt::DisplayRole && o == Qt::Horizontal)
         return col_labels_[c];
+    if (role == Qt::ToolTipRole && o == Qt::Horizontal)
+        return col_tooltip_[c];
     if (role == Qt::DisplayRole && o == Qt::Vertical)
         return c+1;
     return QVariant();
@@ -320,16 +323,18 @@ bool MaterialCompositionModel::setData(const QModelIndex &index, const QVariant 
     auto mat = getMaterial();
     if (mat==nullptr) return false;
 
-    if (i<0 || i>=mat->Z.size()) return false;
+    if (i<0 || i>=mat->composition.size()) return false;
+
+    auto& at = mat->composition[i];
 
     switch (j) {
-    case 0: mat->Z[i] = value.toInt(); break;
-    case 1: mat->M[i] = value.toFloat(); break;
-    case 2: mat->X[i] = value.toFloat(); break;
-    case 3: mat->Ed[i] = value.toFloat(); break;
-    case 4: mat->El[i] = value.toFloat(); break;
-    case 5: mat->Es[i] = value.toFloat(); break;
-    case 6: mat->Er[i] = value.toFloat(); break;
+    case 0: at.symbol = value.toString().toStdString(); break;
+    case 1: at.M = value.toFloat(); break;
+    case 2: at.X = value.toFloat(); break;
+    case 3: at.Ed = value.toFloat(); break;
+    case 4: at.El = value.toFloat(); break;
+    case 5: at.Es = value.toFloat(); break;
+    case 6: at.Er = value.toFloat(); break;
     default: ;
     }
 
@@ -350,13 +355,7 @@ bool MaterialCompositionModel::insertRows(int position, int rows, const QModelIn
     if (mat==nullptr) return false;
 
     beginInsertRows(parent, position, position);
-    mat->Z.push_back(0);
-    mat->M.push_back(0.f);
-    mat->X.push_back(0.f);
-    mat->Ed.push_back(0.f);
-    mat->Es.push_back(0.f);
-    mat->El.push_back(0.f);
-    mat->Er.push_back(0.f);
+    mat->composition.push_back(atom::parameters());
     endInsertRows();
 
     // fake setData just to let model_ know that
@@ -373,16 +372,10 @@ bool MaterialCompositionModel::removeRows(int position, int rows, const QModelIn
     auto mat = getMaterial();
     if (mat==nullptr) return false;
 
-    if (position>=mat->Z.size()) return false;
+    if (position>=mat->composition.size()) return false;
 
     beginRemoveRows(parent, position, position);
-    mat->Z.erase(mat->Z.begin()+position);
-    mat->M.erase(mat->M.begin()+position);
-    mat->X.erase(mat->X.begin()+position);
-    mat->Ed.erase(mat->Ed.begin()+position);
-    mat->El.erase(mat->El.begin()+position);
-    mat->Es.erase(mat->Es.begin()+position);
-    mat->Er.erase(mat->Er.begin()+position);
+    mat->composition.erase(mat->composition.begin() + position);
     endRemoveRows();
 
     // fake setData just to let model_ know that
@@ -481,7 +474,7 @@ void MaterialCompositionView::addElement()
         bool ret = model_->insertRows(r,1,QModelIndex());
         if (ret) {
             int i=0;
-            model_->setData(model_->index(r,i++),Z);
+            model_->setData(model_->index(r,i++),symb);
             model_->setData(model_->index(r,i++),mass);
             model_->setData(model_->index(r,i++),1.);
             model_->setData(model_->index(r,i++),40.);

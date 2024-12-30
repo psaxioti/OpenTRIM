@@ -432,7 +432,7 @@ try {
     auto atoms = s_->getTarget().atoms();
     std::vector<std::string> atom_labels = s_->getTarget().atom_labels();
     dump(h5f, page + "label", atom_labels, var_list, "labels = [Atom (Chemical symbol)] in [Material]");
-    for(int i=0; i<atoms.size(); i++) atom_labels[i] = atoms[i]->name();
+    for(int i=0; i<atoms.size(); i++) atom_labels[i] = atoms[i]->symbol();
     dump(h5f, page + "symbol", atom_labels, var_list, "Chemical symbol");
     {
         std::vector<float> A(atoms.size());

@@ -113,10 +113,10 @@ int mccore::init() {
             int im = mat->id();
             auto desc = mat->getDescription();
             dedx_(iat1, im) = new dedx_interp(at1->Z(), at1->M(),
-                                              desc.Z, desc.X, mat->atomicDensity());
+                                              mat->Z(), mat->X(), mat->atomicDensity());
             de_strag_(iat1, im) = new straggling_interp(par_.straggling_model,
                                                         at1->Z(), at1->M(),
-                                                        desc.Z, desc.X, mat->atomicDensity());
+                                                        mat->Z(), mat->X(), mat->atomicDensity());
         }
     }
 

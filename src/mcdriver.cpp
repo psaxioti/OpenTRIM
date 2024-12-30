@@ -1,4 +1,5 @@
 #include "mcdriver.h"
+#include "periodic_table.h"
 
 #include <chrono>
 #include <iomanip>
@@ -6,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <set>
 
 #define CHECK_INVALID_ENUM(OptName,EnumName) \
 if (int(OptName.EnumName)<0) throw std::invalid_argument("Invalid enum value in "#OptName"."#EnumName);
@@ -22,6 +24,8 @@ std::any_of(V.begin(),V.end(),[](float c){ return c<=0.f; })
 #define CHECK_VEC_ZEROorNEG(MatDesc,V,MatName) \
     if (ANY_ZEROorNEG(MatDesc.V)) throw std::invalid_argument("In material descriptor " + MatName + " "#V" has zero or negative values." );
 
+#define CHECK_ZERO_ATOMPAR(AtomPar,V,MatName) \
+    if (AtomPar.V==0.f) throw std::invalid_argument("Undefined or zero "#V" in element " + AtomPar.symbol + " of material \"" + MatName + "\"");
 
 mcdriver::mcdriver() :
     s_(nullptr)
@@ -275,48 +279,102 @@ int mcdriver::options::validate(bool AcceptIncomplete)
         for(int i=0; i<Target.materials.size(); ++i) {
 
             auto md = Target.materials[i];
+            if (md.id.empty()) {
+                std::stringstream msg;
+                msg << "Empty material id in material No.";
+                msg << i+1;
+                throw std::invalid_argument(msg.str());                
+            }
             if (mmap.count(md.id)) {
                 std::stringstream msg;
                 msg << "Duplicate material id found: ";
-                msg << md.id;
+                msg << '"' << md.id << '"';
                 throw std::invalid_argument(msg.str());
             }
             mmap[md.id] = i;
 
-            if (md.density <= 0.f) {
+            if (md.density == 0.f) {
                 std::stringstream msg;
-                msg << "Zero or negative density in material";
-                msg << md.id;
+                msg << "Undefined or zero density in material ";
+                msg << '"' << md.id << '"';
                 throw std::invalid_argument(msg.str());
             }
-            CHECK_EMPTY_VEC(md,Z,md.id)
-            CHECK_EMPTY_VEC(md,M,md.id)
-            CHECK_EMPTY_VEC(md,X,md.id)
-            CHECK_EMPTY_VEC(md,Ed,md.id)
-            CHECK_EMPTY_VEC(md,El,md.id)
-            CHECK_EMPTY_VEC(md,Es,md.id)
-            CHECK_EMPTY_VEC(md,Er,md.id)
-
-            int natoms = md.Z.size();
-            if (std::any_of(md.Z.begin(),
-                            md.Z.end(),
-                            [](int z){ return (z < 1) || (z > dedx_max_Z);}))
-            {
-                throw std::invalid_argument("Invalid Z number in material" + md.id);
+            if (md.density < 0.f) {
+                std::stringstream msg;
+                msg << "Negative density in material ";
+                msg << '"' << md.id << '"';
+                throw std::invalid_argument(msg.str());
             }
 
-            CHECK_VEC_SIZE(md,M,natoms,md.id)
-            CHECK_VEC_SIZE(md,X,natoms,md.id)
-            CHECK_VEC_SIZE(md,Ed,natoms,md.id)
-            CHECK_VEC_SIZE(md,El,natoms,md.id)
-            CHECK_VEC_SIZE(md,Es,natoms,md.id)
-            CHECK_VEC_SIZE(md,Er,natoms,md.id)
-            CHECK_VEC_ZEROorNEG(md,M,md.id)
-            CHECK_VEC_ZEROorNEG(md,X,md.id)
-            CHECK_VEC_ZEROorNEG(md,Ed,md.id)
-            CHECK_VEC_ZEROorNEG(md,El,md.id)
-            CHECK_VEC_ZEROorNEG(md,Es,md.id)
-            CHECK_VEC_ZEROorNEG(md,Er,md.id)
+            if (md.composition.empty()) {
+                std::stringstream msg;
+                msg << "Undefined composition in material ";
+                msg << '"' << md.id << '"';
+                throw std::invalid_argument(msg.str());
+            }
+
+            int iat=1;
+            std::set<int> atset;
+            for(const atom::parameters& at : md.composition) {
+                
+                if (at.symbol.empty() && at.Z<=0) {
+                    std::stringstream msg;
+                    msg << "Element No." << iat << " undefined in material ";
+                    msg << '"' << md.id << '"' << std::endl;
+                    msg << "Give either symbol=# or Z=#";                    
+                    throw std::invalid_argument(msg.str());
+                }
+                
+                int Z;
+                if (at.symbol.empty()) {
+                    if (at.Z>dedx_max_Z) {
+                        std::stringstream msg;
+                        msg << "Element with Z=" << at.Z;
+                        msg << " in material " << '"' << md.id << '"' << std::endl;
+                        msg << "is beyong the maximum possible Z=" << dedx_max_Z;
+                        throw std::invalid_argument(msg.str());
+                    }
+                    Z=at.Z;
+                } else {
+                    auto& el = periodic_table::at(at.symbol);
+                    if (!el.is_valid()) {
+                        std::stringstream msg;
+                        msg << "Invalid element symbol " << at.symbol;
+                        msg << " in material " << '"' << md.id << '"';
+                        throw std::invalid_argument(msg.str());
+                    }
+                    if (el.Z>dedx_max_Z) {
+                        std::stringstream msg;
+                        msg << "Element " << at.symbol << "(Z=" << el.Z << ")";
+                        msg << " in material " << '"' << md.id << '"' << std::endl;
+                        msg << "is beyong the maximum possible Z=" << dedx_max_Z;
+                        throw std::invalid_argument(msg.str());
+                    }
+                    if (at.Z>0 && el.Z!=at.Z) {
+                        std::stringstream msg;
+                        msg << "Incompatible element symbol "<< at.symbol << "(Z=" << el.Z << ")";
+                        msg << " and specified Z=" << at.Z;
+                        msg << " in material " << '"' << md.id << '"';
+                        throw std::invalid_argument(msg.str());
+                    }
+                    Z=el.Z;
+                }
+                if (atset.count(Z)) {
+                    std::stringstream msg;
+                    msg << "Duplicate element "<< periodic_table::at(Z).symbol << "(Z=" << Z << ")";
+                    msg << " in definition of material " << '"' << md.id << '"';
+                    throw std::invalid_argument(msg.str());
+                }
+                atset.insert(Z);
+                
+                CHECK_ZERO_ATOMPAR(at,X,md.id)
+                CHECK_ZERO_ATOMPAR(at,Ed,md.id)
+                CHECK_ZERO_ATOMPAR(at,El,md.id)
+                CHECK_ZERO_ATOMPAR(at,Es,md.id)
+                CHECK_ZERO_ATOMPAR(at,Er,md.id)
+                
+                iat++;
+            }
         }
     }
 

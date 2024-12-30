@@ -2,6 +2,7 @@
 #include "xs.h"
 #include "dedx.h"
 #include "random_vars.h"
+#include "periodic_table.h"
 
 #include <sstream>
 #include <stdexcept>
@@ -40,7 +41,7 @@ material::material(target *t, const char* name, int id) :
     id_(id), name_(name)
 {}
 
-atom* material::addAtom(const atom::parameters& p, float x)
+atom* material::addAtom(const atom::parameters& p)
 {
     atom* a;
     if (target_) {
@@ -50,9 +51,25 @@ atom* material::addAtom(const atom::parameters& p, float x)
         a = new atom(nullptr, this, atoms_.size());
     }
     this->atoms_.push_back(a);
+
     a->p_ = p;
-    a->X_ = x;
-    X_.push_back(x);
+
+    // complete optional parameters
+    if (p.symbol.empty()) {
+        assert(p.Z>0 && p.Z<=dedx_max_Z);
+        a->p_.symbol = periodic_table::at(p.Z).symbol;
+    }
+    if (p.Z==0) {
+        assert(!p.symbol.empty());
+        a->p_.Z = periodic_table::at(p.symbol).Z;
+    }
+    if (p.M==0.f) {
+        a->p_.M = periodic_table::at(a->p_.Z).mass;
+    }
+
+    a->X_ = a->p_.X;
+    X_.push_back(a->p_.X);
+    Z_.push_back(a->p_.Z);
     return a;
 }
 
@@ -126,16 +143,8 @@ material::material_desc_t material::getDescription() const
     material_desc_t md;
     md.id = name_;
     md.density = massDensity_;
-    md.isMassDensity = true;
-    for(const atom* a : atoms_) {
-        md.Z.push_back(a->Z());
-        md.M.push_back(a->M());
-        md.Ed.push_back(a->Ed());
-        md.El.push_back(a->El());
-        md.Es.push_back(a->Es());
-        md.Er.push_back(a->Er());
-    }
-    md.X = X_;
+    for(const atom* a : atoms_)
+        md.composition.push_back(a->p_);
     return md;
 }
 
@@ -177,6 +186,7 @@ target::~target()
 void target::setProjectile(int Z, float M)
 {
     atom* i = atoms_[0];
+    i->p_.symbol = periodic_table::at(Z).symbol;
     i->p_.Z = Z;
     i->p_.M = M;
 }
@@ -195,11 +205,8 @@ material *target::addMaterial(const material::material_desc_t &md)
 {
     material* m = addMaterial(md.id.c_str());
     m->setMassDensity(md.density);
-    for(int i=0; i<md.Z.size(); i++)
-        m->addAtom(
-            {.Z=md.Z[i],.M=md.M[i],.Ed=md.Ed[i],
-             .El=md.El[i],.Es=md.Es[i],.Er=md.Er[i]},
-            md.X[i]);
+    for(auto& a : md.composition)
+        m->addAtom(a);
     return m;
 }
 
@@ -257,7 +264,7 @@ std::vector<std::string> target::atom_labels() const
     for(int i=0; i<atoms_.size(); i++) {
         std::string& s = lbls[i];
         const material* m = atoms_[i]->mat();
-        s = atoms_[i]->name();
+        s = atoms_[i]->symbol();
         if (m) {
             s += " in ";
             s += m->name();
