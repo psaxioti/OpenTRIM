@@ -76,12 +76,15 @@ BoundaryCrossing ion::propagate(float& s)
                 cellid_ = grid_->cellid(icell_);
                 return BoundaryCrossing::Internal;
             } else {
-                /* This is a rare case where although grid_->contains(icell_,x)
+                /* Boundary Crossing without change of cell !!
+                 *
+                 * This is a rare case where although grid_->contains(icell_,x)
                  * returned false in the end the particle does not change cell.
                  * This can happen if the following 2 conditions hold simultaneously:
-                 *   A) x_i = (pos + s*dir)_i == L1, where L1 is the boundary of the simulation
-                 *      volume along the i-th direction
+                 *   A) Particle reaches a boundary along the i-th direction
                  *   B) We have periodic boundary conditions along the i-th direction
+                 *   C) There is only 1 cell along the i-th direction at this point, thus
+                 *      the particel does not change cell
                  *
                  * Thus, the call to grid_->contains_with_bc(x) returns true, due to the periodic BCs,
                  * BUT the call to grid_->contains(icell_,x) returns false because the ion is exactly at

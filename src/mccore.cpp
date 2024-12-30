@@ -440,21 +440,20 @@ float mccore::calcDedx(float E, float fp, float sqrtfp,
 
 int mccore::transport(ion* i, tally &t)
 {
-    // get the material at the ion's position
-    const material* mat = target_->cell(i->cellid());
-    // get the corresponding dEdx & straggling table for ion/material combination
+    // pointers to dEdx & straggling tables
     const dedx_interp* de_stopping_tbl = nullptr;
     const straggling_interp* de_straggling_tbl = nullptr;
-    std::array<const float *, 3> fp_par_tbl;
-    const float* & ipmax_tbl = fp_par_tbl[0];
-    const float* & mfp_tbl   = fp_par_tbl[1];
-    const float* & fpmax_tbl = fp_par_tbl[2];
-    float fp, ip, sqrtfp, ipmax;
-    int ie;
+    // flight path data
+    flight_path_data fp_d;
+    // collision flag
     bool doCollision;
+
+    // get the material at the ion's position
+    const material* mat = target_->cell(i->cellid());
+    // get dEdx and fp data for ion/material combination
     if (mat) {
         getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-        getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+        getMFPtables(i->myAtom(), mat, fp_d);
     }
 
     // transport loop
@@ -472,10 +471,11 @@ int mccore::transport(ion* i, tally &t)
             // to intentionally hit a boundary
             // Then the boundary crossing algorithm
             // will take care of things
-            fp = 1e6f;
-            BoundaryCrossing crossing = i->propagate(fp);
+            fp_d.fp = 1e6f;
+            BoundaryCrossing crossing = i->propagate(fp_d.fp);
             switch(crossing) {
             case BoundaryCrossing::None:
+            case BoundaryCrossing::InternalPBC:
                 break;
             case BoundaryCrossing::Internal:
                 // register event
@@ -485,7 +485,7 @@ int mccore::transport(ion* i, tally &t)
                 mat = target_->cell(i->cellid());
                 if (mat) {
                     getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-                    getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+                    getMFPtables(i->myAtom(), mat, fp_d);
                 }
                 break;
             case BoundaryCrossing::External:
@@ -501,14 +501,14 @@ int mccore::transport(ion* i, tally &t)
         }
 
         // select flight path & impact param.
-        doCollision = flightPath(i,mat,fp,ip,sqrtfp,fp_par_tbl);
+        doCollision = calcFlightPath(i,mat,fp_d);
 
         // propagate ion, checking also boundary crossing
-        BoundaryCrossing crossing = i->propagate(fp);
+        BoundaryCrossing crossing = i->propagate(fp_d.fp);
 
         // subtract ionization & straggling
         if (par_.eloss_calculation != EnergyLossOff) {
-            float de = calcDedx(i->erg(), fp, sqrtfp, de_stopping_tbl, de_straggling_tbl);
+            float de = calcDedx(i->erg(), fp_d.fp, fp_d.sqrtfp, de_stopping_tbl, de_straggling_tbl);
             i->de_ioniz(de);
         }
 
@@ -522,9 +522,14 @@ int mccore::transport(ion* i, tally &t)
             mat = target_->cell(i->cellid());
             if (mat) {
                 getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-                getMFPtables(i->myAtom(), mat, fp, sqrtfp, fp_par_tbl);
+                getMFPtables(i->myAtom(), mat, fp_d);
             }
             doCollision = false; // the collision will be in the new material
+            break;
+        case BoundaryCrossing::InternalPBC:
+            // InternalPBC = particle crossed periodic boundary without
+            // changing cell !!
+            doCollision = false;
             break;
         case BoundaryCrossing::External:
             // register ion exit event
@@ -534,9 +539,6 @@ int mccore::transport(ion* i, tally &t)
                 exit_stream_.write(&exit_ev);
             }
             return 0; // ion history ends!
-        case BoundaryCrossing::InternalPBC:
-            doCollision = false;
-            break;
         default:
             break;
         }
@@ -556,7 +558,7 @@ int mccore::transport(ion* i, tally &t)
         auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
         float T; // recoil energy
         float sintheta, costheta; // Lab sys scattering angle sin & cos 
-        xs->scatter(i->erg(), ip, T, sintheta, costheta);
+        xs->scatter(i->erg(), fp_d.ip, T, sintheta, costheta);
         assert(finite(T));
 
         // get random azimuthal dir
@@ -611,47 +613,43 @@ int mccore::transport(ion* i, tally &t)
     return 0;
 }
 
-bool mccore::flightPath(const ion* i, const material* mat, float& fp, float& ip, float& sqrtfp,
-                        std::array<const float *, 3> &fp_par_tbl)
+bool mccore::calcFlightPath(const ion* i, const material* mat, flight_path_data& d)
 {
     bool doCollision = true;
     int ie;
-    const float* & ipmax_tbl = fp_par_tbl[0];
-    const float* & mfp_tbl   = fp_par_tbl[1];
-    const float* & fpmax_tbl = fp_par_tbl[2];
     switch (tr_opt_.flight_path_type) {
     case AtomicSpacing:
     case Constant:
-        ip = ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
+        d.ip = d.ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
         break;
     case MendenhallWeller:
         ie = dedx_index(float(i->erg()));
-        ip = ipmax_tbl[ie];
-        fp = mfp_tbl[ie];
-        if (ip < mat->meanImpactPar())
+        d.ip = d.ipmax_tbl[ie];
+        d.fp = d.mfp_tbl[ie];
+        if (d.ip < mat->meanImpactPar())
         {
-            sqrtfp = std::sqrt(fp/mat->atomicRadius());
-            ip *= std::sqrt(-std::log(rng.u01s_open()));
-            doCollision = (ip <= ipmax_tbl[ie]);
+            d.sqrtfp = std::sqrt(d.fp/mat->atomicRadius());
+            d.ip *= std::sqrt(-std::log(rng.u01s_open()));
+            doCollision = (d.ip <= d.ipmax_tbl[ie]);
         } else { // atomic spacing
-            fp = mat->atomicRadius();
-            sqrtfp = 1.f;
-            ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
+            d.fp = mat->atomicRadius();
+            d.sqrtfp = 1.f;
+            d.ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
         }
         break;
     case IPP:
         ie = dedx_index(float(i->erg()));
-        fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
-        doCollision = fp <= fpmax_tbl[ie];
-        if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
-        else fp = fpmax_tbl[ie];
-        sqrtfp = std::sqrt(fp/mat->atomicRadius());
+        d.fp = d.mfp_tbl[ie]*(-std::log(rng.u01s_open()));
+        doCollision = d.fp <= d.fpmax_tbl[ie];
+        if (doCollision) d.ip = d.ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
+        else d.fp = d.fpmax_tbl[ie];
+        d.sqrtfp = std::sqrt(d.fp/mat->atomicRadius());
         break;
     default:
         assert(false); // never get here
     }
-    assert(fp>0);
-    assert(finite(fp));
+    assert(d.fp>0);
+    assert(finite(d.fp));
     return doCollision;
 }
 

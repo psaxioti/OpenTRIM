@@ -328,6 +328,24 @@ public:
 protected:
 
     /**
+     * @brief Helper struct used during flight path calculations
+     */
+    struct flight_path_data {
+        /// Flight path [nm]
+        float fp;
+        /// Square root of ratio (flight path)/(atomic radius) (used for straggling)
+        float sqrtfp;
+        /// Impact parameter [nm]
+        float ip;
+        /// Tabulated max impact parameter as a function of ion energy
+        const float* ipmax_tbl;
+        /// Tabulated mean free path as a function of ion energy
+        const float* mfp_tbl;
+        /// Tabulated max flight path as a function of ion energy
+        const float* fpmax_tbl;
+    };
+
+    /**
      * @brief Select the ion's flight path and impact parameter
      *
      * The selection is performed according to the algorithm specified by
@@ -365,18 +383,14 @@ protected:
      * - \f$p = p_{max}(E)\sqrt{u_2}\f$
      * - Reject collision if \f$\ell > \ell_{max}(E)\f$
      * 
-     * 
      * @param[in] i pointer to the moving ion object
      * @param[in] m pointer to the material the ion is in
-     * @param[out] fp  the selected flight path [nm]
-     * @param[out] ip the selected impact parameter [nm]
-     * @param[out] sqrtfp the square root of flight path over atomic radius \f$\sqrt{\ell/R_{at}}\f$
+     * @param[inout] d struct to store the selected flight path and impact parameter
      * @return true if the ion should collide at the end of its flight path
      * 
      * @sa \ref flightpath
      */
-    bool flightPath(const ion* i, const material* m, float& fp, float& ip, float& sqrtfp,
-                    std::array<const float *, 3>& fp_par_tbl);
+    bool calcFlightPath(const ion* i, const material* m, flight_path_data& d);
 
     /**
      * @brief Transport an ion through the target
@@ -451,10 +465,8 @@ protected:
                     const dedx_interp *&dedx,
                     const straggling_interp *&de_stragg) const;
 
-    int getMFPtables(const atom* z1, const material* m,
-                    float& fp, float& sqrt_fp,
-                    std::array<const float *, 3>& fp_par_tbl) const;
-
+    /// Get pointers to flight path selection tables for a specific ion/material combination
+    int getMFPtables(const atom* z1, const material* m, flight_path_data& d) const;
 
     void pka_mark(const ion* i, tally &t, pka_event &pka, bool start);
 
@@ -473,37 +485,31 @@ inline int mccore::getDEtables(const atom* z1, const material* m,
     return 0;
 }
 
-inline int mccore::getMFPtables(const atom *z1, const material *m,
-                                float &fp, float &sqrt_fp,
-                                std::array<const float *, 3>& fp_par_tbl) const
+inline int mccore::getMFPtables(const atom *z1, const material *m, flight_path_data& d) const
 {
     assert(z1);
     assert(m);
 
-    const float* & ipmax_tbl = fp_par_tbl[0];
-    const float* & mfp_tbl   = fp_par_tbl[1];
-    const float* & fpmax_tbl = fp_par_tbl[2];
-
     switch (tr_opt_.flight_path_type)
     {
     case AtomicSpacing:
-        fp = m->atomicRadius();
-        sqrt_fp = 1.f;
-        ipmax_tbl = &(ip0[m->id()]);
+        d.fp = m->atomicRadius();
+        d.sqrtfp = 1.f;
+        d.ipmax_tbl = &(ip0[m->id()]);
         break;
     case Constant:
-        fp = tr_opt_.flight_path_const;
-        sqrt_fp = sqrtfp_const[m->id()];
-        ipmax_tbl = &(ip0[m->id()]);
+        d.fp = tr_opt_.flight_path_const;
+        d.sqrtfp = sqrtfp_const[m->id()];
+        d.ipmax_tbl = &(ip0[m->id()]);
         break;
     case MendenhallWeller:
     case IPP:
-        ipmax_tbl = &(ipmax_(z1->id(),m->id(),0));
-        mfp_tbl = &(mfp_(z1->id(),m->id(),0));
-        fpmax_tbl = &(fp_max_(z1->id(),m->id(),0));
+        d.ipmax_tbl = &(ipmax_(z1->id(),m->id(),0));
+        d.mfp_tbl = &(mfp_(z1->id(),m->id(),0));
+        d.fpmax_tbl = &(fp_max_(z1->id(),m->id(),0));
         break;
     default:
-        fp = sqrt_fp = 0.f;
+        d.fp = d.sqrtfp = 0.f;
         assert(false); // should never reach here
     }
 
