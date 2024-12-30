@@ -232,6 +232,20 @@ public:
         return ibox1D(i1,i2);
     }
 
+    float distance2boundary(int i, float x, float dir) const
+    {
+        if (dir>0.f) return (at(i+1) - x)/dir;
+        else if (dir<0.f) return (at(i) - x)/dir;
+        else return std::numeric_limits<float>::infinity();
+    }
+
+    float boundary(int i, float dir) const
+    {
+        return (dir>0.f) ?
+                   std::nextafter(at(i+1), std::numeric_limits<float>::max()) :
+                   std::nextafter(at(i), std::numeric_limits<float>::lowest());
+    }
+
 };
 
 
@@ -321,6 +335,127 @@ public:
             y_.contains(i.y(),v.y()) &&
             z_.contains(i.z(),v.z());
     }
+
+    /**
+     * @brief Find the distance traveled by a particle until it crosses a cell boundary
+     *
+     * The algorithm assumes that the particle is inside the i-th cell.
+     *
+     * For each dimension the equation for the distance \f$ \ell \f$ to the boundary is
+     * (e.g. for x)
+     *
+     * \f[
+     * \ell_x = (x_{max} - x) / n_x, \quad  \mbox{if} \; n_x > 0
+     * \f]
+     *
+     * OR
+     *
+     * \f[
+     * \ell_x = (x_{min} - x) / n_x, \quad  \mbox{if} \; n_x < 0
+     * \f]
+     *
+     * where \f$ n_x \f$ is the x direction cosine
+     *
+     * Finally \f$ \ell = \mbox{min}\left[ \ell_x, \ell_y, \ell_z \right] \f$.
+     *
+     * Optionally, the function returns the index of the axis along which the
+     * particle hits the boundary (idx=0 for x, 1 for y and 2 for z).
+     *
+     * @param i   cell index vector
+     * @param pos particle position
+     * @param dir particle direction
+     * @param idx_max if not null, the function returns here the axis along which the boundary is hit
+     * @return float distance to the boundary
+     *
+     */
+    float distance2boundary(const ivector3& i,
+                            const vector3& pos,
+                            const vector3& dir,
+                            int* idx = nullptr) const
+    {
+        assert(contains(i,pos));
+
+        float d = x_.distance2boundary(i.x(),pos.x(),dir.x());
+        int imin = 0;
+        if (dir.y() != 0.0f) {
+            float d1 = y_.distance2boundary(i.y(),pos.y(),dir.y());
+            if (d1 < d) { d = d1; imin = 1; }
+        }
+        if (dir.z() != 0.0f) {
+            float d1 = z_.distance2boundary(i.z(),pos.z(),dir.z());
+            if (d1 < d) { d = d1; imin = 2; }
+        }
+        if (idx) *idx = imin;
+        return d;
+    }
+
+    /**
+     * @brief Propagates a particle to the cell boundary
+     *
+     * The algorithm assumes that the particle is inside the i-th cell.
+     *
+     * First, the distance \f$d\f$ is found to the boundary that the particle will
+     * cross, similarly to \ref distance2boundary().
+     *
+     * If the particle crosses the boundary perpendicular to, e.g., the \f$x\f$-axis, then
+     * its \f$x\f$ coordinate is updated to
+     *
+     * \f[
+     * x' = x_{max} + \delta, \quad  \mbox{if} \; n_x > 0
+     * \f]
+     *
+     * OR
+     *
+     * \f[
+     * x' = x_{min} - \delta, \quad  \mbox{if} \; n_x < 0
+     * \f]
+     *
+     * where \f$(x_{min},x_{max})\f$ are the cell boundaries along the \f$x\f$-axis and
+     * \f$\delta\f$ is a small number so that the new position is guaratied to lie
+     * outside of the box. This is accomplished by using the std::nextafter() function of
+     * the std. math library.
+     *
+     * The other two coordinates are updated normally by
+     * \f[
+     * y' = y + n_y\,d, \quad  z' = z + n_z\,d
+     * \f]
+     *
+     * @param i   cell index vector
+     * @param pos particle position vector
+     * @param dir particle direction vector
+     * @return float distance travelled to the cell boundary
+     *
+     */
+    float bring2boundary(const ivector3& i, vector3& pos, const vector3& dir) const
+    {
+        assert(contains(i,pos));
+
+        int idx;
+        float d = distance2boundary(i,pos,dir,&idx);
+
+        switch (idx) {
+        case 0:
+            pos.x() = x_.boundary(i.x(),dir.x());
+            pos.y() += dir.y()*d;
+            pos.z() += dir.z()*d;
+            break;
+        case 1:
+            pos.y() = y_.boundary(i.y(),dir.y());
+            pos.x() += dir.x()*d;
+            pos.z() += dir.z()*d;
+            break;
+        case 2:
+            pos.z() = z_.boundary(i.z(),dir.z());
+            pos.y() += dir.y()*d;
+            pos.x() += dir.x()*d;
+            break;
+        default:
+            assert(0);
+        }
+
+        return d;
+    }
+
     /// Return the cell index for v; call only if contains()==true
     ivector3 pos2cell(const vector3& v) const
     {
@@ -359,171 +494,6 @@ public:
         return x_.w() * y_.w() * z_.w();
     }
 };
-
-/**
- * @brief Find the distance traveled by a particle until it crosses a rectangular box boundary
- * 
- * The algorithm assumes that particle is inside a rectangular box b.
- *
- * b.min() is the vector at the box origin and b.max() is the opposite corner.
- *
- * For each dimension the equation for the distance \f$ \ell \f$ to the boundary is
- * (e.g. for x)
- * 
- * \f[
- * \ell_x = (x_{max} - x) / n_x, \quad  \mbox{if} \; n_x > 0
- * \f]
- * 
- * OR
- *
- * \f[
- * \ell_x = (x_{min} - x) / n_x, \quad  \mbox{if} \; n_x < 0
- * \f]
- * 
- * where \f$ n_x \f$ is the x direction cosine
- *
- * Finally \f$ \ell = \mbox{min}\left[ \ell_x, \ell_y, \ell_z \right] \f$.
- * 
- * @param b   Rectangular box
- * @param pos particle position
- * @param dir particle direction
- * @return float 
- * 
- * @ingroup Geometry
- */
-inline
-float distance2boundary(const box3D& b, const vector3& pos, const vector3& dir)
-{
-    assert(b.contains(pos));
-
-    vector3 d = b.sizes();
-    if (dir[0]<0.f) d[0]=0.f;
-    if (dir[1]<0.f) d[1]=0.f;
-    if (dir[2]<0.f) d[2]=0.f;
-    d -= pos;
-    d += b.min();
-    d.array() /= dir.array();
-    return d.minCoeff();
-
-//    vector3 d;
-//    d.x() = dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x();
-//    d.y() = dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y();
-//    d.z() = dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z();
-//    d.array() /= dir.array();
-//    return d.minCoeff();
-
-    // (Slightly ~1%) Slower implementations
-
-    // float d = std::numeric_limits<float>::infinity(), d1;
-    // d1 = (dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x()) / dir.x();
-    // d = std::min(d, d1);
-    // d1 = (dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y()) / dir.y();
-    // d = std::min(d, d1);
-    // d1 = (dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z()) / dir.z();
-    // d = std::min(d, d1);
-    // return d;
-
-    // vector3 d = b.max() - pos, d1 = b.min() - pos;
-    // d.array() /= dir.array();
-    // d1.array() /= dir.array();
-    // d = d.cwiseMax(d1);
-    // return d.minCoeff();
-
-    // vector3 L = b.sizes();
-    // for(int i=0; i<3; i++) if (dir[i]<0.f) L[i]=0.f;
-    // L -= pos;
-    // L += b.min();
-    // L.array() /= dir.array();
-    // return L.minCoeff();
-}
-
-/**
- * @brief Propagates a particle to the cell boundary
- *
- * The algorithm assumes that the particle is inside a rectangular box b.
- *
- * First, the distance \f$d\f$ is found to the boundary that the particle will
- * cross, similarly to \ref distance2boundary().
- *
- * If the particle crosses the boundary perpendicular to, e.g., the \f$x\f$-axis, then
- * its \f$x\f$ coordinate is updated to
- *
- * \f[
- * x' = x_{max} + \delta, \quad  \mbox{if} \; n_x > 0
- * \f]
- *
- * OR
- *
- * \f[
- * x' = x_{min} - \delta, \quad  \mbox{if} \; n_x < 0
- * \f]
- *
- * where \f$(x_{min},x_{max})\f$ are the cell boundaries along the \f$x\f$-axis and 
- * \f$\delta\f$ is a small number so that the new position is guaratied to lie
- * outside of the box. This is accomplished by using the std::nextafter() function of
- * the std. math library.
- *
- * The other two coordinates are updated normally by
- * \f[
- * y' = y + n_y\,d, \quad  z' = z + n_z\,d
- * \f]
- *
- * @param b   Rectangular box
- * @param pos particle position vector
- * @param dir particle direction vector
- * @return float distance travelled to the box boundary
- *
- * @ingroup Geometry
- */
-inline
-float bring2boundary(const box3D& b, vector3& pos, const vector3& dir)
-{
-    assert(b.contains(pos));
-
-    float d(std::numeric_limits<float>::infinity()),
-        d1;
-    int imax = -1;
-    if (dir.x() != 0.0f) {
-        d1 = dir.x()>0 ? b.max().x() - pos.x() : b.min().x() - pos.x();
-        d1 /= dir.x();
-        if (d1 < d) { d = d1; imax = 0; }
-    }
-    if (dir.y() != 0.0f) {
-        d1 = dir.y()>0 ? b.max().y() - pos.y() : b.min().y() - pos.y();
-        d1 /= dir.y();
-        if (d1 < d) { d = d1; imax = 1; }
-    }
-    if (dir.z() != 0.0f) {
-        d1 = dir.z()>0 ? b.max().z() - pos.z() : b.min().z() - pos.z();
-        d1 /= dir.z();
-        if (d1 < d) { d = d1; imax = 2; }
-    }
-
-    switch (imax) {
-    case 0:
-        pos.x() = (dir.x()>0) ? std::nextafter(b.max().x(), std::numeric_limits<float>::max()) :
-                      std::nextafter(b.min().x(), std::numeric_limits<float>::lowest());
-        pos.y() += dir.y()*d;
-        pos.z() += dir.z()*d;
-        break;
-    case 1:
-        pos.y() = (dir.y()>0) ? std::nextafter(b.max().y(), std::numeric_limits<float>::max()) :
-                      std::nextafter(b.min().y(), std::numeric_limits<float>::lowest());
-        pos.x() += dir.x()*d;
-        pos.z() += dir.z()*d;
-        break;
-    case 2:
-        pos.z() = (dir.z()>0) ? std::nextafter(b.max().z(), std::numeric_limits<float>::max()) :
-                      std::nextafter(b.min().z(), std::numeric_limits<float>::lowest());
-        pos.y() += dir.y()*d;
-        pos.x() += dir.x()*d;
-        break;
-    default:
-        assert(0);
-    }
-
-    return d;
-}
 
 /**
  * @brief Rotates the direction vector of a particle according to the scattering angles \f$ (\theta,\phi) \f$

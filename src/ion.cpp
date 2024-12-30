@@ -65,7 +65,7 @@ BoundaryCrossing ion::propagate(float& s)
         if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
             // propagate to the boundary
             x = pos_;
-            s = bring2boundary(grid_->box(icell_), x, dir_);
+            s = grid_->bring2boundary(icell_, x, dir_);
             grid_->apply_bc(x); 
             ivector3 ix = grid_->pos2cell(x);
             path_ += s;
@@ -80,7 +80,7 @@ BoundaryCrossing ion::propagate(float& s)
                  *
                  * This is a rare case where although grid_->contains(icell_,x)
                  * returned false in the end the particle does not change cell.
-                 * This can happen if the following 2 conditions hold simultaneously:
+                 * This can happen if the following 3 conditions hold simultaneously:
                  *   A) Particle reaches a boundary along the i-th direction
                  *   B) We have periodic boundary conditions along the i-th direction
                  *   C) There is only 1 cell along the i-th direction at this point, thus
@@ -100,15 +100,9 @@ BoundaryCrossing ion::propagate(float& s)
         }
     } else { // ion is bound to exit simulation
         // 1. Reduce s to just cross the boundary
-
-        // propagate to the boundary
         // @ToDo more debugging needed here
         x = pos_;
-        s = bring2boundary(grid_->box(icell_), x, dir_);
-
-        //s = distance2boundary(grid_->box(icell_),pos_,dir_);
-        //x = pos_ + s*dir_;
-
+        s = grid_->bring2boundary(icell_,x,dir_);
         grid_->apply_bc(x);
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
