@@ -14,20 +14,30 @@
         "min_recoil_energy": 1.0
     },
     "IonBeam" : {
-        "ion_distribution" : "SurfaceCentered",
-        "ionZ" : 54,
-        "ionM" : 131.904,
-        "ionE0" : 3e5,
-        "dir" : [1,0,0]
+        "ion" : {
+            "symbol" : "Xe",
+            "atomic_mass" : 131.904
+        },
+        "energy_distribution" : {
+            "center" : 3e5
+        },
+        "spatial_distribution" : {
+            "center" : [0, 600, 600]
+        }
     },
     "Target" : {
+        "size" : [300, 1200, 1200],
+        "cell_count" : [100, 1, 1],
+        "periodic_bc" : [0, 1, 1],
         "materials" : [
             {
                 "id" : "UO2",
                 "density" : 10.97, 
                 "composition" : [
                     {
-                        "symbol" : "U",
+                        "element" : {
+                            "symbol" : "U"
+                        },
                         "X" : 1,
                         "Ed" : 40,
                         "El" : 4,
@@ -35,7 +45,9 @@
                         "Er" : 40
                     },
                     {
-                        "symbol" : "O",
+                        "element" : {
+                            "symbol" : "O"
+                        },
                         "X" : 2,
                         "Ed" : 20,
                         "El" : 2,
@@ -49,13 +61,9 @@
             {   
                 "id" : "R1",
                 "material_id" : "UO2",
-                "min" : [0, 0, 0],
-                "max" : [1200, 1200, 1200]
+                "size" : [1200, 1200, 1200]
             }
-        ],
-        "cell_count" : [100, 1, 1],
-        "cell_size" : [3, 1200, 1200],
-        "periodic_bc" : [0, 1, 1]
+        ]
     },
     "Output" : {
         "title" : "300keV Xe on UO2 benchmark",
