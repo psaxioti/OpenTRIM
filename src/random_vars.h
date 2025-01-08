@@ -397,13 +397,13 @@ public:
         return toDouble((*this)());
     }
     /// Same as u01d_ropen()
-    float u01d() { return u01d_ropen(); }
+    double u01d() { return u01d_ropen(); }
     /// Return double precision random value in (0, 1]
-    float u01d_lopen() {
+    double u01d_lopen() {
         return 1.0 - u01d_ropen();
     }
     /// Return random value in (0, 1)
-    float u01d_open() {
+    double u01d_open() {
         double u;
         do u = u01d_ropen(); while(u==0.0);
         return u;
@@ -414,6 +414,7 @@ public:
     {
         return N_(*this);
     }
+
     /**
      * @brief Generate a random azimuthal direction
      *
