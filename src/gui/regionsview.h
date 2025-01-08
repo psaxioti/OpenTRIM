@@ -44,8 +44,8 @@ public:
 private:
     OptionsModel* model_;
     QPersistentModelIndex regionsIndex_;
-    QStringList col_names_{"id", "material_id", "min", "max"};
-    QStringList col_labels_{"Region id", "Material id", "𝖱₀", "𝖱₁"};
+    QStringList col_names_{"id", "material_id", "origin", "size"};
+    QStringList col_labels_{"Region id", "Material id", "[x₀,y₀,z₀]", "[Lx,Ly,Lz]"};
     friend class RegionDelegate;
 };
 

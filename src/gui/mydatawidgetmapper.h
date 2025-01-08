@@ -19,7 +19,7 @@ public:
                                 QObject *parent = nullptr);
 
     void addMapping(QWidget *widget, const QModelIndex& idx, const char* signal = nullptr);
-    void clearMapping();
+    void removeMapping(const QString& key);
 
     OptionsModel* model() const { return model_; }
 

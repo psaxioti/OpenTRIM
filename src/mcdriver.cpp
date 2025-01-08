@@ -12,6 +12,9 @@
 #define CHECK_INVALID_ENUM(OptName,EnumName) \
 if (int(OptName.EnumName)<0) throw std::invalid_argument("Invalid enum value in "#OptName"."#EnumName);
 
+#define CHECK_ZEROorNEG(OptName,Field) \
+if (int(OptName.Field)<0) throw std::invalid_argument("Zero or negative "#OptName"."#Field);
+
 #define CHECK_EMPTY_VEC(MatDesc,V,MatName) \
 if (MatDesc.V.size()==0) throw std::invalid_argument("Empty "#V" in " + MatName);
 
@@ -25,7 +28,7 @@ std::any_of(V.begin(),V.end(),[](float c){ return c<=0.f; })
     if (ANY_ZEROorNEG(MatDesc.V)) throw std::invalid_argument("In material descriptor " + MatName + " "#V" has zero or negative values." );
 
 #define CHECK_ZERO_ATOMPAR(AtomPar,V,MatName) \
-    if (AtomPar.V==0.f) throw std::invalid_argument("Undefined or zero "#V" in element " + AtomPar.symbol + " of material \"" + MatName + "\"");
+    if (AtomPar.V==0.f) throw std::invalid_argument("Undefined or zero "#V" in element " + AtomPar.element.symbol + " of material \"" + MatName + "\"");
 
 mcdriver::mcdriver() :
     s_(nullptr)
@@ -242,15 +245,24 @@ int mcdriver::options::validate(bool AcceptIncomplete)
 
     CHECK_INVALID_ENUM(Transport,flight_path_type)
 
-    //if (Transport.flight_path_type==mccore::InvalidPath)
-    //    throw std::invalid_argument("Invalid Transport.flight_path_type");
     if (Transport.flight_path_type==mccore::Constant &&
         Transport.flight_path_const<=0.f)
         throw std::invalid_argument("Transport.flight_path_type is \"Constant\" but Transport.flight_path_const is negative.");
 
     // Ion source
-    if (IonBeam.ion_distribution==ion_beam::InvalidIonDistribution)
-        throw std::invalid_argument("Invalid IonBeam.ion_distribution");
+    CHECK_INVALID_ENUM(IonBeam.energy_distribution,type)
+    CHECK_INVALID_ENUM(IonBeam.spatial_distribution,type)
+    CHECK_INVALID_ENUM(IonBeam.spatial_distribution,geometry)
+    CHECK_INVALID_ENUM(IonBeam.angular_distribution,type)
+    if (IonBeam.energy_distribution.type != ion_beam::SingleValue) {
+        CHECK_ZEROorNEG(IonBeam.energy_distribution,fwhm)
+    }
+    if (IonBeam.spatial_distribution.type != ion_beam::SingleValue) {
+        CHECK_ZEROorNEG(IonBeam.spatial_distribution,fwhm)
+    }
+    if (IonBeam.angular_distribution.type != ion_beam::SingleValue) {
+        CHECK_ZEROorNEG(IonBeam.angular_distribution,fwhm)
+    }
 
     // Output
     const std::string& fname = Output.OutputFileBaseName;
@@ -272,7 +284,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
 
     // Target
     if (Target.materials.empty()) {
-        if (!AcceptIncomplete) throw std::invalid_argument("Target.materials is empty.");
+        // if (!AcceptIncomplete) throw std::invalid_argument("Target.materials is empty.");
     }
     else {
         // Check Material descriptors
@@ -317,48 +329,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
             std::set<int> atset;
             for(const atom::parameters& at : md.composition) {
                 
-                if (at.symbol.empty() && at.Z<=0) {
-                    std::stringstream msg;
-                    msg << "Element No." << iat << " undefined in material ";
-                    msg << '"' << md.id << '"' << std::endl;
-                    msg << "Give either symbol=# or Z=#";                    
-                    throw std::invalid_argument(msg.str());
-                }
-                
-                int Z;
-                if (at.symbol.empty()) {
-                    if (at.Z>dedx_max_Z) {
-                        std::stringstream msg;
-                        msg << "Element with Z=" << at.Z;
-                        msg << " in material " << '"' << md.id << '"' << std::endl;
-                        msg << "is beyong the maximum possible Z=" << dedx_max_Z;
-                        throw std::invalid_argument(msg.str());
-                    }
-                    Z=at.Z;
-                } else {
-                    auto& el = periodic_table::at(at.symbol);
-                    if (!el.is_valid()) {
-                        std::stringstream msg;
-                        msg << "Invalid element symbol " << at.symbol;
-                        msg << " in material " << '"' << md.id << '"';
-                        throw std::invalid_argument(msg.str());
-                    }
-                    if (el.Z>dedx_max_Z) {
-                        std::stringstream msg;
-                        msg << "Element " << at.symbol << "(Z=" << el.Z << ")";
-                        msg << " in material " << '"' << md.id << '"' << std::endl;
-                        msg << "is beyong the maximum possible Z=" << dedx_max_Z;
-                        throw std::invalid_argument(msg.str());
-                    }
-                    if (at.Z>0 && el.Z!=at.Z) {
-                        std::stringstream msg;
-                        msg << "Incompatible element symbol "<< at.symbol << "(Z=" << el.Z << ")";
-                        msg << " and specified Z=" << at.Z;
-                        msg << " in material " << '"' << md.id << '"';
-                        throw std::invalid_argument(msg.str());
-                    }
-                    Z=el.Z;
-                }
+                int Z = at.element.atomic_number;
                 if (atset.count(Z)) {
                     std::stringstream msg;
                     msg << "Duplicate element "<< periodic_table::at(Z).symbol << "(Z=" << Z << ")";
@@ -379,7 +350,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
     }
 
     if (Target.regions.empty()) {
-        if (!AcceptIncomplete)  throw std::invalid_argument("Target.regions is empty.");
+        // if (!AcceptIncomplete)  throw std::invalid_argument("Target.regions is empty.");
     } else {
         const ivector3& cell_count = Target.cell_count;
         if (std::any_of(cell_count.begin(),
@@ -393,14 +364,14 @@ int mcdriver::options::validate(bool AcceptIncomplete)
             throw std::invalid_argument(msg.str());
         }
 
-        const vector3& cell_size = Target.cell_size;
-        if (std::any_of(cell_size.begin(),
-                        cell_size.end(),
+        const vector3& size = Target.size;
+        if (std::any_of(size.begin(),
+                        size.end(),
                         [](float c){ return c<=0.f; }))
         {
             std::stringstream msg;
-            msg << "Target.cell_size=[";
-            msg << cell_size;
+            msg << "Target.size=[";
+            msg << size;
             msg << "] contains zero or negative values.";
             throw std::invalid_argument(msg.str());
         }
@@ -419,27 +390,25 @@ int mcdriver::options::validate(bool AcceptIncomplete)
                 throw std::invalid_argument(msg.str());
             }
 
-            // check max > min
-            for (int i=0; i<3; i++) {
-                if (rd.min[i] >= rd.max[i]) {
-                    static char axis[] = { 'x', 'y', 'z' };
-                    std::stringstream msg;
-                    msg << "Region " << rname << " has invalid axis limits: ";
-                    msg << axis[i] << "_min(" << rd.min[i] << ") >= ";
-                    msg << axis[i] << "_max(" << rd.max[i] << ")";
-                    throw std::invalid_argument(msg.str());
-                }
+            const vector3& size = rd.size;
+            if (std::any_of(size.begin(),
+                            size.end(),
+                            [](float c){ return c<=0.f; }))
+            {
+                std::stringstream msg;
+                msg << "Region " << rname << ".size=[";
+                msg << size;
+                msg << "] contains zero or negative values.";
+                throw std::invalid_argument(msg.str());
             }
 
             // check that the region is within the simulation volume
             box3D rbox, // region box
                 sbox; // simulation box
-            rbox.min() = rd.min;
-            rbox.max() = rd.max;
-            sbox.min() = vector3(0,0,0);
-            sbox.max() = vector3(Target.cell_count(0)*Target.cell_size(0),
-                                 Target.cell_count(1)*Target.cell_size(1),
-                                 Target.cell_count(2)*Target.cell_size(2));
+            rbox.min() = rd.origin;
+            rbox.max() = rd.origin + rd.size;
+            sbox.min() = Target.origin;
+            sbox.max() = Target.origin+Target.size;
             rbox = sbox.intersection(rbox);
             if (rbox.isEmpty()) {
                 std::stringstream msg;
@@ -448,7 +417,6 @@ int mcdriver::options::validate(bool AcceptIncomplete)
                 throw std::invalid_argument(msg.str());
             }
         }
-
     }
 
     return 0;
@@ -461,14 +429,9 @@ mccore* mcdriver::options::createSimulation() const
     S->getSource().setParameters(IonBeam);
 
     target& T = S->getTarget();
-
-    grid3D& G = T.grid();
-    G.setX(Target.cell_count.x()*Target.cell_size.x(),
-           Target.cell_count.x(), Target.periodic_bc.x());
-    G.setY(Target.cell_count.y()*Target.cell_size.y(),
-           Target.cell_count.y(), Target.periodic_bc.y());
-    G.setZ(Target.cell_count.z()*Target.cell_size.z(),
-           Target.cell_count.z(), Target.periodic_bc.z());
+    T.createGrid(Target.size,
+                 Target.cell_count,
+                 Target.periodic_bc);
 
     for(auto md : Target.materials) T.addMaterial(md);
     for(auto rd : Target.regions) T.addRegion(rd);

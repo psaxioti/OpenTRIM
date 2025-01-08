@@ -79,10 +79,7 @@ mccore::~mccore()
 int mccore::init() {
 
     target_->init();
-
-    // adjust projectile codes in target & source
-    target_->setProjectile(source_->ionZ(), source_->ionM());
-    source_->setProjectile(target_->projectile());
+    source_->init(*target_);
 
     // calculate sqrt{l/l0} in each material for constant flight path
     auto materials = target_->materials();

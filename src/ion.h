@@ -9,6 +9,18 @@
 class atom;
 
 /**
+ * @brief An basic atomic element definition struct
+ */
+struct element_t {
+    /// Atomic element symbol, H(Z=1) to U(Z=92)
+    std::string symbol;
+    /// Atomic number, 1<=Z<=92
+    int atomic_number{0};
+    /// Atomic mass
+    float atomic_mass{0.f};
+};
+
+/**
  * \defgroup Ions Ion generation & transport
  *
  * @brief Classes for performing ion transport and injecting new ions into the simulation.

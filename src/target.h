@@ -3,6 +3,7 @@
 
 #include "geometry.h"
 #include "arrays.h"
+#include "ion.h"
 
 #include <string>
 #include <vector>
@@ -59,7 +60,7 @@ public:
 };
 
 /**
- * @brief The atom class represents an atomic species in the target or in the ion beam.
+ * @brief The atom class represents an atomic species in the target.
  * @ingroup TargetG
  */
 class atom : public target_item
@@ -68,16 +69,12 @@ class atom : public target_item
 public:
 
     /**
-     * @brief The atom class parameters
+     * @brief A target material's atom definition parameters
      */
     struct parameters {
-        /// element symbol
-        std::string symbol;
-        /// atomic number
-        int Z;
-        /// atomic mass
-        float M;
-        /// atomic fraction
+        /// Element specification
+        element_t element;
+        /// Atomic fraction
         float X;
         /// Displacement threshold energy (eV) of target atoms
         float Ed;
@@ -129,11 +126,11 @@ public:
     /// A pointer to the target material this atom belongs to. For the beam atom nullptr is returned.
     const material* mat() const { return mat_; }
     /// Returns the chemical name of the atom
-    const std::string& symbol() const { return p_.symbol; }
+    const std::string& symbol() const { return p_.element.symbol; }
     /// Returns the atomic number
-    int Z() const { return p_.Z; }
+    int Z() const { return p_.element.atomic_number; }
     /// Returns the atomic mass
-    float M() const { return p_.M; }
+    float M() const { return p_.element.atomic_mass; }
     /// Returns the concentration of this atom in the target material
     float X() const { return X_; }
     /// Returns the displacement threshold energy (eV) of target atoms
@@ -146,7 +143,8 @@ public:
     float Er() const { return p_.Er; }
     /// Returns true if this atom's Z and M are equal to Z and M of other
     bool operator==(const atom& other) const
-    { return (p_.Z == other.p_.Z) && (p_.M == other.p_.M); }
+    { return (p_.element.atomic_number == other.p_.element.atomic_number) &&
+            (p_.element.atomic_mass == other.p_.element.atomic_mass); }
     /// Returns the damage energy [eV] corresponding to recoil energy T according to LSS approx.
     float LSS_Tdam(float T) const;
     /// Returns the number of vacancies created by a recoil of damage energy Tdam according to Norgett-Roninson-Torrens model
@@ -332,20 +330,21 @@ public:
         /// The id of the material that fills this region
         std::string material_id;
         /// Position of the region's lower left corner
-        vector3 min;
+        vector3 origin;
         /// Position of the region's upper right corner
-        vector3 max;
+        vector3 size;
     };
 
     /**
      * @brief The target_desc_t class contains all information for the target
      */
     struct target_desc_t {
+        vector3 origin{0.f, 0.f, 0.f};
+        vector3 size{100.f, 100.f, 100.f};
+        ivector3 cell_count{1, 1, 1};
+        ivector3 periodic_bc{0, 1, 1};
         std::vector<material::material_desc_t> materials{};
         std::vector<region> regions{};
-        ivector3 cell_count{1, 1, 1};
-        vector3 cell_size{100.f, 100.f, 100.f};
-        ivector3 periodic_bc{0, 1, 1};
     };
 
 protected:
@@ -379,7 +378,7 @@ public:
     ~target();
 
     /// Returns a reference to the geometric 3D grid
-    grid3D& grid() { return grid_; }
+    // grid3D& grid() { return grid_; }
     /// Returns a constant reference to the geometric 3D grid
     const grid3D& grid() const { return grid_; }
 
@@ -401,7 +400,7 @@ public:
     { return cells_.data()[i]; }
 
     /// Set the atomic number and mass of the projectile
-    void setProjectile(int Z, float M);
+    void setProjectile(const element_t &e);
     /// Returns a pointer to the projectile's atomic species description
     const atom* projectile() const { return atoms_.front(); }
 
@@ -425,6 +424,19 @@ public:
      * Should be called before starting a simulation.
      */
     void init();
+
+    /**
+     * @brief Create the target grid.
+     *
+     * Creates the internal grid data structure.
+     *
+     * Should be called before adding materials and regions.
+     *
+     * @param sz The size of the simulation box
+     * @param n Cell count in x, y, z dimensions
+     * @param pbc 3d int vector. A 1 means periodic boundary conditions
+     */
+    void createGrid(const vector3& sz, const ivector3& n, const ivector3& pbc);
 };
 
 #endif // TARGET_H

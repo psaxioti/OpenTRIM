@@ -246,6 +246,7 @@ endif()
 
 target_include_directories(${GUI_TARGET} PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    extern/json-3.11.3/single_include/
 )
 
 target_link_libraries(${GUI_TARGET} PRIVATE

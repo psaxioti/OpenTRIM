@@ -10,9 +10,7 @@
 #include "floatlineedit.h"
 
 #include <QFile>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
+#include "json_defs_p.h"
 
 #include <QDebug>
 
@@ -83,6 +81,16 @@ bool OptionsItem::setValue(const QVariant& v)
 //    return false;
     return true;
 }
+
+bool OptionsItem::direct_set(const char *path, const char *json)
+{
+    std::ostringstream os;
+    bool ret = options_->set(path, json, &os);
+    if (!ret) {
+        qDebug() << QString::fromStdString(os.str());
+    }
+    return ret;
+}
 void OptionsItem::appendChild(OptionsItem *item)
 {
     m_childItems.push_back(item);
@@ -91,7 +99,8 @@ void OptionsItem::prepareWidget(QWidget* w) const
 {
     w->setToolTip(toolTip_);
     w->setWhatsThis(whatsThis_);
-    w->setObjectName(key_);
+    //w->setObjectName(key_);
+    w->setObjectName(QString::fromStdString(jpath_));
 }
 OptionsItem::type_t OptionsItem::toType(const QString &typeName)
 {
@@ -102,13 +111,18 @@ OptionsItem::type_t OptionsItem::toType(const QString &typeName)
     else if (typeName == "string") return tString;
     else if (typeName == "vector3d") return tVector3D;
     else if (typeName == "ivector3d") return tIntVector3D;
+    else if (typeName == "struct") return tStruct;
     else return tInvalid;
 }
 bool OptionsItem::get_(QString& qs) const
 {
     std::string s;
     std::ostringstream os;
-    if (!options_->get(jpath_,s,&os)) return false;
+    bool ret = options_->get(jpath_,s,&os);
+    if (!ret) {
+        qDebug() << QString::fromStdString(os.str());
+        return false;
+    }
     qs = QString::fromStdString(s);
     return true;
 }
@@ -291,7 +305,7 @@ bool BoolOptionsItem::setValue(const QVariant& v)
         int i = s0.toInt(&ok);
         if (ok) {
             bool b0 = i;
-            if (b!=b0) set_(QString::number(i));
+            if (b!=b0) set_(b ? QString::number(1) : QString::number(0));
             return true;
         }
         return false;
@@ -469,122 +483,141 @@ QSize OptionsItemDelegate::sizeHint(const QStyleOptionViewItem &option,
 {
     return QStyledItemDelegate::sizeHint(option, index) + QSize(3, 4);
 }
+/****/
+QString toString(const ojson& j) {
+    return QString::fromStdString(j.template get<std::string>());
+}
+QStringList toStringList(const ojson& j) {
+    std::vector<std::string> s;
+    QStringList S;
+    j.get_to(s);
+    for(auto& i : s) S << QString::fromStdString(i);
+    return S;
+}
+template<>
+OptionsItem* OptionsItem::jsonHelper(OptionsItem::type_t type, const ojson &j, OptionsItem* parentItem)
+{
+    OptionsItem* item;
+    switch (type) {
+    case tStruct:
+        item = parentItem ?
+                   new OptionsItem(toString(j["name"]),toString(j["label"]),parentItem) :
+                   new OptionsItem;
+        for(auto it = j["fields"].begin(); it!=j["fields"].end(); ++it) {
+            const ojson& obj = *it;
+            QString typeName = toString(obj["type"]);
+            jsonHelper(OptionsItem::toType(typeName),
+                       obj,
+                       item);
+        }
+        break;
+    case tEnum:
+        item = new EnumOptionsItem(
+            toStringList(j["values"]),
+            toStringList(j["valueLabels"]),
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tFloat:
+        item = new FloatOptionsItem(
+            j["min"].template get<double>(),
+            j["max"].template get<double>(),
+            j["digits"].template get<int>(),
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tVector3D:
+        item = new Vector3dOptionsItem(
+            j["min"].template get<double>(),
+            j["max"].template get<double>(),
+            j["digits"].template get<int>(),
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tIntVector3D:
+        item = new IVector3dOptionsItem(
+            j["min"].template get<int>(),
+            j["max"].template get<int>(),
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tInt:
+        item = new IntOptionsItem(
+            j["min"].template get<int>(),
+            j["max"].template get<int>(),
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tBool:
+        item = new BoolOptionsItem(
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    case tString:
+        item = new StringOptionsItem(
+            toString(j["name"]),
+            toString(j["label"]),
+            parentItem
+            );
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
+    QString txt;
+    if (j.contains("toolTip")) {
+        txt = toString(j["toolTip"]);
+        item->toolTip_ = txt;
+    }
+    if (j.contains("whatsThis")) {
+        if (!txt.isEmpty()) txt += "\n\n";
+        if (j["whatsThis"].is_array())
+            txt += toStringList(j["whatsThis"]).join('\n');
+        else
+            txt += toString(j["whatsThis"]);
+    }
+    item->whatsThis_ = txt;
+
+    if (parentItem) parentItem->appendChild(item);
+
+    return item;
+}
 /*********************************************************/
 OptionsModel::OptionsModel(QObject *parent)
     : QAbstractItemModel{parent}, rootItem(new OptionsItem)
 {
-    rootItem = new OptionsItem();
-
     QFile loadFile(QStringLiteral(":/option_def/options.json"));
     loadFile.open(QIODevice::ReadOnly);
     QByteArray ba = loadFile.readAll();
-    QJsonParseError err;
-    QJsonDocument opt_spec(QJsonDocument::fromJson(ba,&err));
-    assert(err.error == QJsonParseError::NoError);
-
-    QStringList categories;
-    categories << "Simulation"
-               << "Transport"
-               << "IonBeam"
-               << "Output"
-               << "Driver"
-               << "Target";
-
-    foreach(const QString& category, categories) {
-        OptionsItem* categoryItem = new OptionsItem(category,rootItem);
-        QJsonArray arr = opt_spec[category].toArray();
-        for (int i = 0; i < arr.size(); ++i) {
-            QJsonObject obj = arr[i].toObject();
-            OptionsItem* item;
-            switch(OptionsItem::toType(obj["type"].toString())) {
-            case OptionsItem::tEnum:
-                item = new EnumOptionsItem(
-                           obj["values"].toVariant().toStringList(),
-                           obj["valueLabels"].toVariant().toStringList(),
-                           obj["name"].toString(),
-                           obj["label"].toString(),
-                           categoryItem
-                    );
-                break;
-            case OptionsItem::tFloat:
-                item = new FloatOptionsItem(
-                    obj["min"].toDouble(),
-                    obj["max"].toDouble(),
-                    obj["digits"].toInt(),
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            case OptionsItem::tVector3D:
-                item = new Vector3dOptionsItem(
-                    obj["min"].toDouble(),
-                    obj["max"].toDouble(),
-                    obj["digits"].toInt(),
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            case OptionsItem::tIntVector3D:
-                item = new IVector3dOptionsItem(
-                    obj["min"].toInt(),
-                    obj["max"].toInt(),
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            case OptionsItem::tInt:
-                item = new IntOptionsItem(
-                    obj["min"].toInt(),
-                    obj["max"].toInt(),
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            case OptionsItem::tBool:
-                item = new BoolOptionsItem(
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            case OptionsItem::tString:
-                item = new StringOptionsItem(
-                    obj["name"].toString(),
-                    obj["label"].toString(),
-                    categoryItem
-                    );
-                break;
-            default:
-                assert(0);
-                break;
-            }
-
-
-            QString txt = obj["toolTip"].toString();
-            item->toolTip_ = txt;
-            if (obj.contains("whatsThis")) {
-                txt += "\n\n";
-                if (obj["whatsThis"].isArray())
-                    txt += obj["whatsThis"].toVariant().toStringList().join('\n');
-                else
-                    txt += obj["whatsThis"].toString();
-            }
-            item->whatsThis_ = txt;
-
-            categoryItem->appendChild(item);
-        }
-        rootItem->appendChild(categoryItem);
+    std::istringstream is(ba.constData());
+    try {
+        ojson opt_spec = ojson::parse(is,nullptr,true,true);
+        rootItem = OptionsItem::jsonHelper(OptionsItem::tStruct, opt_spec, nullptr);
+    }
+    catch (const ojson::exception& e) {
+        qDebug() << "Error reading json input:";
+        qDebug() << e.what();
+        assert(0);
     }
 
-    OptionsItem* target = rootItem->child(rootItem->childCount()-1);
+    QModelIndex i = index("Target");
+    OptionsItem* target = static_cast<OptionsItem *>(i.internalPointer());
     target->appendChild(new OptionsItem("materials",target));
     target->appendChild(new OptionsItem("regions",target));
 
-    // rootItem->appendChild(target);
 }
 OptionsModel::~OptionsModel()
 {

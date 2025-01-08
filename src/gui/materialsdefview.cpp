@@ -1,5 +1,6 @@
 #include "materialsdefview.h"
 
+#include "periodic_table.h"
 #include "periodictablewidget.h"
 #include "floatlineedit.h"
 #include "optionsmodel.h"
@@ -280,8 +281,8 @@ QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) cons
     auto& at = mat->composition[i];
 
     switch (j) {
-    case 0: return at.symbol.c_str();
-    case 1: return at.M;
+    case 0: return at.element.symbol.c_str();
+    case 1: return at.element.atomic_mass;
     case 2: return at.X;
     case 3: return at.Ed;
     case 4: return at.El;
@@ -328,8 +329,11 @@ bool MaterialCompositionModel::setData(const QModelIndex &index, const QVariant 
     auto& at = mat->composition[i];
 
     switch (j) {
-    case 0: at.symbol = value.toString().toStdString(); break;
-    case 1: at.M = value.toFloat(); break;
+    case 0:
+        at.element.symbol = value.toString().toStdString();
+        at.element.atomic_number = periodic_table::at(at.element.symbol).Z;
+        break;
+    case 1: at.element.atomic_mass = value.toFloat(); break;
     case 2: at.X = value.toFloat(); break;
     case 3: at.Ed = value.toFloat(); break;
     case 4: at.El = value.toFloat(); break;

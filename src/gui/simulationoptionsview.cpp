@@ -14,6 +14,9 @@
 #include <QJsonObject>
 #include <QVBoxLayout>
 #include <QFormLayout>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QScrollArea>
 #include <QComboBox>
 #include <QLabel>
 #include <QTabWidget>
@@ -60,97 +63,23 @@ SimulationOptionsView::SimulationOptionsView(IonsUI *iui, QWidget *parent)
     OptionsModel* model = ionsui->optionsModel;
     mapper = new MyDataWidgetMapper(model,this);
 
-    QStringList categories, categoryNames;
-    categories << "Simulation"
-               << "Transport"
-               << "IonBeam"
-               << "Target"
-               << "Output";
-
-    categoryNames << "General"
-               << "Ion Transport"
-               << "Ion Source"
-               << "Target"
-               << "Output";
-
-    for(int i=0; i<categories.count(); ++i)
+    for(int i=0; i<model->rowCount(); ++i)
     {
-        QString category = categories.at(i);
-        QString categoryName = categoryNames.at(i);
+        QModelIndex idx = model->index(i,0);
+        OptionsItem* item = model->getItem(idx);
 
-        QModelIndex idx1 = model->index(category);
-        assert(idx1.isValid());
-        widget = new QWidget;
-        flayout = new QFormLayout;
-        for(int j=0; j<model->rowCount(idx1); ++j) {
-            QModelIndex idx2 = model->index(j,0,idx1);
-            OptionsItem* item = model->getItem(idx2);
-            QWidget* w = item->createEditor(widget);
-            if (w) {
-                QLabel* lbl = new QLabel(item->name(),widget);
-                lbl->setToolTip(w->toolTip());
-                lbl->setWhatsThis(w->whatsThis());
-                mapper->addMapping(w,idx2,item->editorSignal());
-                flayout->addRow(lbl,w);
-            }
-        }
+        QString category = item->key();
+        if (category == "Driver") continue;
 
-        if (category == "IonBeam") {
-            QWidget* w = mapper->findWidget("ionZ");
-            int row;
-            QFormLayout::ItemRole role;
-            flayout->getWidgetPosition(w,
-                                       &row,
-                                       &role);
-            QSpinBox* sb = qobject_cast<QSpinBox*>(w);
-            if (sb)
-                sb->setReadOnly(true);
+        QWidget* widget;
+        if (category == "IonBeam")
+            widget = createIonBeamTab(idx);
+        else if (category == "Target")
+            widget = createTargetTab(idx);
+        else
+            widget = createTab(idx);
 
-            btSelectIon = new QPushButton("Select Ion");
-            auto& H1 = periodic_table::at(1).isotopes[0];
-            ionLabel = new QLabel(H1.symbol.c_str());
-            flayout->insertRow(row,(QWidget*)btSelectIon,ionLabel);
-            connect(btSelectIon,&QPushButton::clicked,
-                    this, &SimulationOptionsView::selectIonZ);
-
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->addLayout(flayout);
-            hbox->addStretch();
-            widget->setLayout(hbox);
-        }
-        else if (category == "Target") {
-
-            QTabWidget* innerTab = new QTabWidget;
-
-            materialsView = new MaterialsDefView(model);
-            innerTab->addTab(materialsView,"Materials");
-
-            regionsView = new RegionsView(model);
-            innerTab->addTab(regionsView,"Regions");
-
-            //targetView = new TargetGeometryView(ionsui);
-            //innerTab->addTab(targetView,"Regions");
-
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->addLayout(flayout);
-            hbox->addStretch();
-
-            QVBoxLayout* vbox = new QVBoxLayout;
-            vbox->addLayout(hbox);
-            vbox->addSpacing(20);
-            vbox->addWidget(innerTab);
-            widget->setLayout(vbox);
-
-        } else {
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->addLayout(flayout);
-            hbox->addStretch();
-            widget->setLayout(hbox);
-
-        }
-
-        tabWidget->addTab(widget,categoryName);
-
+        tabWidget->addTab(widget,item->name());
     }
 
     // main title widget
@@ -166,8 +95,6 @@ SimulationOptionsView::SimulationOptionsView(IonsUI *iui, QWidget *parent)
         simTitleLabel->setStyleSheet("font-size : 14pt; font-weight : bold;");
         simTitle->setStyleSheet("font-size : 14pt");
     }
-
-
 
     jsonView = new JSEdit;
     jsonView->setReadOnly(true);
@@ -284,7 +211,8 @@ void SimulationOptionsView::revert()
 
     // fix the isotope label
     ionLabel->setText(
-        closestIsotopeSymbol(opt.IonBeam.ionZ,opt.IonBeam.ionM)
+        closestIsotopeSymbol(opt.IonBeam.ion.atomic_number,
+                             opt.IonBeam.ion.atomic_mass)
         );
 
     applyRules();
@@ -301,48 +229,159 @@ void SimulationOptionsView::applyRules()
     bool b;
     QWidget* w;
 
+    // Using a lambda expression for a short-lived function
+    auto enable_if = [this](const QString& key, bool b) {
+        QWidget* w = mapper->findWidget(key);
+        if (w) w->setEnabled(b);
+    };
+
     parent = model->index("Simulation");
     idx1 = model->index("eloss_calculation",1,parent);
     i = model->data(idx1, Qt::EditRole).toInt();
     b = i == mccore::EnergyLossAndStraggling;
-    w = mapper->findWidget("straggling_model");
-    if (w) w->setEnabled(b);
+    enable_if("/Simulation/straggling_model", b);
 
-    parent = model->index("Transport");
+
+    parent = model->index("Transport");    
+    enable_if("/Transport/flight_path_const", false);
+    enable_if("/Transport/max_mfp", false);
+    enable_if("/Transport/allow_sub_ml_scattering", false);
+    enable_if("/Transport/max_rel_eloss", false);
+    enable_if("/Transport/min_recoil_energy", false);
+
     idx1 = model->index("flight_path_type",1,parent);
     i = model->data(idx1, Qt::EditRole).toInt();
     auto fp_t = mccore::flight_path_type_t(i);
-    w = mapper->findWidget("flight_path_const"); w->setEnabled(false);
-    w = mapper->findWidget("max_mfp"); w->setEnabled(false);
-    w = mapper->findWidget("allow_sub_ml_scattering"); w->setEnabled(false);
-    w = mapper->findWidget("max_rel_eloss"); w->setEnabled(false);
-    w = mapper->findWidget("min_recoil_energy"); w->setEnabled(false);
     switch (fp_t) {
     case mccore::AtomicSpacing:
         break;
     case mccore::Constant:
-        w = mapper->findWidget("flight_path_const"); w->setEnabled(true);
+        enable_if("/Transport/flight_path_const", true);
         break;
     case mccore::MendenhallWeller:
-        w = mapper->findWidget("max_rel_eloss"); w->setEnabled(true);
-        w = mapper->findWidget("min_recoil_energy"); w->setEnabled(true);
+        enable_if("/Transport/max_rel_eloss", true);
+        enable_if("/Transport/min_recoil_energy", true);
         break;
     case mccore::IPP:
-        w = mapper->findWidget("max_rel_eloss"); w->setEnabled(true);
-        w = mapper->findWidget("min_recoil_energy"); w->setEnabled(true);
-        w = mapper->findWidget("max_mfp"); w->setEnabled(true);
-        w = mapper->findWidget("allow_sub_ml_scattering"); w->setEnabled(true);
+        enable_if("/Transport/max_rel_eloss", true);
+        enable_if("/Transport/min_recoil_energy", true);
+        enable_if("/Transport/max_mfp", true);
+        enable_if("/Transport/allow_sub_ml_scattering", true);
         break;
     default:
         break;
     }
 
+    // enable fwhm in all ion beam distributions
     parent = model->index("IonBeam");
-    idx1 = model->index("ion_distribution",1,parent);
-    i = model->data(idx1, Qt::EditRole).toInt();
-    auto distr_t = ion_beam::ion_distribution_t(i);
-    w = mapper->findWidget("pos");
-    w->setEnabled(distr_t == ion_beam::FixedPos);
+    for(const char* key : {"energy_distribution", "angular_distribution", "spatial_distribution"})
+    {
+        QModelIndex idx = model->index(key,0,parent);
+        idx = model->index("type",1,idx);
+        int i = model->data(idx, Qt::EditRole).toInt();
+        enable_if(
+            QString("/IonBeam/%1/fwhm").arg(key),
+            ion_beam::distribution_t(i) != ion_beam::SingleValue);
+    }
+}
+
+QWidget *SimulationOptionsView::createIonBeamTab(const QModelIndex &parent)
+{
+    QWidget *widget = new QWidget;
+    OptionsModel* model = ionsui->optionsModel;
+    //QVBoxLayout* vbox = new QVBoxLayout;
+    QGridLayout* grid = new QGridLayout;
+
+
+    for(int i=0; i<model->rowCount(parent); ++i) {
+        QModelIndex idx = model->index(i,0,parent); //model->index("ion");
+        OptionsItem* item = model->getItem(idx);
+        QGroupBox* box = new QGroupBox(item->name());
+        QFormLayout* flayout = createForm(idx,box);
+        box->setLayout(flayout);
+        grid->addWidget(box, i >> 1, i % 2);
+
+        if (item->key()=="ion") {
+            // set atomic_number to read only
+            QWidget* w = mapper->findWidget("/IonBeam/ion/atomic_number");
+            QSpinBox* sb = qobject_cast<QSpinBox*>(w);
+            if (sb)
+                sb->setReadOnly(true);
+
+            // add button to select ion
+            btSelectIon = new QPushButton("Select Ion");
+            auto& H1 = periodic_table::at(1).isotopes[0];
+            ionLabel = new QLabel(H1.symbol.c_str());
+            flayout->insertRow(0,(QWidget*)btSelectIon,ionLabel);
+            connect(btSelectIon,&QPushButton::clicked,
+                    this, &SimulationOptionsView::selectIonZ);
+        }
+    }
+
+    QVBoxLayout* vbox = new QVBoxLayout;
+    widget->setLayout(vbox);
+    vbox->addLayout(grid);
+    vbox->addStretch();
+
+//    QScrollArea* scrollArea = new QScrollArea;
+//    scrollArea->setWidget(widget);
+
+//    return scrollArea;
+//    widget->setLayout(grid);
+    return widget;
+
+}
+
+QWidget *SimulationOptionsView::createTargetTab(const QModelIndex &idx)
+{
+    OptionsModel* model = ionsui->optionsModel;
+    QTabWidget* innerTab = new QTabWidget;
+
+    materialsView = new MaterialsDefView(model);
+    innerTab->addTab(materialsView,"Materials");
+
+    regionsView = new RegionsView(model);
+    innerTab->addTab(regionsView,"Regions");
+
+    QWidget* widget = new QWidget;
+    QHBoxLayout* hbox = new QHBoxLayout;
+    hbox->addLayout(createForm(idx,widget));
+    hbox->addStretch();
+    QVBoxLayout* vbox = new QVBoxLayout;
+    vbox->addLayout(hbox);
+    vbox->addSpacing(20);
+    vbox->addWidget(innerTab);
+    widget->setLayout(vbox);
+    return widget;
+}
+
+QWidget *SimulationOptionsView::createTab(const QModelIndex &idx)
+{
+    QWidget* widget = new QWidget;
+    QHBoxLayout* hbox = new QHBoxLayout;
+    widget->setLayout(hbox);
+    hbox->addLayout(createForm(idx,widget));
+    hbox->addStretch();
+    return widget;
+}
+
+QFormLayout *SimulationOptionsView::createForm(const QModelIndex &parent, QWidget* widgetParent)
+{
+    QFormLayout* flayout = new QFormLayout;
+    OptionsModel* model = ionsui->optionsModel;
+    for(int row=0; row<model->rowCount(parent); ++row) {
+        QModelIndex i = model->index(row,0,parent);
+        OptionsItem* item = model->getItem(i);
+        QWidget* w = item->createEditor(widgetParent);
+        if (w) {
+            //QLabel* lbl = new QLabel(item->name());
+            //lbl->setToolTip(w->toolTip());
+            //lbl->setWhatsThis(w->whatsThis());
+            mapper->addMapping(w,i,item->editorSignal());
+            flayout->addRow(item->name(),w);
+        }
+    }
+    return flayout;
 }
 
 void SimulationOptionsView::selectIonZ()
@@ -350,11 +389,23 @@ void SimulationOptionsView::selectIonZ()
     PeriodicTableDialog dlg(true);
     if(dlg.exec()==QDialog::Accepted) {
         OptionsModel* model = mapper->model();
-        QModelIndex idx1 = model->index("IonBeam");
-        QModelIndex idx2 = model->index("ionZ",0,idx1);
-        model->setData(idx2,dlg.selectedZ());
-        idx2 = model->index("ionM",0,idx1);
-        model->setData(idx2,dlg.selectedMass());
+        QModelIndex i = model->index("IonBeam");
+        i = model->index("ion",0,i);
+        OptionsItem* item = static_cast<OptionsItem*>(i.internalPointer());
+
+        std::ostringstream os;
+        os << "{ \"symbol\" : \"" << periodic_table::at(dlg.selectedZ()).symbol << "\", "
+           << " \"atomic_number\" : " << dlg.selectedZ() << ", "
+           << " \"atomic_mass\" : " << dlg.selectedMass() << "}";
+
+        item->direct_set("/IonBeam/ion", os.str().c_str());
+
+        QModelIndex j = model->index("atomic_number",0,i);
+        //model->setData(j,dlg.selectedZ());
+        model->dataChanged(j, j, {Qt::EditRole});
+        j = model->index("atomic_mass",0,i);;
+        //model->setData(j,dlg.selectedMass());
+        model->dataChanged(j, j, {Qt::EditRole});
         ionLabel->setText(dlg.selectedIonSymbol());
     }
 }

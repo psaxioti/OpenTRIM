@@ -57,13 +57,13 @@ QVariant RegionsModel::data(const QModelIndex &index, int role) const
         break;
     case 2:
         V = (role == Qt::DisplayRole) ?
-                qstring_serialize<vector3>::toString(reg.min) :
-                QVariant::fromValue(reg.min);
+                qstring_serialize<vector3>::toString(reg.origin) :
+                QVariant::fromValue(reg.origin);
         break;
     case 3:
         V = (role == Qt::DisplayRole) ?
-                qstring_serialize<vector3>::toString(reg.max) :
-                QVariant::fromValue(reg.max);
+                qstring_serialize<vector3>::toString(reg.size) :
+                QVariant::fromValue(reg.size);
         break;
     default:
         assert(0);
@@ -110,10 +110,10 @@ bool RegionsModel::setData(const QModelIndex &index, const QVariant &value, int 
         reg.material_id = value.toString().toStdString();
         break;
     case 2:
-        reg.min = value.value<vector3>();
+        reg.origin = value.value<vector3>();
         break;
     case 3:
-        reg.max = value.value<vector3>();
+        reg.size = value.value<vector3>();
         break;
     }
 
@@ -134,8 +134,8 @@ bool RegionsModel::insertRows(int position, int rows, const QModelIndex &parent)
     target::region reg;
     reg.id = "Region XX";
     reg.material_id = materials.size()>0 ? materials[0].id : "";
-    reg.min = {0.f,0.f,0.f};
-    reg.max = {100.f,100.f,100.f};
+    reg.origin = {0.f,0.f,0.f};
+    reg.size = {100.f,100.f,100.f};
     opt->Target.regions.push_back(reg);
     endInsertRows();
 

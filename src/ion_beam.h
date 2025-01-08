@@ -2,9 +2,9 @@
 #define ION_BEAM_H
 
 #include "geometry.h"
+#include "ion.h"
 
 class target;
-class ion;
 class atom;
 class random_vars;
 
@@ -21,40 +21,88 @@ class ion_beam
 public:
 
     /**
-     * @brief Types of source ions spatial distribution
+     * @brief Types of source parameter distributions
      */
-    enum ion_distribution_t {
-        SurfaceRandom = 0,          /**< Randomly distributed on the entrance surface */
-        SurfaceCentered,            /**< At the center of the entrance surface */
-        FixedPos,                   /**< At a fixed posistion */
-        VolumeCentered,             /**< At the center of the target volume */
-        VolumeRandom,               /**< Randomly distributed in the target volume */
-        InvalidIonDistribution = -1
+    enum distribution_t {
+        SingleValue = 0,    /**< Single valued (=delta) distribution */
+        Uniform,            /**< Uniform distribution */
+        Gaussian,            /**< Gaussian (Normal) distribution */
+        InvalidDistribution = -1
+    };
+
+    /**
+     * @brief Ion energy distribution
+     */
+    struct energy_distribution_t {
+        /// Energy distribution type. Default: SingleValue
+        distribution_t type{SingleValue};
+        /// Center position of generated ions [eV]. Default: 1 MeV.
+        float center{1e6f};
+        /// Full-width at half-maximum of ion energy distribution [nm]. Default: 1 eV.
+        float fwhm{1.0f};
+        /// Draw a random energy sample from the distribution
+        float sample(random_vars& r) const;
+        void init();
+        float a,b;
+    };
+
+    enum geometry_t {
+        Surface = 0,    /**< Surface source */
+        Volume = 1,     /**< Volume source */
+        InvalidGeometry = -1
+    };
+
+    /**
+     * @brief Ion spatial distribution
+     */
+    struct spatial_distribution_t {
+        /// Source geometry type
+        geometry_t geometry{Surface};
+        /// Spatial distribution type
+        distribution_t type{SingleValue};
+        /// Center position of generated ions [nm]. Default (0,0,0)
+        vector3 center{0,0,0};
+        /// Full-width at half-maximum of ion spatial distribution [nm]
+        float fwhm{1.0f};
+        void sample(random_vars& g, const target &t, vector3& pos) const;
+        void init(const target& t);
+        vector3 a,b;
+        float sig;
+    };
+
+    /**
+     * @brief Ion angular distribution
+     */
+    struct angular_distribution_t {
+        /// Angular distribution type. Default: SingleValue
+        distribution_t type{SingleValue};
+        /// Cental direction of generated ions. Unnormalized vector, default: (1,0,0).
+        vector3 center{1,0,0};
+        /// Full-width at half-maximum of ion angular distribution [srad]. Default: 0.1.
+        float fwhm{1.0f};
+        void sample(random_vars& g, const target &t, vector3& dir) const;
+        void init(const target& t);
+        float mu;
+        vector3 norm_center;
     };
 
     /**
      * @brief The parameters of the ion_beam class
      */
     struct parameters {
-        /// Spatial distribution type
-        ion_distribution_t ion_distribution{SurfaceRandom};
-        /// Atomic number of generated ions. Default 1.
-        int ionZ{1}; // atomic number
-        /// Mass of generated ions. Default 1.0
-        float ionM{1.f}; // ion mass
-        /// Initial energy of generated ions [eV]. Default 1000.0 eV
-        float ionE0{1000.f}; // initial energy eV
-        /// Initial direction vector of generated ions. Default (1,0,0)
-        vector3 dir{1,0,0}; // initial direction
-        /// Initial position of generated ions [nm]. Used if ion_distribution_t==FixedPos. Default (0,0,0)
-        vector3 pos{0,0,0}; // initial position
-        //parameters();
+        /// Atomic type of the generated ions
+        element_t ion{"H",1,1.007825f}; // initialize to proton
+        /// Energy distribution of the generated ions
+        energy_distribution_t energy_distribution;
+        /// Spatial distribution of the generated ions
+        spatial_distribution_t spatial_distribution;
+        /// Angular distribution of the generated ions
+        angular_distribution_t angular_distribution;
     };
 
 protected:
 
     parameters par_;
-    const atom* atom_; // atomic species
 
 public:
     /// Default constructor
@@ -63,37 +111,36 @@ public:
     ion_beam(const ion_beam& i);
 
     /// Set ion_beam class parameter values
-    void setParameters(const parameters& p) { par_ = p; }
+    void setParameters(const parameters& p);
     /// Returns the ion_beam parameters
     const parameters& getParameters() const { return par_; }
-
-    /// Return the atomic number of generated ions
-    int ionZ() const { return par_.ionZ; }
-    /// Return the mass of generated ions
-    float ionM() const { return par_.ionM; }
-    /// Return the energy of generated ions [eV]
-    float ionE0() const { return par_.ionE0; }
-    /// Return the spatial distribution type of the ion beam
-    ion_distribution_t distributionType() const { return par_.ion_distribution; }
-    /// Return the direction of generated ions (if it is fixed)
-    vector3 ionDir() const { return par_.dir; }
-    /// Return the position of generated ions (if it is fixed)
-    vector3 ionPos() const { return par_.pos; }
-
-    /// Return the atom class of the projectile ions
-    const atom* projectile() const { return atom_; }
-    /// Set the atom class of the projectile ions
-    void setProjectile(const atom* at) { atom_ = at; }
+    /// Initialize the ion_beam class
+    void init(target& t);
 
     /**
-     * @brief source_ion generates an ion
-     * @tparam _U a random number generator class
-     * @param g the random number generator
+     * @brief Generate an ion in the simulation
+     * @param g the random number engine
      * @param t the simulation target
      * @param i the generated ion
      */
     void source_ion(random_vars& g, const target& t, ion& i);
 
 };
+
+inline void shift_left(vector3& v)
+{
+    float d = v.x();
+    v.x() = v.y();
+    v.y() = v.z();
+    v.z() = d;
+}
+
+inline void shift_right(vector3& v)
+{
+    float d = v.z();
+    v.z() = v.y();
+    v.y() = v.x();
+    v.x() = d;
+}
 
 #endif // ION_BEAM_H

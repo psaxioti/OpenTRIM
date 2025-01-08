@@ -16,6 +16,7 @@ class OptionsItem
         tString,
         tVector3D,
         tIntVector3D,
+        tStruct,
         tInvalid
     };
 
@@ -43,10 +44,16 @@ public:
 
     bool isRoot() const { return parent() == nullptr; }
 
+    bool direct_set(const char* path, const char* json);
+
 private:
     explicit OptionsItem(OptionsItem *parent = nullptr);
     static type_t toType(const QString& typeName);
     friend class OptionsModel;
+
+    template<class J>
+    static OptionsItem* jsonHelper(OptionsItem::type_t type, const J& j, OptionsItem* parentItem);
+
 
 protected:
     OptionsItem(const QString& key,
@@ -246,6 +253,7 @@ public:
 
 private:
     OptionsItem* rootItem;
+
 };
 
 #endif // OPTIONSMODEL_H

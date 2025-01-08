@@ -4,6 +4,7 @@
 
 #include <QMetaObject>
 #include <QMetaMethod>
+#include <QDebug>
 
 MyDataWidgetMapper::MyDataWidgetMapper(OptionsModel *m,
                                        QObject *parent)
@@ -37,16 +38,22 @@ void MyDataWidgetMapper::addMapping(QWidget *widget, const QModelIndex &idx, con
     }
 }
 
-void MyDataWidgetMapper::removeMapping(QWidget *widget)
+void MyDataWidgetMapper::removeMapping(const QString &key)
 {
-    int idx = findWidget(widget);
+    QWidget* w = findWidget(key);
+    if (w) removeMapping(w);
+}
+
+void MyDataWidgetMapper::removeMapping(QWidget *w)
+{
+    int idx = findWidget(w);
     if (idx == -1)
         return;
 
     if (widgetMap[idx].signal)
-        disconnect(widget, widgetMap[idx].signal, this, SLOT(commitData_()));
+        disconnect(w, widgetMap[idx].signal, this, SLOT(commitData_()));
     widgetMap.erase(widgetMap.begin() + idx);
-    widget->removeEventFilter(delegate_);
+    w->removeEventFilter(delegate_);
 }
 
 int MyDataWidgetMapper::findWidget(QWidget *w) const
@@ -61,6 +68,7 @@ int MyDataWidgetMapper::findWidget(QWidget *w) const
 QWidget* MyDataWidgetMapper::findWidget(const QString& key) const
 {
     for (const mapItem &m : widgetMap) {
+        assert(!m.widget.isNull()); // widget must be there
         if (m.widget->objectName() == key)
             return m.widget;
     }

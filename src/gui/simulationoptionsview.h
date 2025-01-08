@@ -7,6 +7,7 @@ class QPushButton;
 class QLabel;
 class JSEdit;
 class QTabWidget;
+class QFormLayout;
 class QLineEdit;
 
 class MyDataWidgetMapper;
@@ -63,6 +64,11 @@ public slots:
 private:
     bool modified_{false};
     void applyRules();
+
+    QWidget* createIonBeamTab(const QModelIndex& idx);
+    QWidget* createTargetTab(const QModelIndex& idx);
+    QWidget *createTab(const QModelIndex& idx);
+    QFormLayout *createForm(const QModelIndex& idx, QWidget *widgetParent = nullptr);
 
 
     IonsUI* ionsui;

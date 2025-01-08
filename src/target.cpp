@@ -54,22 +54,9 @@ atom* material::addAtom(const atom::parameters& p)
 
     a->p_ = p;
 
-    // complete optional parameters
-    if (p.symbol.empty()) {
-        assert(p.Z>0 && p.Z<=dedx_max_Z);
-        a->p_.symbol = periodic_table::at(p.Z).symbol;
-    }
-    if (p.Z==0) {
-        assert(!p.symbol.empty());
-        a->p_.Z = periodic_table::at(p.symbol).Z;
-    }
-    if (p.M==0.f) {
-        a->p_.M = periodic_table::at(a->p_.Z).mass;
-    }
-
     a->X_ = a->p_.X;
     X_.push_back(a->p_.X);
-    Z_.push_back(a->p_.Z);
+    Z_.push_back(a->p_.element.atomic_number);
     return a;
 }
 
@@ -183,16 +170,29 @@ target::~target()
     for(atom* a : atoms_) delete a;
 }
 
-void target::setProjectile(int Z, float M)
+void target::setProjectile(const element_t& e)
 {
     atom* i = atoms_[0];
-    i->p_.symbol = periodic_table::at(Z).symbol;
-    i->p_.Z = Z;
-    i->p_.M = M;
+    i->p_.element = e;
 }
 
 void target::init() {
     for(material* m : materials_) m->init();
+}
+
+void target::createGrid(const vector3 &size, const ivector3 &cell_count, const ivector3 &pbc)
+{
+    grid_.setX(size.x(),
+           cell_count.x(),
+           pbc.x());
+    grid_.setY(size.y(),
+           cell_count.y(),
+           pbc.y());
+    grid_.setZ(size.z(),
+           cell_count.z(),
+           pbc.z());
+
+    cells_ = ArrayND<const material*>(grid_.x().size()-1, grid_.y().size()-1, grid_.z().size()-1);
 }
 
 material* target::addMaterial(const char* name)
@@ -212,9 +212,6 @@ material *target::addMaterial(const material::material_desc_t &md)
 
 void target::fill(const box3D& box, const material* m)
 {
-    if (cells_.isNull() || cells_.size()!=grid_.ncells())
-        cells_ = ArrayND<const material*>(grid_.x().size()-1, grid_.y().size()-1, grid_.z().size()-1);
-
     box3D realbox = grid_.box().intersection(box);
     box1D bx, by, bz;
     bx.min() = box1D::VectorType(realbox.min().x());
@@ -245,9 +242,11 @@ target::target_desc_t target::getDescription() const
                      (int)grid_.y().size() - 1,
                      (int)grid_.z().size() - 1};
 
-    td.cell_size = {grid_.x()[1] - grid_.x()[0],
-                    grid_.y()[1] - grid_.y()[0],
-                    grid_.z()[1] - grid_.z()[0]
+    td.origin = {grid_.x()[0], grid_.y()[0], grid_.z()[0]};
+
+    td.size = {grid_.x().w(),
+               grid_.y().w(),
+               grid_.z().w()
     };
 
     td.periodic_bc = {grid_.x().periodic(),
@@ -277,8 +276,8 @@ void target::addRegion(const region &r)
 {
     regions_.push_back(r);
     box3D box;
-    box.min() = r.min;
-    box.max() = r.max;
+    box.min() = r.origin;
+    box.max() = r.origin + r.size;
     material* rm = nullptr;
     for(material* m : materials_) {
         if (m->name_ == r.material_id) {

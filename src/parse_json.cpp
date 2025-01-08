@@ -5,6 +5,8 @@
 
 #include "json_defs_p.h"
 
+#include "periodic_table.h"
+
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -58,16 +60,101 @@ int mcdriver::options::parseJSON(std::istream& js, bool doValidation, std::ostre
     return 0;
 }
 
+/* serialization of element_t struct
+ *
+ * This is needed so that an empty element is
+ * always invalid input (without needing to call
+ * validate() )
+ *
+ * This brakes the logic that json parsing checks
+ * only for json grammar
+ *
+ * The options.set function needs to get a full element_t definition
+ * in json. Otherwise it will throw error if you try to change
+ * e.g. first the symbol and then the atomic_number
+ *
+ * TODO
+ * Must be changed in the future to a more clear
+ * logic
+ * e.g. throw an invalid_input exception during parsing
+ * 
+ */
+
+void to_json(ojson& j, const element_t& p)
+{
+    j = ojson{
+        {"symbol", p.symbol},
+        {"atomic_number", p.atomic_number},
+        {"atomic_mass", p.atomic_mass}
+    };
+}
+
+void check_element_def(const ojson& j, element_t& p)
+{
+    if (p.symbol.empty() && p.atomic_number<=0) {
+        std::stringstream msg;
+        msg << "Undefined element. ";
+        msg << "Specify either \"symbol\" or \"atomic_number\"";
+        throw ojson::exception(ojson::other_error::create(1000, msg.str(), &j));
+    }
+
+    if (p.symbol.empty()) {
+        if (p.atomic_number>dedx_max_Z) {
+            std::stringstream msg;
+            msg << "Element with atomic_number Z=" << p.atomic_number;
+            msg << " beyong the maximum possible Z=" << dedx_max_Z;
+            throw ojson::exception(ojson::other_error::create(1001, msg.str(), &j));
+        }
+        p.symbol = periodic_table::at(p.atomic_number).symbol;
+    } else {
+        auto& el = periodic_table::at(p.symbol);
+        if (!el.is_valid()) {
+            std::stringstream msg;
+            msg << "Invalid element symbol=" << p.symbol;
+            throw ojson::exception(ojson::other_error::create(1002, msg.str(), &j));
+        }
+        if (el.Z>dedx_max_Z) {
+            std::stringstream msg;
+            msg << "Element " << p.symbol << "(Z=" << el.Z << ")";
+            msg << "is beyong the maximum possible Z=" << dedx_max_Z;
+            throw ojson::exception(ojson::other_error::create(1002, msg.str(), &j));
+        }
+        if (p.atomic_number>0 && el.Z!=p.atomic_number) {
+            std::stringstream msg;
+            msg << "Incompatible element symbol "<< p.symbol << "(Z=" << el.Z << ")";
+            msg << " and specified atomic_number Z=" << p.atomic_number;
+            throw ojson::exception(ojson::other_error::create(1002, msg.str(), &j));
+        }
+        p.atomic_number=el.Z;
+    }
+
+    if (p.atomic_mass==0.0f) p.atomic_mass = periodic_table::at(p.atomic_number).mass;
+}
+
+void from_json(const ojson& nlohmann_json_j, element_t& nlohmann_json_t)
+{
+    const element_t nlohmann_json_default_obj{};
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(symbol);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(atomic_number);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(atomic_mass);
+    check_element_def(nlohmann_json_j, nlohmann_json_t);
+}
+
 // enum serialization definitions
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
-    ion_beam::ion_distribution_t, {
-        {ion_beam::InvalidIonDistribution, nullptr},
-        {ion_beam::SurfaceRandom, "SurfaceRandom"},
-        {ion_beam::SurfaceCentered, "SurfaceCentered"},
-        {ion_beam::FixedPos, "FixedPos"},
-        {ion_beam::VolumeCentered, "VolumeCentered"},
-        {ion_beam::VolumeRandom, "VolumeRandom"}
+    ion_beam::distribution_t, {
+        {ion_beam::InvalidDistribution, nullptr},
+        {ion_beam::SingleValue, "SingleValue"},
+        {ion_beam::Uniform, "Uniform"},
+        {ion_beam::Gaussian, "Gaussian"}
+    })
+
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    ion_beam::geometry_t, {
+        {ion_beam::InvalidGeometry, nullptr},
+        {ion_beam::Surface, "Surface"},
+        {ion_beam::Volume, "Volume"}
     })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
@@ -130,61 +217,84 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
 
 // option struct serialization
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::region,
-                                          id,
-                                          material_id,
-                                          min, max)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    target::region,
+    id,
+    material_id,
+    origin, size)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(atom::parameters,
-                                          symbol, Z, M, X,
-                                          Ed, El, Es, Er)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    atom::parameters,
+    element,
+    X, Ed, El, Es, Er)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(material::material_desc_t,
-                                   id,
-                                   density,
-                                   composition)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    material::material_desc_t,
+    id,
+    density,
+    composition)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ion_beam::parameters,
-                                   ion_distribution,
-                                   ionZ, ionM, ionE0,
-                                   dir, pos)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    ion_beam::energy_distribution_t,
+    type, center, fwhm)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::parameters,
-                                          simulation_type, screening_type,
-                                          scattering_calculation,
-                                          eloss_calculation, straggling_model,
-                                          nrt_calculation)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    ion_beam::spatial_distribution_t,
+    geometry, type, center, fwhm)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mccore::transport_options,
-                                          flight_path_type,
-                                          flight_path_const, min_energy, min_recoil_energy,
-                                          allow_sub_ml_scattering, max_mfp, max_rel_eloss)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    ion_beam::angular_distribution_t,
+    type, center, fwhm)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::parameters,
-                                          max_no_ions,
-                                          threads, seed)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    ion_beam::parameters,
+    ion,
+    energy_distribution,
+    spatial_distribution,
+    angular_distribution)
 
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    mccore::parameters,
+    simulation_type, screening_type,
+    scattering_calculation,
+    eloss_calculation, straggling_model,
+    nrt_calculation)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(mcdriver::output_options,
-                                                title,
-                                                OutputFileBaseName,
-                                                storage_interval,
-                                                store_transmitted_ions,
-                                                store_range_3d,
-                                                store_ion_paths,
-                                                store_path_limit,
-                                                store_recoil_cascades,
-                                                store_path_limit_recoils,
-                                                store_pka,
-                                                store_dedx
-                                                )
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    mccore::transport_options,
+    flight_path_type,
+    flight_path_const, min_energy, min_recoil_energy,
+    allow_sub_ml_scattering, max_mfp, max_rel_eloss)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(target::target_desc_t,
-                                                materials,
-                                                regions,
-                                                cell_count,
-                                                periodic_bc,
-                                                cell_size)
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    mcdriver::parameters,
+    max_no_ions,
+    threads, seed)
+
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    mcdriver::output_options,
+    title,
+    OutputFileBaseName,
+    storage_interval,
+    store_transmitted_ions,
+    store_range_3d,
+    store_ion_paths,
+    store_path_limit,
+    store_recoil_cascades,
+    store_path_limit_recoils,
+    store_pka,
+    store_dedx
+    )
+
+MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    target::target_desc_t,
+    origin,
+    size,
+    cell_count,
+    periodic_bc,
+    materials,
+    regions
+    )
 
 
 void to_json(ojson& j, const mcdriver::options& p)
