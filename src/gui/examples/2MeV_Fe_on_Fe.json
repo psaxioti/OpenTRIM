@@ -22,8 +22,8 @@
         "spatial_distribution": {
             "center": [
                 0,
-                5000,
-                5000
+                600,
+                600
             ]
         }
     },
