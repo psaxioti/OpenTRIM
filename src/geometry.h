@@ -202,7 +202,24 @@ public:
         assert(contains(x));
         if (size()==2) return 0;
         if (equispaced_) {
-            return std::floor(x/dx_);
+            int i = std::floor(x/dx_);
+            if (x<i*dx_) i--;
+            /*
+             * Rounding problem here:
+             *
+             * if x is slightly below a boundary xi = i*dx_
+             * then floor(x/dx_) may return i while
+             * the correct would be i-1
+             *
+             * The "if (x<i*dx) i--;" statement corrects
+             * that. However it may not be stable/portable
+             *
+             * Check also:
+             * std::remainder, std::remquo, std::fmod
+             */
+            assert(i>=0 && i<size()-1);
+            assert(x>=at(i) && x<at(i+1));
+            return i;
         }
         else
             return std::upper_bound(begin(), end(), x) - begin() - 1;
