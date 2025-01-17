@@ -330,9 +330,9 @@ public:
         /// The id of the material that fills this region
         std::string material_id;
         /// Position of the region's lower left corner
-        vector3 origin;
+        vector3 origin{0.f, 0.f, 0.f};
         /// Position of the region's upper right corner
-        vector3 size;
+        vector3 size{100.f, 100.f, 100.f};
     };
 
     /**
