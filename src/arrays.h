@@ -192,6 +192,8 @@ public:
         std::memset(p,0,size()*sizeof(Scalar));
     }
 
+    long use_count() const { return P_.use_count(); }
+
 };
 
 /// A typedef for N-d arrays of double numbers

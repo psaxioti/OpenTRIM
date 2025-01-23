@@ -173,12 +173,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
     })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
-    mccore::eloss_calculation_t,
+    dedx_calc::eloss_calculation_t,
     {
-        {mccore::InvalidEnergyLoss, nullptr},
-        {mccore::EnergyLossOff, "EnergyLossOff"},
-        {mccore::EnergyLoss, "EnergyLoss"},
-        {mccore::EnergyLossAndStraggling, "EnergyLossAndStraggling"}
+        {dedx_calc::InvalidEnergyLoss, nullptr},
+        {dedx_calc::EnergyLossOff, "EnergyLossOff"},
+        {dedx_calc::EnergyLoss, "EnergyLoss"},
+        {dedx_calc::EnergyLossAndStraggling, "EnergyLossAndStraggling"}
     })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
@@ -189,12 +189,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
     })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
-    mccore::flight_path_type_t, {
-        {mccore::InvalidPath, nullptr},
-        {mccore::AtomicSpacing, "AtomicSpacing"},
-        {mccore::Constant, "Constant"},
-        {mccore::MendenhallWeller, "MendenhallWeller"},
-        {mccore::IPP, "IPP"}
+    flight_path_calc::flight_path_type_t, {
+        {flight_path_calc::InvalidPath, nullptr},
+        {flight_path_calc::AtomicSpacing, "AtomicSpacing"},
+        {flight_path_calc::Constant, "Constant"},
+        {flight_path_calc::MendenhallWeller, "MendenhallWeller"},
+        {flight_path_calc::IPP, "IPP"}
     })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(

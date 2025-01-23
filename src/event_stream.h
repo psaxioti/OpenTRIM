@@ -8,6 +8,8 @@
 
 class event_stream;
 class ion;
+class tally;
+class material;
 
 /**
  * @brief The event class stores data for a given Monte-Carlo event.
@@ -87,6 +89,7 @@ class event_stream
 protected:
     size_t rows_, cols_;
     std::FILE* fs_;
+    std::string fname_;
     event event_proto_;
 
 public:
@@ -144,7 +147,12 @@ private:
  */
 class pka_event : public event
 {
+    // # of atoms in the simulation
     int natoms_;
+
+    // buffers for calculating pka quantities
+    float T_; // Tdam
+    std::vector<float> buff2_; // Vac, Interstitials, Replacements
 
     enum offset_t {
         ofIonId = 0,
@@ -161,6 +169,11 @@ public:
         event(),
         natoms_(0)
     {}
+
+    void mark(const tally& t);
+    void cascade_start(const ion &i);
+    void cascade_end(const ion &i);
+    void nrt(const ion& i, tally& t, const material *m);
 
     /**
      * @brief Set the number of atoms in the target

@@ -238,7 +238,7 @@ void SimulationOptionsView::applyRules()
     parent = model->index("Simulation");
     idx1 = model->index("eloss_calculation",1,parent);
     i = model->data(idx1, Qt::EditRole).toInt();
-    b = i == mccore::EnergyLossAndStraggling;
+    b = i == dedx_calc::EnergyLossAndStraggling;
     enable_if("/Simulation/straggling_model", b);
 
 
@@ -251,18 +251,18 @@ void SimulationOptionsView::applyRules()
 
     idx1 = model->index("flight_path_type",1,parent);
     i = model->data(idx1, Qt::EditRole).toInt();
-    auto fp_t = mccore::flight_path_type_t(i);
+    auto fp_t = flight_path_calc::flight_path_type_t(i);
     switch (fp_t) {
-    case mccore::AtomicSpacing:
+    case flight_path_calc::AtomicSpacing:
         break;
-    case mccore::Constant:
+    case flight_path_calc::Constant:
         enable_if("/Transport/flight_path_const", true);
         break;
-    case mccore::MendenhallWeller:
+    case flight_path_calc::MendenhallWeller:
         enable_if("/Transport/max_rel_eloss", true);
         enable_if("/Transport/min_recoil_energy", true);
         break;
-    case mccore::IPP:
+    case flight_path_calc::IPP:
         enable_if("/Transport/max_rel_eloss", true);
         enable_if("/Transport/min_recoil_energy", true);
         enable_if("/Transport/max_mfp", true);

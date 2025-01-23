@@ -38,12 +38,9 @@ mccore::mccore(const mccore &s) :
     thread_ion_counter_(0),
     abort_flag_(s.abort_flag_),
     tally_mutex_(s.tally_mutex_),
-    sqrtfp_const(s.sqrtfp_const), ip0(s.ip0),
-    dedx_(s.dedx_),
-    de_strag_(s.de_strag_),
+    dedx_calc_(s.dedx_calc_),
+    flight_path_calc_(s.flight_path_calc_),
     scattering_matrix_(s.scattering_matrix_),
-    mfp_(s.mfp_), ipmax_(s.ipmax_),
-    fp_max_(s.fp_max_), Tcutoff_(s.Tcutoff_),
     rng(s.rng),
     pka(s.pka)
 {
@@ -61,67 +58,32 @@ mccore::~mccore()
     if (ref_count_.use_count() == 1) {
         delete source_;
         delete target_;
-        if (!dedx_.isNull()) {
-            dedx_interp** p = dedx_.data();
-            for (int i=0; i<dedx_.size(); i++) delete p[i];
-        }
-        if (!de_strag_.isNull()) {
-            straggling_interp** p = de_strag_.data();
-            for (int i=0; i<de_strag_.size(); i++) delete p[i];
-        }
         if (!scattering_matrix_.isNull()) {
             abstract_xs_lab** xs = scattering_matrix_.data();
-            for (int i=0; i<scattering_matrix_.size(); i++) delete xs[i];
+            for (int i=0; i<scattering_matrix_.size(); i++)
+                if (xs[i]) delete xs[i];
         }
     }
 }
 
-int mccore::init() {
-
+int mccore::init()
+{
+    /* the order of object initialization is important */
     target_->init();
     source_->init(*target_);
 
-    // calculate sqrt{l/l0} in each material for constant flight path
-    auto materials = target_->materials();
-    int nmat = materials.size();
-    sqrtfp_const.resize(nmat);
-    ip0.resize(nmat);
-    for(int i=0; i<nmat; i++) {
-        sqrtfp_const[i] = std::sqrt(tr_opt_.flight_path_const / materials[i]->atomicRadius());
-        ip0[i] = materials[i]->meanImpactPar();
-        if (tr_opt_.flight_path_type == Constant) ip0[i] /= sqrtfp_const[i];
-    }
-
-    /*
-     * create dedx and straggling tables for all ion - material
-     * combinations, # =
-     * (all target atoms + projectile ) x (all target materials)
-     * For each combi, get an interpolator object
-     */
-    auto atoms = target_->atoms();
-    int natoms = atoms.size();    
-    dedx_ = ArrayND<dedx_interp *>(natoms, nmat);
-    de_strag_ = ArrayND<straggling_interp *>(natoms, nmat);
-    for (atom *at1 : atoms)
-    {
-        int iat1 = at1->id();
-        for (const material *mat : materials)
-        {
-            int im = mat->id();
-            auto desc = mat->getDescription();
-            dedx_(iat1, im) = new dedx_interp(at1->Z(), at1->M(),
-                                              mat->Z(), mat->X(), mat->atomicDensity());
-            de_strag_(iat1, im) = new straggling_interp(par_.straggling_model,
-                                                        at1->Z(), at1->M(),
-                                                        mat->Z(), mat->X(), mat->atomicDensity());
-        }
-    }
+    // init dedx & straggling tables
+    dedx_calc_.init(*this);
 
     /*
      * create a scattering matrix for all ion compinations
      * # of combinations =
      * (all target atoms + projectile ) x (all target atoms)
      */
+    auto materials = target_->materials();
+    int nmat = materials.size();
+    auto atoms = target_->atoms();
+    int natoms = atoms.size();
     scattering_matrix_ = ArrayND<abstract_xs_lab*>(natoms, natoms);
     for(int z1 = 0; z1<natoms; z1++)
     {
@@ -160,109 +122,8 @@ int mccore::init() {
         }
     }
 
-    /*
-     * create tables of parameters for flight path selection, pairs of (mfp, ipmax)
-     *
-     * - Set a low cutoff recoil energy T0 (min_recoil_energy)
-     * - T0 = min(min_recoil_energy, 0.01*Tm)
-     * - Scattering events with T<T0 are not considered in the MC
-     * - T0/Tm = sin(th0/2)^2, th0 : low cutoff scattering angle
-     * - ipmax = ip(e,th0) : max impact parameter
-     * - sig0 = pi*ipmax^2 : total xs for events T>T0
-     * - mfp = 1/(N*sig0) : mean free path
-     *
-     * Additional conditions:
-     *
-     * - Electron energy loss
-     *   - Δxmax for el. energy loss below 5%
-     *   - mfp = min(mfp, Dxmax)
-     *
-     * - Allow flight path < atomic radius Rat ??
-     *   - if not then mfp = max(mfp, Rat)
-     *
-     * - User selected max_mfp
-     *   - mfp = min(mfp, max_mfp)
-
-     * Finally:
-     *
-     * - ipmax = 1/(pi*mfp*N)^(1/2)
-     *
-     */
-    int nerg = dedx_index::size;
-    mfp_   = ArrayNDf(natoms,nmat,nerg);
-    ipmax_ = ArrayNDf(natoms,nmat,nerg);
-    fp_max_ = ArrayNDf(natoms,nmat,nerg);
-    Tcutoff_ = ArrayNDf(natoms,nmat,nerg);
-    float delta_dedx = tr_opt_.max_rel_eloss;
-    float Tmin = tr_opt_.min_recoil_energy;
-    float mfp_ub = tr_opt_.max_mfp;
-    float Tmin_rel = 0.99f; /// @TODO: make it user option
-    for(int z1 = 0; z1<natoms; z1++)
-    {
-        for(int im=0; im<materials.size(); im++)
-        {
-            const material* m = materials[im];
-            const float & N = m->atomicDensity();
-            const float & Rat = m->atomicRadius();
-            float mfp_lb = tr_opt_.flight_path_type == IPP && tr_opt_.allow_sub_ml_scattering ?
-                               0.f : Rat;
-            for(dedx_index ie; ie!=ie.end(); ie++) {
-                float & mfp = mfp_(z1,im,ie);
-                float & ipmax = ipmax_(z1,im,ie);
-                float & fpmax = fp_max_(z1,im,ie);
-                float & T0 = Tcutoff_(z1,im,ie);
-                // float & dedxn = dedxn_(z1,im,ie);
-                float E = *ie;
-                T0 = Tmin;
-
-                // ensure Tmin is below Tm of all target atoms
-                for(const atom* a : m->atoms()) {
-                    int z2 = a->id();
-                    float Tm = E*scattering_matrix_(z1,z2)->gamma();
-                    if (T0 > Tmin_rel*Tm) T0 = Tmin_rel*Tm;
-                }
-
-                // Calc mfp corresponding to T0, mfp = 1/(N*sig0), sig0 = pi*sum_i{ X_i * [P_i(E,T0)]^2 }
-                mfp = 0.f;
-                for(const atom* a : m->atoms()) {
-                    int z2 = a->id();
-                    float d = scattering_matrix_(z1,z2)->impactPar(E, T0);
-                    mfp += a->X()*d*d;
-                }
-                mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
-
-                // ensure mfp*dEdx/E is below max_rel_eloss
-                fpmax = delta_dedx*E / dedx_(z1,im)->data()[ie];
-                mfp = std::min(mfp,fpmax);
-
-                // ensure mfp not smaller than lower bound
-                mfp = std::max(mfp,mfp_lb);
-
-                // ensure mfp not larger than upper bound
-                mfp = std::min(mfp,mfp_ub);
-
-                // Find the max impact parameter ipmax = (N*pi*mfp)^(-1/2)
-                ipmax = std::sqrt(1.f/M_PI/mfp/N);
-
-                // Calc dedxn for  T<T0 = N*sum_i { X_i * Sn(E,T0) }
-                // Add this to dedx
-                /// @TODO: this is very slow. dedxn is very small, can be ignored
-                // We need to re-calc T0 from mfp
-                /// @TODO: solve ipmax^2 = sum_i { X_i * ipmax_i(e,T0) } for T0
-//                int z2 = m->atoms().front()->id();
-//                float s1,c1;
-//                scattering_matrix_(z1,z2)->scatter(E,ipmax,T0,s1,c1);
-//                dedxn = 0;
-//                for(const atom* a : m->atoms()) {
-//                    int z2 = a->id();
-//                    dedxn += scattering_matrix_(z1,z2)->stoppingPower(E,T0) * a->X();
-//                }
-//                dedxn *= N;
-//                if (tr_opt_.flight_path_type == MyFFP) dedx_(z1,im,ie) += dedxn;
-
-            } // energy
-        } // material
-    } // Z1
+    // init flight path selection tables
+    flight_path_calc_.init(*this);
 
     /*
      * Allocate Tally Memory
@@ -284,32 +145,6 @@ int mccore::reset()
 {
     *ion_counter_ = 0;
     return 0;
-}
-
-ion* mccore::new_recoil(const ion* proj, const atom *target, const float& recoil_erg,
-                            const vector3& dir0, const float &sqrt_mass_ratio)
-{
-    // clone the projectile ion
-    // this gets the correct position and cell id
-    ion* j = q_.new_ion(proj);
-    // init the recoil with target atomic species and
-    // recoil kinetic energy
-    // subtract the lattice energy (FP creation energy)
-    j->init_recoil(target, recoil_erg - target->El());
-    j->reset_counters();
-
-    // calc recoil direction from momentum conserv.
-    float f1, f2;
-    f1 = proj->erg() / recoil_erg;
-    f2 = std::sqrt(f1);
-    f1 = std::sqrt(f1+1);
-    j->setDir((f1*dir0 - f2*(proj->dir()))*sqrt_mass_ratio);
-
-    // store recoil in respective queue
-    if (j->recoil_id()==1) q_.push_pka(j);
-    else q_.push_recoil(j);
-
-    return j;
 }
 
 int mccore::run()
@@ -335,29 +170,43 @@ int mccore::run()
         transport(i,tion_);
 
         // transport all PKAs
-        ion* j;
-        while ((j = q_.pop_pka()) != nullptr) {
+        pka.mark(tion_);
+        while (ion* j = q_.pop_pka()) {
             // transport PKA
-            //pka.init(j);
+            pka.init(j);
             ion j1(*j); // keep a clone ion to have initial position
-            pka_mark(&j1,tion_,pka,true);
 
             // FullCascade or CascadesOnly
             if (par_.simulation_type != IonsOnly) {
+
+                pka.cascade_start(*j);
+
                 transport(j,tion_);
                 // transport all secondary recoils
-                ion* k;
-                while ((k = q_.pop_recoil())!=nullptr) {
+                while (ion* k = q_.pop_recoil()) {
                     transport(k,tion_);
                     // free the ion buffer
                     q_.free_ion(k);
                 }
+
+                pka.mark(tion_);
+                pka.cascade_end(*j);
+
             }
+
             // free the ion buffer
             q_.free_ion(j);
-            pka_mark(&j1,tion_,pka,false);
+
+            // register NRT values (using j1 - at initial pos!)
+            pka.nrt(j1,tion_,
+                    par_.nrt_calculation == NRT_average ?
+                        target_->cell(j1.cellid()) :
+                        nullptr);
+
+            // send pka to the stream
             pka_stream_.write(&pka);
-        } // pka loop
+
+        } // end pka loop
 
         // compute total sums for current ion tally
         tion_.computeSums();
@@ -370,6 +219,7 @@ int mccore::run()
             dtally_.addSquared(tion_);
         }
 
+        // clear the tally scores
         tion_.clear();
 
         // free the ion buffer
@@ -383,74 +233,23 @@ int mccore::run()
     return 0;
 }
 
-float mccore::calcDedx(float E, float fp, float sqrtfp,
-                       const dedx_interp *stopping,
-                       const straggling_interp *straggling)
-{
-
-
-    float de_stopping = fp * (*stopping)(E);
-    if (par_.eloss_calculation == EnergyLossAndStraggling)
-    {
-        dedx_index ie(E);
-        float de_straggling = straggling->data()[ie] * rng.normal() * sqrtfp;
-
-        /* IRADINA
-         * Due to gaussian distribution, the straggling can in some cases
-         * get so large that the projectile gains energy or suddenly looses
-         * a huge amount of energy. Is this realistic? This might actually
-         * happen. However, in the simulation, ions may have higher energy
-         * than the initial energy.
-         * We will therefore limit the |straggling| to |stopping|.
-         * Furthermore, with hydrogen, the straggling is often so big,
-         * that ions gain huge amount of energy, and the phononic system
-         * would actually gain energy.
-         */
-        if (std::abs(de_straggling) > de_stopping)
-            de_straggling = (de_straggling < 0) ? -de_stopping : de_stopping;
-
-        de_stopping += de_straggling;
-    }
-
-    /* IRADINA
-     * The stopping tables have no values below minVal = 16 eV.
-     * Therefore, we do sqrt downscaling of electronic
-     * stopping below 16 eV.
-     */
-    if (E < dedx_index::minVal)
-        de_stopping *= std::sqrt(E / dedx_index::minVal);
-
-    /*
-     * This is due to some rare low-energy events (ion E<100 eV)
-     * with IPP flight selection were
-     * a long flight path + large straggling can cause the
-     * stopping + straggling > E
-     *
-     * The code below changes that to almost stopping the ion,
-     * E - stopping ~ 0
-     */
-    if (de_stopping > E)
-        de_stopping = 0.99*E;
-
-    return de_stopping;
-}
-
 int mccore::transport(ion* i, tally &t)
 {
     // pointers to dEdx & straggling tables
     const dedx_interp* de_stopping_tbl = nullptr;
     const straggling_interp* de_straggling_tbl = nullptr;
-    // flight path data
-    flight_path_data fp_d;
+
     // collision flag
     bool doCollision;
+    // collision and flight path parameters
+    float fp, sqrtfp, ip;
 
     // get the material at the ion's position
     const material* mat = target_->cell(i->cellid());
-    // get dEdx and fp data for ion/material combination
+    // init dEdx and fp data for ion/material combination
     if (mat) {
-        getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-        getMFPtables(i->myAtom(), mat, fp_d);
+        dedx_calc_.init(i, mat);
+        flight_path_calc_.init(i, mat);
     }
 
     // transport loop
@@ -464,12 +263,13 @@ int mccore::transport(ion* i, tally &t)
         } 
 
         if (!mat) {  // Vacuum.
-            // set a long flight path (1mm)
+            // set flight path to ~inf
             // to intentionally hit a boundary
             // Then the boundary crossing algorithm
             // will take care of things
-            fp_d.fp = 1e6f;
-            BoundaryCrossing crossing = i->propagate(fp_d.fp);
+            fp = 1e30f;
+            sqrtfp = 1e15f;
+            BoundaryCrossing crossing = i->propagate(fp, sqrtfp);
             switch(crossing) {
             case BoundaryCrossing::None:
             case BoundaryCrossing::InternalPBC:
@@ -481,8 +281,8 @@ int mccore::transport(ion* i, tally &t)
                 // get new material and dEdx, mfp tables
                 mat = target_->cell(i->cellid());
                 if (mat) {
-                    getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-                    getMFPtables(i->myAtom(), mat, fp_d);
+                    dedx_calc_.init(i, mat);
+                    flight_path_calc_.init(i, mat);
                 }
                 break;
             case BoundaryCrossing::External:
@@ -498,16 +298,13 @@ int mccore::transport(ion* i, tally &t)
         }
 
         // select flight path & impact param.
-        doCollision = calcFlightPath(i,mat,fp_d);
+        doCollision = flight_path_calc_(rng,i->erg(),fp,sqrtfp,ip);
 
-        // propagate ion, checking also boundary crossing
-        BoundaryCrossing crossing = i->propagate(fp_d.fp);
+        // propagate ion, checking also for boundary crossing
+        BoundaryCrossing crossing = i->propagate(fp, sqrtfp);
 
         // subtract ionization & straggling
-        if (par_.eloss_calculation != EnergyLossOff) {
-            float de = calcDedx(i->erg(), fp_d.fp, fp_d.sqrtfp, de_stopping_tbl, de_straggling_tbl);
-            i->de_ioniz(de);
-        }
+        dedx_calc_(i,fp,sqrtfp,rng);
 
         // handle boundary
         switch(crossing) {
@@ -518,8 +315,8 @@ int mccore::transport(ion* i, tally &t)
             // get new material and dEdx, mfp tables
             mat = target_->cell(i->cellid());
             if (mat) {
-                getDEtables(i->myAtom(), mat, de_stopping_tbl, de_straggling_tbl);
-                getMFPtables(i->myAtom(), mat, fp_d);
+                dedx_calc_.init(i, mat);
+                flight_path_calc_.init(i, mat);
             }
             doCollision = false; // the collision will be in the new material
             break;
@@ -554,8 +351,8 @@ int mccore::transport(ion* i, tally &t)
         // get the cross-section and calculate scattering
         auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
         float T; // recoil energy
-        float sintheta, costheta; // Lab sys scattering angle sin & cos 
-        xs->scatter(i->erg(), fp_d.ip, T, sintheta, costheta);
+        float sintheta, costheta; // Lab sys scattering angle sin & cos
+        xs->scatter(i->erg(), ip, T, sintheta, costheta);
         assert(finite(T));
 
         // get random azimuthal dir
@@ -573,11 +370,19 @@ int mccore::transport(ion* i, tally &t)
         /// @TODO: special treatment of surface effects (sputtering etc.)
 
         // Check if recoil is displaced (T>=E_d)
-        if (T >= z2->Ed()) { 
+        if (T >= z2->Ed()) {
 
-            // Create recoil (it is stored in the ion queue)
+            // subtract recoil energy from the ion's kinetic energy
             i->de_recoil(T);
-            new_recoil(i,z2,T,dir0,xs->sqrt_mass_ratio());
+
+            // calc recoil dir from momentum conservation
+            float b = i->erg()/T;
+            vector3 nt = dir0 - i->dir()*std::sqrt(b/(1.f+b)); // un-normalized
+            nt.normalize();
+
+            // create recoil (it is stored in the ion queue)
+            new_recoil(i,z2,T,nt);
+
 
             /*
              * Now check whether the projectile might replace the recoil
@@ -593,129 +398,14 @@ int mccore::transport(ion* i, tally &t)
                 return 0; // end of ion history
             }
 
-            /*
-             * Otherwise:
-             * Z2 vacancy is created and ion continues
-             */
-            //t(Event::Vacancy,*j);
-
         } else { // T<E_d, recoil cannot be displaced
             // energy goes to phonons
-            // t(Event::Phonon,*i,&T);
             i->de_phonon(T);
         }
 
     } // main ion transport loop
 
     return 0;
-}
-
-bool mccore::calcFlightPath(const ion* i, const material* mat, flight_path_data& d)
-{
-    bool doCollision = true;
-    int ie;
-    switch (tr_opt_.flight_path_type) {
-    case AtomicSpacing:
-    case Constant:
-        d.ip = d.ipmax_tbl[0]*std::sqrt(rng.u01d_lopen());
-        break;
-    case MendenhallWeller:
-        ie = dedx_index(float(i->erg()));
-        d.ip = d.ipmax_tbl[ie];
-        d.fp = d.mfp_tbl[ie];
-        if (d.ip < mat->meanImpactPar())
-        {
-            d.sqrtfp = std::sqrt(d.fp/mat->atomicRadius());
-            d.ip *= std::sqrt(-std::log(rng.u01s_open()));
-            doCollision = (d.ip <= d.ipmax_tbl[ie]);
-        } else { // atomic spacing
-            d.fp = mat->atomicRadius();
-            d.sqrtfp = 1.f;
-            d.ip = mat->meanImpactPar()*std::sqrt(rng.u01d_lopen());
-        }
-        break;
-    case IPP:
-        ie = dedx_index(float(i->erg()));
-        d.fp = d.mfp_tbl[ie]*(-std::log(rng.u01s_open()));
-        doCollision = d.fp <= d.fpmax_tbl[ie];
-        if (doCollision) d.ip = d.ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
-        else d.fp = d.fpmax_tbl[ie];
-        d.sqrtfp = std::sqrt(d.fp/mat->atomicRadius());
-        break;
-    default:
-        assert(false); // never get here
-    }
-    assert(d.fp>0);
-    assert(finite(d.fp));
-    return doCollision;
-}
-
-void mccore::pka_mark(const ion* i, tally &t, pka_event &pka, bool start)
-{
-    double sT(0.);
-    int ncell = target_->grid().ncells();
-    int natoms = target_->atoms().size();
-    std::vector<double> sV(natoms,0.), sI(natoms,0.), sR(natoms,0);
-    for(int i=1; i<natoms; i++) {
-        const double * ps = &t.stored()(i,0);
-        const double * pl = &t.lattice()(i,0);
-        const double * pv = &t.vacancies()(i,0);
-        const double * pr = &t.replacements()(i,0);
-        const double * pi = &t.implantations()(i,0);
-        for(int j=0; j<ncell; j++) {
-            sT += *ps++ + *pl++;
-            sV[i] += *pv++;
-            sI[i] += *pi++;
-            sR[i] += *pr++;
-        }
-    }
-
-    if (start) {
-        pka.init(i);
-        pka.Tdam() = sT;
-        for(int i=1; i<natoms; i++) {
-            pka.Vac(i-1) = sV[i];
-            pka.Repl(i-1)= sR[i];
-            pka.Impl(i-1)= sI[i];
-        }
-    } else {
-        pka.Tdam() = sT - pka.Tdam() + i->myAtom()->El();
-        for(int i=1; i<natoms; i++) {
-            pka.Vac(i-1) = sV[i] - pka.Vac(i-1);
-            pka.Repl(i-1)= sR[i] - pka.Repl(i-1);
-            pka.Impl(i-1)= sI[i] - pka.Impl(i-1);
-        }
-
-        const atom* z2;
-        const material* m;
-        std::array<float, 5> dp;
-        dp.fill(0.f);
-        dp[0] = pka.recoilE();
-        switch (par_.nrt_calculation) {
-        case NRT_element:
-            // NRT/LSS damage based on element
-            z2 = i->myAtom();
-            dp[1] = z2->LSS_Tdam(pka.recoilE());
-            dp[2] = z2->NRT(dp[1]);
-            // NRT damage based on element with true Tdam
-            dp[3] = pka.Tdam();
-            dp[4] = z2->NRT(dp[3]);
-
-            break;
-        case NRT_average:
-            m = target_->cell(i->cellid());
-            // NRT/LSS damage based on material / average Ed, Z, M
-            dp[1] = m->LSS_Tdam(pka.recoilE());
-            dp[2] = m->NRT(dp[1]);
-            // NRT damage based on material with true Tdam
-            dp[3] = pka.Tdam();
-            dp[4] = m->NRT(dp[3]);
-            break;
-        default:
-            break;
-        }
-        t(Event::CascadeComplete,*i,dp.data());
-    }
 }
 
 void mccore::mergeTallies(mccore& other)
@@ -759,7 +449,5 @@ void mccore::copyTallyTableVar(int i, ArrayNDd& dA) const
     std::lock_guard< std::mutex > lock(*tally_mutex_);
     dtally_.at(i).copyTo(dA);
 }
-
-
 
 

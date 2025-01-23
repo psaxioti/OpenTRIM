@@ -2,6 +2,7 @@
 
 #include "ion.h"
 #include "target.h"
+#include "tally.h"
 
 #include <filesystem>
 #include <cstdio>
@@ -9,10 +10,89 @@
 
 namespace fs = std::filesystem;
 
+void pka_event::mark(const tally &t)
+{
+    T_ = 0.0f;
+    int ncells = t.at(1).dim()[1];
+    float * bv = buff2_.data();
+    float * br = buff2_.data() + natoms_;
+    float * bi = buff2_.data() + 2*natoms_;
+    for(int i=0; i<natoms_; i++) {
+        *bv = *br = *bi = 0.0f;
+        const double * ps = &t.stored()(i+1,0);
+        const double * pl = &t.lattice()(i+1,0);
+        const double * pv = &t.vacancies()(i+1,0);
+        const double * pr = &t.replacements()(i+1,0);
+        const double * pi = &t.implantations()(i+1,0);
+
+        for(int j=0; j<ncells; j++) {
+            T_ += *ps++ + *pl++;
+            *bv += *pv++;
+            *bi += *pi++;
+            *br += *pr++;
+        }
+        bv++; br++; bi++;
+    }
+}
+
+void pka_event::cascade_start(const ion& i)
+{
+    buff_[ofTdam] = T_;
+
+    float * p = buff_.data() + ofVac;
+    float * pend = p + 3*natoms_;
+    const float * b = buff2_.data();
+    while (p < pend) {
+        *p = *b;
+        p++; b++;
+    }
+}
+
+void pka_event::cascade_end(const ion& i)
+{
+    buff_[ofTdam] = T_ - buff_[ofTdam] + i.myAtom()->El();
+    float * p = buff_.data() + ofVac;
+    float * pend = p + 3*natoms_;
+    const float * b = buff2_.data();
+    while (p < pend) {
+        *p = *b - *p;
+        p++; b++;
+    }
+}
+
+void pka_event::nrt(const ion &i, tally &t, const material* m)
+{
+    const atom* z2;
+
+    std::array<float, 5> dp;
+    dp.fill(0.f);
+    dp[0] = recoilE();
+
+    if (m) { // case NRT_average
+        // NRT/LSS damage based on material / average Ed, Z, M
+        dp[1] = m->LSS_Tdam(recoilE());
+        dp[2] = m->NRT(dp[1]);
+        // NRT damage based on material with true Tdam
+        dp[3] = Tdam();
+        dp[4] = m->NRT(dp[3]);
+    } else { // case NRT_element
+        // NRT/LSS damage based on element
+        z2 = i.myAtom();
+        dp[1] = z2->LSS_Tdam(recoilE());
+        dp[2] = z2->NRT(dp[1]);
+        // NRT damage based on element with true Tdam
+        dp[3] = Tdam();
+        dp[4] = z2->NRT(dp[3]);
+    }
+
+    t(Event::CascadeComplete,i,dp.data());
+}
+
 void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
 {
     natoms_ = n;
     buff_.resize(5+3*n);
+    buff2_.resize(3*n);
     columnNames_.resize(buff_.size());
     columnDescriptions_.resize(buff_.size());
     columnNames_[0] = "hid"; columnDescriptions_[0] = "history id";
@@ -57,15 +137,16 @@ int event_stream::open(const event& ev)
     event_proto_ = event(ev);
 
     auto tmpdir = fs::temp_directory_path();
-    std::string fname(tmpdir.u8string());
-    fname += "/event_stream_XXXXXX";
+    fname_ = tmpdir.u8string();
+    fname_ += "/event_stream_XXXXXX";
 
-    int fd = mkstemp(fname.data());
+    int fd = mkstemp(fname_.data());
     if (fd == -1) return -1;
 
     fs_ = fdopen(fd, "w+");
     if (fs_ == NULL) {
         close(fd);
+        fname_.clear();
         return -1;
     }
 
@@ -77,6 +158,8 @@ void event_stream::close_()
     if (fs_) {
         std::fclose(fs_);
         fs_=NULL;
+        std::remove(fname_.c_str());
+        fname_.clear();
     }
 }
 void event_stream::write(const event* ev)

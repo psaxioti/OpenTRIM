@@ -3,7 +3,6 @@
 
 #include "arrays.h"
 #include "ion.h"
-#include "target.h"
 
 /**
  * \defgroup Tallies Tallies and event streams 

@@ -30,7 +30,7 @@ void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
     par_.spatial_distribution.sample(g,t,v);
     i.setPos(v);
     par_.angular_distribution.sample(g,t,v);
-    i.setDir(v);
+    i.setNormalizedDir(v);
 }
 
 float ion_beam::energy_distribution_t::sample(random_vars &r) const

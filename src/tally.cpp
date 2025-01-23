@@ -1,4 +1,5 @@
 #include "tally.h"
+#include "target.h"
 
 const char* tally::arrayName(int i)
 {
@@ -93,6 +94,9 @@ const char* tally::arrayGroup(int i)
     return (i<std_tallies && i>=0) ? desc[i] : desc[std_tallies];
 }
 
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
+
 void tally::operator()(Event ev, const ion& i, const void* pv)
 {
     int iid = i.myAtom()->id(), cid=i.cellid(), pid=i.prev_cellid();
@@ -185,6 +189,7 @@ void tally::operator()(Event ev, const ion& i, const void* pv)
 
 }
 
+//#pragma GCC pop_options
 
 bool tally::debugCheck(int id, double E0)
 {

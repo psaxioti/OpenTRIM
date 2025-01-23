@@ -146,6 +146,15 @@ int dump(h5::File& file, const std::string& path, const T& data,
 }
 
 // dump data using H5Easy, create attribute with the description and write description to var_list
+int dump_vector(h5::File& file, const std::string& path,
+                const vector3& data,
+                dset_list_t& var_list, const std::string& desc) {
+    // convert vector3 to std::vector
+    std::vector<double> x{1.0*data.x(), 1.0*data.y(), 1.0*data.z()};
+    return dump(file,path,x,var_list,desc);
+}
+
+// dump data using H5Easy, create attribute with the description and write description to var_list
 template <class T>
 int dump(h5::File& file, const std::string& path, const T& data, const T& sem,
         dset_list_t& var_list, const std::string& desc) {
@@ -475,25 +484,26 @@ try {
         for(dedx_index i; i<i.end(); i++) dEdx(i) = *i;
         dump_array(h5f, page + "erg", dEdx, var_list,"dEdx table energy grid [eV]");
 
-        ArrayND< dedx_interp* > D = s_->dedx();
+        ArrayND< dedx_interp* > D = s_->get_dedx_calc().dedx();
         ArrayNDf A(D.dim()[0],D.dim()[1],dedx_index::size);
         for(int i=0; i<A.dim()[0]; i++)
             for(int j=0; j<A.dim()[1]; j++)
                 memcpy(&A(i,j,0),D(i,j)->data(),dedx_index::size*sizeof(float));
         dump_array(h5f,page + "eloss",A,var_list,"dEdx values [eV/nm], array [atoms x materials x energy]");
 
-        ArrayND< straggling_interp* > Ds = s_->de_strag();
+        ArrayND< straggling_interp* > Ds = s_->get_dedx_calc().de_strag();
         for(int i=0; i<A.dim()[0]; i++)
             for(int j=0; j<A.dim()[1]; j++)
                 memcpy(&A(i,j,0),Ds(i,j)->data(),dedx_index::size*sizeof(float));
         dump_array(h5f,page + "strag",A,var_list,"straggling values [eV], array [atoms x materials x energy]");
 
         page = "/target/flight_path/";
+        auto fpc = s_->get_fp_calc();
         dump_array(h5f, page + "erg", dEdx, var_list,"flight path table energy grid [eV]");
-        dump_array(h5f,page + "mfp",s_->mfp(),var_list,"mean free path [nm], array [atoms x materials x energy]");
-        dump_array(h5f,page + "ipmax",s_->ipmax(),var_list,"max impact parameter [nm], array [atoms x materials x energy]");
-        dump_array(h5f,page + "fpmax",s_->fpmax(),var_list,"max flight path [nm], array [atoms x materials x energy]");
-        dump_array(h5f,page + "Tcutoff",s_->Tcutoff(),var_list,"recoil energy cut0ff [eV], array [atoms x materials x energy]");
+        dump_array(h5f,page + "mfp",fpc.mfp(),var_list,"mean free path [nm], array [atoms x materials x energy]");
+        dump_array(h5f,page + "ipmax",fpc.ipmax(),var_list,"max impact parameter [nm], array [atoms x materials x energy]");
+        dump_array(h5f,page + "fpmax",fpc.fpmax(),var_list,"max flight path [nm], array [atoms x materials x energy]");
+        dump_array(h5f,page + "Tcutoff",fpc.Tcutoff(),var_list,"recoil energy cut0ff [eV], array [atoms x materials x energy]");
     }
 
     // 3. ion beam
@@ -502,9 +512,12 @@ try {
     {
         auto p = s_->getSource().getParameters();
         // TODO
-//        dump(h5f, page + "E0", p.ionE0, var_list, "ion energy [eV]");
-//        dump(h5f, page + "Z", p.ionZ, var_list, "ion atomic number");
-//        dump(h5f, page + "M", p.ionM, var_list, "ion mass [amu]");
+        dump(h5f, page + "E0", p.energy_distribution.center, var_list, "mean energy [eV]");
+        dump(h5f, page + "Z", p.ion.atomic_number, var_list, "atomic number");
+        dump(h5f, page + "M", p.ion.atomic_mass, var_list, "mass [amu]");
+        dump_vector(h5f, page + "dir0", p.angular_distribution.center, var_list, "mean direction");
+        dump_vector(h5f, page + "x0", p.spatial_distribution.center, var_list, "mean position");
+
     }
 
     // 4. tally

@@ -245,7 +245,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
 
     CHECK_INVALID_ENUM(Transport,flight_path_type)
 
-    if (Transport.flight_path_type==mccore::Constant &&
+    if (Transport.flight_path_type==flight_path_calc::Constant &&
         Transport.flight_path_const<=0.f)
         throw std::invalid_argument("Transport.flight_path_type is \"Constant\" but Transport.flight_path_const is negative.");
 

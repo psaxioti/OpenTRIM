@@ -50,25 +50,28 @@ void ion::init_recoil(const atom* a, double T)
  * In all cases of boundary crossing, s is adjusted to the minimum travel needed to just
  * overcome the boundary.
  *
- * @param s the distance to propagate the ion [nm]
+ * @param fp the distance to propagate the ion [nm]
+ * @param sqrtfp the sqrt of the distance
  * @return the type of boundary crossing (none, internal (cell change), external (ion left simulation))
  */
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
 
-
-BoundaryCrossing ion::propagate(float& s)
+BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
 {
-    vector3 x = pos_ + s*dir_;  // calc new ion position
+    float fp0(fp);
+    vector3 x = pos_ + fp*dir_;  // calc new ion position
     if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
         if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
             // propagate to the boundary
             x = pos_;
-            s = grid_->bring2boundary(icell_, x, dir_);
+            fp = grid_->bring2boundary(icell_, x, dir_);
+            assert(finite(fp));
             grid_->apply_bc(x); 
             ivector3 ix = grid_->pos2cell(x);
-            path_ += s;
+            path_ += fp;
+            sqrtfp *= std::sqrt(fp/fp0);
             pos_ = x;
             if (ix != icell_) {
                 icell_ = ix;
@@ -94,7 +97,7 @@ BoundaryCrossing ion::propagate(float& s)
                 return BoundaryCrossing::InternalPBC;
             }
         } else { // we remain in the cell
-            path_ += s;
+            path_ += fp;
             pos_ = x;
             return BoundaryCrossing::None;
         }
@@ -102,19 +105,21 @@ BoundaryCrossing ion::propagate(float& s)
         // 1. Reduce s to just cross the boundary
         // @ToDo more debugging needed here
         x = pos_;
-        s = grid_->bring2boundary(icell_,x,dir_);
+        fp = grid_->bring2boundary(icell_,x,dir_);
+        assert(finite(fp));
+        sqrtfp *= std::sqrt(fp/fp0);
         grid_->apply_bc(x);
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
             pos_ = x;
-            path_ += s;
+            path_ += fp;
             prev_cellid_ = cellid_;
             cellid_ = -1;
             return BoundaryCrossing::External;
         } else { // ion is still in target. just change the cell
             // get new pos and cell
             pos_ = x;
-            path_ += s;
+            path_ += fp;
             prev_cellid_ = cellid_;
             icell_ = grid_->pos2cell(x);
             cellid_ = grid_->cellid(icell_);

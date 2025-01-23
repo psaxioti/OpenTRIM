@@ -154,9 +154,13 @@ public:
     void de_recoil(double T) {
         // This is needed because recoil T is calculated in single precision
         // and it can happen that T > erg by a small amount, e.g. 1e-6
-        if (T >= erg_ ) T = erg_;
-        erg_ -= T;
-        recoil_ += T;
+        if (T >= erg_) {
+            recoil_ += erg_;
+            erg_ = 0;
+        } else {
+            erg_ -= T;
+            recoil_ += T;
+        }
         assert(erg_>=0);
         assert(finite(erg_));
     }
@@ -168,15 +172,38 @@ public:
 
     void add_coll() { ncoll_++; }
 
-    /// Return reference to the vector of direction cosines
-    vector3& dir() { return dir_; }   
+//#pragma GCC push_options
+//#pragma GCC optimize("O0")
 
-    /// Set initial direction
-    void setDir(const vector3 d) {
+    /// Set the ion's direction. \a d is assumed to be normalized.
+    void setNormalizedDir(const vector3& d) {
+        assert(d.allFinite());
+        assert(std::abs(d.norm()-1.0f) <= 2*std::numeric_limits<float>::epsilon());
+        dir_ = d;
+    }
+
+    /// Set the ion's direction parallel to a vector \a d.
+    void setDirParallelTo(const vector3& d) {
+        assert(d.allFinite());
         dir_ = d;
         dir_.normalize();
-        assert(dir_.allFinite());
     }
+
+    /**
+     * @brief Deflect the ion after scattering.
+     *
+     * Changes the direction after scattering at angles \f$ (\theta,\phi) \f$.
+     *
+     * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta) \f$
+     * @see  \ref deflect_vector()
+     */
+    void deflect(const vector3& n)
+    {
+        deflect_vector(dir_,n);
+    }
+
+//#pragma GCC pop_options
+
     /// Set initial position
     int setPos(const vector3& x);
     /// Set the atomic species of the ion
@@ -208,19 +235,6 @@ public:
 
     void init_recoil(const atom* a, double T);
 
-    /**
-     * @brief Deflect the ion after scattering.
-     * 
-     * Changes the direction after scattering at angles \f$ (\theta,\phi) \f$.
-     * 
-     * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta) \f$
-     * @see  \ref deflect_vector()
-     */
-    void deflect(const vector3& n)
-    {
-        deflect_vector(dir_,n);
-    }
-
     /// reset all accumulators (path, energy etc)
     void reset_counters()
     {
@@ -228,7 +242,7 @@ public:
         path_=ioniz_=phonon_=recoil_=0.0;
     }
 
-    BoundaryCrossing propagate(float& s);
+    BoundaryCrossing propagate(float& s, float &sqrtfp);
 };
 
 /**
