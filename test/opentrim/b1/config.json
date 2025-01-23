@@ -22,7 +22,7 @@
             "center" : 2e6
         },
         "spatial_distribution" : {
-            "center" : [0, 5000, 5000]
+            "center" : [0, 600, 600]
         }
     },
     "Target" : {

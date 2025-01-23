@@ -14,7 +14,7 @@ class IntVector3dLineEdit;
 class OptionsModel;
 class MyDataWidgetMapper;
 class RegionsView;
-class IonsUI;
+class MainUI;
 
 class RegionsModel : public QAbstractTableModel
 {

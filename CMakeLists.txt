@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.12.0)
     
-project(ions 
-        VERSION 0.3.3
-        DESCRIPTION "Monte-Carlo ion transport simulation"
+project(OpenTRIM 
+        VERSION 0.4.0
+        DESCRIPTION "Monte-Carlo simulation of ion transport in materials"
         HOMEPAGE_URL https://gitlab.com/ir2-lab/
         LANGUAGES C CXX)
+
+set(PROJECT_NAME_LOWERCASE opentrim)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -111,6 +113,8 @@ set (PROJECT_HEADERS
     src/ion.h 
     src/random_vars.h
     src/target.h 
+    src/flight_path_calc.h
+    src/dedx_calc.h
     src/mccore.h 
     src/geometry.h
     src/ion_beam.h 
@@ -124,8 +128,8 @@ set (PROJECT_HEADERS_PRIVATE
     src/json_defs_p.h
   )
 
-set (LIB_TARGET ${PROJECT_NAME})
-set (EXE_TARGET ${PROJECT_NAME}_exe)
+set (LIB_TARGET ${PROJECT_NAME_LOWERCASE})
+set (EXE_TARGET ${PROJECT_NAME_LOWERCASE}_exe)
 
 add_library(${LIB_TARGET} SHARED
     ${PROJECT_HEADERS}
@@ -133,6 +137,7 @@ add_library(${LIB_TARGET} SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/${PTABLE_DATA_CPP}
     src/ion.cpp   
     src/target.cpp
+    src/flight_path_calc.cpp
     src/mccore.cpp   
     src/ion_beam.cpp
     src/event_stream.cpp
@@ -140,6 +145,8 @@ add_library(${LIB_TARGET} SHARED
     src/tally.cpp
     src/parse_json.cpp    
     src/mcdriver.cpp
+    src/dedx_calc.cpp
+
 )
 
 set(PROJECT_LIBS
@@ -159,7 +166,7 @@ add_executable(${EXE_TARGET}
     src/main.cpp
 )
 # adjust exe name to be the same as the library's
-set_property(TARGET ${EXE_TARGET} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
+set_property(TARGET ${EXE_TARGET} PROPERTY OUTPUT_NAME ${PROJECT_NAME_LOWERCASE})
 
 target_include_directories(${EXE_TARGET} PRIVATE
     extern/cxxopts-3.1.1/include
@@ -178,7 +185,7 @@ set(installable_libs
     ${LIB_TARGET} )
 
 install(TARGETS ${installable_libs} DESTINATION lib)
-install(FILES ${PROJECT_HEADERS} DESTINATION include)
+install(FILES ${PROJECT_HEADERS} DESTINATION include/${PROJECT_NAME_LOWERCASE})
 install(TARGETS ${EXE_TARGET} DESTINATION bin)
 
 
@@ -197,12 +204,12 @@ message(STATUS "Found Qwt ${QWT_VERSION_STRING} at ${QWT_INCLUDE_DIR}")
 
 set(GUI_SOURCES
     src/gui/main.cpp
-    src/gui/ionsui.cpp
-    src/gui/ionsui.h
-    src/gui/ionsui.qrc
+    src/gui/mainui.cpp
+    src/gui/mainui.h
+    src/gui/opentrim.qrc
     src/gui/simulationoptionsview.h 
     src/gui/simulationoptionsview.cpp
-    src/gui/periodictablewidget.h 
+    src/gui/periodictablewidget.h  
     src/gui/periodictablewidget.cpp
     src/gui/materialsdefview.h 
     src/gui/materialsdefview.cpp
@@ -231,7 +238,7 @@ set(GUI_SOURCES
     src/gui/jsedit/jsedit.cpp
 )
 
-set (GUI_TARGET ${PROJECT_NAME}-gui)
+set (GUI_TARGET ${PROJECT_NAME_LOWERCASE}-gui)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(${GUI_TARGET}

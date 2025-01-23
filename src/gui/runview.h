@@ -13,7 +13,7 @@ class QGroupBox;
 class QTimer;
 
 class MyDataWidgetMapper;
-class IonsUI;
+class MainUI;
 
 class RunView : public QWidget
 {
@@ -21,7 +21,7 @@ class RunView : public QWidget
 
 public:
 
-    explicit RunView(IonsUI* iui, QWidget *parent = nullptr);
+    explicit RunView(MainUI* iui, QWidget *parent = nullptr);
 
 public slots:
     void revert();
@@ -33,7 +33,7 @@ signals:
 
 private:
 
-    IonsUI* ionsui;
+    MainUI* ionsui;
     MyDataWidgetMapper* mapper;
     QLineEdit* simTitle;
     QGroupBox* box1;

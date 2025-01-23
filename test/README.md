@@ -3,7 +3,7 @@
 ## Damage profiles
 
 Compare to Crocombette2019, Lin2023 (Fe → Fe, Xe → UO2) \
-H → Fe is for checking behaviour with light ion 
+H → Fe is for checking behaviour with light ions 
 
 1. 2 MeV Fe in Fe target, t = 1200 nm
 2. 500 keV Fe in Fe target, t = 600 nm

@@ -14,7 +14,7 @@ class MyDataWidgetMapper;
 class MaterialsDefView;
 class RegionsView;
 class OptionsModel;
-class IonsUI;
+class MainUI;
 
 class SimulationOptionsView : public QWidget
 {
@@ -35,7 +35,7 @@ public:
     MaterialsDefView* materialsView;
     RegionsView* regionsView;
 
-    SimulationOptionsView(IonsUI *iui, QWidget *parent = nullptr);
+    SimulationOptionsView(MainUI *iui, QWidget *parent = nullptr);
 
     bool modified() const { return modified_; }
 
@@ -71,7 +71,7 @@ private:
     QFormLayout *createForm(const QModelIndex& idx, QWidget *widgetParent = nullptr);
 
 
-    IonsUI* ionsui;
+    MainUI* ionsui;
 };
 
 #endif // SIMULATIONOPTIONSVIEW_H

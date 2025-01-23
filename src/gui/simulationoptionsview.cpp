@@ -5,7 +5,7 @@
 #include "regionsview.h"
 #include "optionsmodel.h"
 #include "mydatawidgetmapper.h"
-#include "ionsui.h"
+#include "mainui.h"
 #include "runview.h"
 #include "mcdriverobj.h"
 
@@ -51,7 +51,7 @@ const char* closestIsotopeSymbol(int Z, double M)
 }
 
 
-SimulationOptionsView::SimulationOptionsView(IonsUI *iui, QWidget *parent)
+SimulationOptionsView::SimulationOptionsView(MainUI *iui, QWidget *parent)
     : QWidget{parent}, ionsui(iui)
 {
     tabWidget = new QTabWidget;

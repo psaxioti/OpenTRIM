@@ -25,9 +25,9 @@
 
 #include "qmatplotwidget/src/QMatPlotWidget.h"
 
-#include "ionsui.h"
+#include "mainui.h"
 
-ResultsView::ResultsView(IonsUI *iui, QWidget *parent)
+ResultsView::ResultsView(MainUI *iui, QWidget *parent)
     : QSplitter{parent}, ionsui(iui)
 {
 

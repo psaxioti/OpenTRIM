@@ -12,7 +12,7 @@ class JSEdit;
 class QButtonGroup;
 class QAction;
 
-class IonsUI;
+class MainUI;
 
 class WelcomeView : public QWidget
 {
@@ -20,7 +20,7 @@ class WelcomeView : public QWidget
 
 public:
 
-    WelcomeView(IonsUI* iui, QWidget *parent = nullptr);
+    WelcomeView(MainUI* iui, QWidget *parent = nullptr);
 
 signals:
 
@@ -51,7 +51,7 @@ private:
     void openJson(const QString& path);
     void openH5(const QString& path);
 
-    IonsUI* ionsui;
+    MainUI* ionsui;
     QStackedWidget * stackedWidget;
     QListWidget * exampleList;
     QTreeWidget * recentFilesTree;

@@ -1,19 +1,19 @@
 pushd b1
-ions -f config.json
+opentrim -f config.json
 popd
 
 pushd b2
-ions -f config.json
+opentrim -f config.json
 popd
 
 pushd b3
-ions -f config.json
+opentrim -f config.json
 popd
 
 pushd b4
-ions -f config.json
+opentrim -f config.json
 popd
 
 pushd b5
-ions -f config.json
+opentrim -f config.json
 popd

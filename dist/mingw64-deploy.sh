@@ -6,8 +6,8 @@
 # input:
 #   program_name  : the exe program name, e.g., ions
 #   install_folder : the folder with the project install files.
-#                    This is typically [build_folder]/iradinapp
-#   distname : e.g., iradinapp-0.1.6
+#                    This is typically [build_folder]/opentrim
+#   distname : e.g., opentrim-0.1.6
 
 # the script does the following
 #   1. Copy exe and dll to a folder named "distname"

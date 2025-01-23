@@ -1,4 +1,4 @@
-#include "ionsui.h"
+#include "mainui.h"
 
 #include "optionsmodel.h"
 #include "simulationoptionsview.h"
@@ -26,7 +26,7 @@
 
 #include <sstream>
 
-IonsUI::IonsUI(QWidget *parent)
+MainUI::MainUI(QWidget *parent)
     : QWidget(parent)
 {
     /* runner thread */
@@ -106,7 +106,7 @@ IonsUI::IonsUI(QWidget *parent)
     layout->setSpacing(0);
     layout->setContentsMargins(0,0,0,0);
 
-    setWindowTitle(tr("ions-gui"));
+    setWindowTitle(tr(PROJECT_NAME));
     QPoint x0 = geometry().center();
     QScreen* scr = QGuiApplication::screenAt(x0);
     resize(1024, 768);
@@ -132,17 +132,17 @@ IonsUI::IonsUI(QWidget *parent)
     _stackedWidget->setCurrentIndex(0);
 
     connect(pageButtonGrp, &QButtonGroup::idClicked,
-            this, &IonsUI::changePage);
+            this, &MainUI::changePage);
     connect(driverObj_, &McDriverObj::fileNameChanged,
-            this, &IonsUI::updateWindowTitle);
+            this, &MainUI::updateWindowTitle);
     connect(driverObj_, &McDriverObj::modificationChanged,
-            this, &IonsUI::updateWindowTitle);
+            this, &MainUI::updateWindowTitle);
 
     driverObj_->loadJsonTemplate();
 
 }
 
-IonsUI::~IonsUI()
+MainUI::~MainUI()
 {
     if (driverObj_->status() == McDriverObj::mcRunning)
         driverObj_->start(false);
@@ -150,20 +150,21 @@ IonsUI::~IonsUI()
     runnerThread.wait();
 }
 
-void IonsUI::changePage(int idx)
+void MainUI::changePage(int idx)
 {
     _stackedWidget->setCurrentIndex(idx);
 }
 
-void IonsUI::updateWindowTitle()
+void MainUI::updateWindowTitle()
 {
     QString title(driverObj_->fileName());
     if (driverObj_->isModified()) title += '*';
-    title += " - ions-ui";
+    title += " - ";
+    title += PROJECT_NAME;
     setWindowTitle(title);
 }
 
-void IonsUI::closeEvent(QCloseEvent *event)
+void MainUI::closeEvent(QCloseEvent *event)
 {
     McDriverObj::DriverStatus st = driverObj_->status();
     if (st == McDriverObj::mcReset) {
@@ -183,7 +184,7 @@ void IonsUI::closeEvent(QCloseEvent *event)
     }
 }
 
-void IonsUI::push(const QString &title, QWidget *page)
+void MainUI::push(const QString &title, QWidget *page)
 {
     QWidget* w = new QWidget;
     QVBoxLayout* vbox = new QVBoxLayout;
@@ -195,7 +196,7 @@ void IonsUI::push(const QString &title, QWidget *page)
     _stackedWidget->addWidget(w);
 }
 
-void IonsUI::pop()
+void MainUI::pop()
 {
     QWidget * currentWidget = _stackedWidget->currentWidget();
     _stackedWidget->removeWidget(currentWidget);
@@ -203,7 +204,7 @@ void IonsUI::pop()
     // delete currentWidget; currentWidget = nullptr;
 }
 
-QToolButton * IonsUI::createSidebarButton(const QString& iconPath, const QString& title)
+QToolButton * MainUI::createSidebarButton(const QString& iconPath, const QString& title)
 {
     QIcon icon(iconPath);
     QToolButton * btn = new QToolButton;
@@ -217,12 +218,12 @@ QToolButton * IonsUI::createSidebarButton(const QString& iconPath, const QString
     return btn;
 }
 
-IonsUI::PageId IonsUI::currentPage() const
+MainUI::PageId MainUI::currentPage() const
 {
     return PageId(pageButtonGrp->checkedId());
 }
 
-void IonsUI::setCurrentPage(PageId id)
+void MainUI::setCurrentPage(PageId id)
 {
     pageButtonGrp->button((int)id)->click();
 }

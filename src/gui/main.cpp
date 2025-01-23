@@ -1,11 +1,11 @@
-#include "ionsui.h"
+#include "mainui.h"
 
 #include <QApplication>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    IonsUI w;
+    MainUI w;
     w.show();
     return app.exec();
 }

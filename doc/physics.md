@@ -109,14 +109,13 @@ We propose to employ a more "standard" procedure for path selection similar to w
 
 > **IPP "standard" algorithm**
 > - For a given particle energy \f$E\f$ we have pre-computed \f$p_{max}\f$, \f$\sigma_0=\pi p_{max}^2\f$ and \f$\ell = (N\sigma_0)^{-1}\f$
-> - Take 2 random samples \f$u_{1,2} \in (0,1)\f$
+> - Take a random sample \f$u_{1} \in (0,1)\f$
 > - The path to the next collision is \f$x = -\ell\,\log u_1\f$ [sampled from the Poisson distr.]
-> - If 
-> $$
->   \frac{x}{E}\frac{dE}{dx} > \delta
-> $$
-> where \f$\delta\sim 0.05\f$ reject the scattering event
-> - \f$p = p_{max}\sqrt{u_2}\f$
+> - Compute the electronic energy loss along the path \f$x\f$: \f$\Delta E = \int_0^x {(dE/dx)dx}\f$. If the fractional energy change is smaller than a small number, e.g.,
+> \f$\Delta E / E < \delta\f$,
+> where \f$\delta\sim 0.05\f$, reject the scattering event
+> - Otherwise, take a 2nd random sample \f$u_{2} \in (0,1)\f$ and compute the impact parameter as
+> \f$p = p_{max}\sqrt{u_2}\f$
 > - Propagate particle by \f$x\f$
 
 Although here we need 2 random numbers instead of 1 in the MHW/SRIM algorithm, the penalty is not so high since all outcomes are valid (in M&W algorithm some events are discarted). 

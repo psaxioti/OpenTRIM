@@ -1,19 +1,16 @@
-# Iradina++
+OpenTRIM is a C++ Monte-Carlo code for simulating ion transport in materials with an emphasis on the calculation of material damage.
 
-A C++ Monte-Carlo code for simulating ion transport in materials.
+It consists of the following components:
 
-The emphasis is on calculation of target damage.
-
-Iradina++ offers the following components:
-
-- The \ref cliapp "iradina++ command line program"
+- The \ref cliapp "`opentrim` command line program"
+- `opentrim-gui` : A GUI tool to configure, run and evaluate simulations 
 - The \ref MC with all the C++ ion transport code, which can be linked to by external applications
 - A \ref XS "library of C++ classes" for screened Coulomb scattering calculations 
 - The \ref dedx containing tables of electronic stopping data
 
 ## Credits
 
-Iradina++ draws heavily on the following similar open-source projects:
+OpenTRIM draws heavily on the following similar open-source projects:
 
 - The program [iradina](https://sourceforge.net/projects/iradina/) written by Ch. Borschel & C. Ronning and extended by J.P. Crocombette & Ch. Van Wambeke.
 - The program [Corteo](http://www.lps.umontreal.ca/%7Eschiette/index.php?n=Recherche.Corteo) by F. Schiettekatte.

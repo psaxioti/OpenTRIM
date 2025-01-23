@@ -1,19 +1,16 @@
-# ions
+# `OpenTRIM`
 
-A C++ Monte-Carlo code for simulating ion
-transport in materials.
+A C++ Monte-Carlo code for simulating ion transport in materials with an emphasis on calculation of radiation damage.
 
-The emphasis is on calculation of target damage.
+`OpenTRIM` offers the following components:
 
-`ions` offers the following components:
-
-- `ions-gui`: A GUI tool to configure, run and evaluate simulations 
-- `ions`: A command line program for batch mode 
-- `libions`: A C++ library with all the ion transport code, which can be linked to external applications
+- `opentrim-gui`: A GUI tool to configure, run and evaluate simulations 
+- `opentrim`: A command line program for batch mode 
+- `libopentrim`: A C++ library with all the ion transport code, which can be linked to external applications
 - `libxs_*`: A set of C++ libraries for screened Coulomb scattering calculations with various potentials, `* = ZBL, Moliere, ...` 
 - `libdedx`: A C++ library for electronic stopping & straggling calculations 
 
-Documentation can be found here: https://ir2-lab.gitlab.io/iradinapp
+Documentation can be found here: https://ir2-lab.gitlab.io/opentrim
 
 ## Getting started
 
@@ -21,7 +18,7 @@ Documentation can be found here: https://ir2-lab.gitlab.io/iradinapp
 
 To clone the project use
 ```
-> git clone --recurse-submodules git@gitlab.com:ir2-lab/iradinapp.git
+> git clone --recurse-submodules git@gitlab.com:ir2-lab/opentrim.git
 ```
 The `recurse-submodules` option ensures that the submodule [QMatPlotWidget](https://gitlab.com/qdaq/qmatplotwidget) is also cloned in the process.
 
@@ -70,23 +67,23 @@ On **Windows** please download the latest binary distribution release provided a
 
 The GUI application can be invoked from the command line 
 ```
-> ions-gui
+> opentrim-gui
 ```
 or by double-clicking the executable. Some simulation examples are included in the program and can be readily used as templates. 
 
 The command line program can be invoked by 
 
 ```
-> ions [options] [-f config.json]
+> opentrim [options] [-f config.json]
 ```
 The program accepts a JSON-formatted configuration input either
 directly from a file (with the `-f` option) or from stdin.
 
-To see all available options run `ions -h`, which prints
+To see all available options run `opentrim -h`, which prints
 ```
 Monte-Carlo ion transport simulation
 Usage:
-  ions [OPTION...]
+  opentrim [OPTION...]
 
   -n arg            Number of histories to run (overrides config input)
   -j arg            Number of threads (overrides config input)
@@ -111,13 +108,13 @@ Some benchmark tests for comparison to other codes are given in folder `test/`.
 
 The file [`test/README.md`](test/README.md) gives a short description of the benchmarks.
 
-Folders [`test/iradina++/b1`](test/iradina++/b1) to `b7` have config files for running the benchmarks with iradina++.
+Folders [`test/opentrim/b1`](test/opentrim/b1) to `b7` have config files for running the benchmarks with `opentrim`.
 
 The file [`test/octave/plot_benchmark.m`](test/octave/plot_benchmark.m) is an OCTAVE script which can be used for plotting results from benchmarks.
 
 ## Credits
 
-`ions` draws heavily on the following similar open-source projects:
+`opentrim` draws heavily on the following similar open-source projects:
 
 - The program [iradina](https://sourceforge.net/projects/iradina/) written by Ch. Borschel & C. Ronning and extended by J.P. Crocombette & Ch. Van Wambeke.
 - The program [Corteo](http://www.lps.umontreal.ca/%7Eschiette/index.php?n=Recherche.Corteo) by F. Schiettekatte.

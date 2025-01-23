@@ -18,19 +18,17 @@ tm = zeros(1,length(lbls));
 
 for i=1:length(lbls)
   fname = sprintf('../msc/HeinC/b%d/out.h5',i)
-  A = h5read(fname,'/exit_events/event_data');
-  j = find(A(5,:)<=440 & A(2,:)==0);
+  A = h5read(fname,'/events/exit/event_data');
+  j = find(A(5,:)>=440 & A(2,:)==0);
   mu = 0.5*(1-A(8,j));
   Th(i) = mean(sqrt(4*mu));
-  h = histc(mu,mux);
-  h = h(1:end-1)/size(mu,2);
-  H(i,:) = h./dOmega;
-  %Th(i) = (H(i,:).*(th(2:end) - th(2)/2))*dOmega'/(H(i,:)*dOmega');
+  h = histc(mu,mux)/size(mu,2);
+  H(i,:) = h(1:end-1)./dOmega;
   Nc(i) = h5read(fname,'/tally/ion_stat/collisions')(1);
   FP(i) = h5read(fname,'/tally/ion_stat/flight_path')(1);
-  ips(i) = h5read(fname,'/run_stat/ips');
-  tm(i) = h5read(fname,'/run_stat/Nh')/ips(i);
-
+  s = jsondecode(h5read(fname,'/run_info/run_history'));
+  ips(i) = s.ips;
+  tm(i) = h5read(fname,'/run_info/total_ion_count')/ips(i);
 end
 
 disp(" ")

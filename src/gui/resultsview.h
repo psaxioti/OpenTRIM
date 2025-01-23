@@ -15,7 +15,7 @@ class QButtonGroup;
 class QMatPlotWidget;
 class QListWidgetItem;
 
-class IonsUI;
+class MainUI;
 
 class ResultsView : public QSplitter
 {
@@ -32,7 +32,7 @@ public:
     QLabel* axPtsLbls[2];
     QListWidget* plotSelect;
 
-    explicit ResultsView(IonsUI* iui, QWidget *parent = nullptr);
+    explicit ResultsView(MainUI* iui, QWidget *parent = nullptr);
 
     int currentTable() const { return currentTable_; }
     void setCurrentTable(int i);
@@ -54,7 +54,7 @@ private slots:
 
 private:
 
-    IonsUI* ionsui;
+    MainUI* ionsui;
     tally tally_;
     int currentTable_{-1};
 

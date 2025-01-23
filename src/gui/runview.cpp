@@ -1,6 +1,6 @@
 #include "runview.h"
 #include "simulationoptionsview.h"
-#include "ionsui.h"
+#include "mainui.h"
 #include "mydatawidgetmapper.h"
 #include "optionsmodel.h"
 #include "mcdriverobj.h"
@@ -23,7 +23,7 @@
 #include <QButtonGroup>
 #include <QMessageBox>
 
-RunView::RunView(IonsUI *iui, QWidget *parent)
+RunView::RunView(MainUI *iui, QWidget *parent)
     : QWidget{parent}, ionsui(iui)
 {
     /* Create & Map widgets to OptionsModel */

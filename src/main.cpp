@@ -28,7 +28,11 @@ void progress_callback(const mcdriver& d, void* )
 
 int main(int argc, char* argv[])
 {
-    cxxopts::Options cli_options(PROJECT_NAME, PROJECT_DESCRIPTION);
+    std::string program_name(PROJECT_NAME);
+    std::transform(program_name.begin(), program_name.end(), program_name.begin(),
+                   [](unsigned char c)
+                   { return std::tolower(c); });
+    cxxopts::Options cli_options(program_name, PROJECT_DESCRIPTION);
 
     cli_options.add_options()
         ("n","Number of histories to run (overrides config input)", cxxopts::value<int>())

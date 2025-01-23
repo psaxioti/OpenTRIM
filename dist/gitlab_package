@@ -4,11 +4,12 @@
 Example:
 
 curl --fail-with-body --user "gapost:<token>" \
-     --upload-file iradinapp-0.2.0-win64.7z \
+     --upload-file opentrim-0.2.0-win64.7z \
      "https://gitlab.com/api/v4/projects/<project id>/packages/generic/<package name>/<version>/<file>"
      
+
 curl --fail-with-body --user  \
->      --upload-file iradinapp-0.2.0-win64.7z \
+>      --upload-file opentrim-0.2.0-win64.7z \
 >      "https://"
 
 Reply: {"message":"201 Created"}

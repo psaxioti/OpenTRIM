@@ -1,11 +1,11 @@
 clear
 
 # Benchmark Number
-nb = 7;
+nb = 1;
 
 # Load HDF5 Results
 pkg load hdf5oct
-data = h5load(['../ions/b' num2str(nb) '/b' num2str(nb) '.h5']);
+data = h5load(['../opentrim/b' num2str(nb) '/b' num2str(nb) '.h5']);
 
 # Title
 titlestr = data.run_info.title;

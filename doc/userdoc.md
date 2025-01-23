@@ -42,19 +42,19 @@ To run the program from the windows command line, add the program folder to the 
 
 ## Using the command line application {#cliapp}
 
-Iradina++ provides a command line program which can be invoked by 
+OpenTRIM provides a command line program which can be invoked by 
 
-    iradina++ [options] [-f config.json]
+    opentrim [options] [-f config.json]
 
 The program accepts a @ref json_config "JSON-formatted configuration input" either
 directly from a file (with the `-f` option) or from stdin.
 
-To see all available options run `iradina++ -h`, which prints
+To see all available options run `opentrim -h`, which prints
 
 ```
 Monte-Carlo ion trasport simulation
 Usage:
-  iradina++ [OPTION...]
+  opentrim [OPTION...]
 
  -n arg            Number of histories to run (overrides config input)
  -j arg            Number of threads (overrides config input)
@@ -74,9 +74,9 @@ It then runs the simulation and saves the results into a HDF5 archive.
 
 All configuration parameters for a simulation can be coded in a JSON formatted string. 
 
-This can be loaded directly from a file to the \ref cliapp "iradina++ cli program" with the following command:
+This can be loaded directly from a file to the \ref cliapp "opentrim cli program" with the following command:
 
-    iradina++ -f config.json
+    opentrim -f config.json
 
 where `config.json` is a file containing the JSON configuration.
 
@@ -149,11 +149,11 @@ This example has all default options and an example target definition.
 }
 ```
 
-@note Iradina++ accepts comments in the JSON config string
+@note `opentrim` accepts comments in the JSON config string
 
 The easiest way to get started is to get a template with all default options by running
 
-    iradina++ -t > template.json
+    opentrim -t > template.json
 
 and make changes to the new template file.
 
@@ -250,7 +250,7 @@ Dimensions of tables depend on:
     - `build_time`: [1x1], build timestamp
     - `compiler`: [1x1], compiler id
     - `compiler_version`: [1x1], compiler version
-    - `version`: [1x1], iradina++ version
+    - `version`: [1x1], OpenTRIM version
 
 To reach a variable in the archive use the complete path, e.g. `/tally/damage/Tdam`.
 

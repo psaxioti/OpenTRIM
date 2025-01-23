@@ -20,7 +20,7 @@
  *             'WINEPREFIX=/home/george/.local/share/wineprefixes/Wine32 WINEARCH="win32" wine SRModule.exe' \
  *             dedx
  *
- * The contents of the output folder should be copied to iradinapp/dedx/ in order to build the iondedx library
+ * The contents of the output folder should be copied to opentrim/dedx/ in order to build the iondedx library
  *
  *
  */

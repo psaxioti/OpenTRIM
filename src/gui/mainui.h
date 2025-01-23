@@ -18,7 +18,7 @@ class SimulationOptionsView;
 class RunView;
 class ResultsView;
 
-class IonsUI : public QWidget
+class MainUI : public QWidget
 {
     Q_OBJECT
 
@@ -29,8 +29,8 @@ public:
     SimulationOptionsView* optionsView;
     RunView* runView;
 
-    explicit IonsUI(QWidget *parent = nullptr);
-    ~IonsUI();
+    explicit MainUI(QWidget *parent = nullptr);
+    ~MainUI();
 
     //const McDriverObj* driverObj() const { return ions_driver; }
     McDriverObj* driverObj() { return driverObj_; }

@@ -1,6 +1,6 @@
 #include "welcomeview.h"
 
-#include "ionsui.h"
+#include "mainui.h"
 #include "mcdriver.h"
 
 #include "mcdriverobj.h"
@@ -32,7 +32,7 @@
 
 #include "jsedit/jsedit.h"
 
-WelcomeView::WelcomeView(IonsUI* iui, QWidget *parent)
+WelcomeView::WelcomeView(MainUI* iui, QWidget *parent)
     : QWidget{parent}, ionsui(iui)
 {
     QFontMetrics fm = this->fontMetrics();
@@ -244,7 +244,7 @@ void WelcomeView::onOpenExample()
     if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         f.close();
         ionsui->driverObj()->loadJsonTemplate(f.fileName());
-        ionsui->setCurrentPage(IonsUI::idConfigPage);
+        ionsui->setCurrentPage(MainUI::idConfigPage);
     }
 }
 
@@ -400,7 +400,7 @@ void WelcomeView::onNew()
     if (!userDiscardCurrentSim("New simulation")) return;
 
     ionsui->driverObj()->loadJsonTemplate();
-    ionsui->setCurrentPage(IonsUI::idConfigPage);
+    ionsui->setCurrentPage(MainUI::idConfigPage);
 }
 
 QPushButton* WelcomeView::createButton(const QString& txt, int w, int h, int ch)
@@ -447,7 +447,7 @@ void WelcomeView::onFileNameChanged()
     QString location = info.absolutePath();
     QString title = ionsui->driverObj()->title();
 
-    QSettings settings("ir2-lab", "ions-gui");
+    QSettings settings("ir2-lab", PROJECT_NAME);
     QStringList fileNames = settings.value("recentFiles/names").toStringList();
     QStringList fileTitles = settings.value("recentFiles/titles").toStringList();
     QStringList fileLocations = settings.value("recentFiles/locations").toStringList();
@@ -485,7 +485,7 @@ void WelcomeView::onFileNameChanged()
 
 void WelcomeView::updateRecentFiles()
 {
-    QSettings settings("ir2-lab", "ions-gui");
+    QSettings settings("ir2-lab", PROJECT_NAME);
     QStringList fileNames = settings.value("recentFiles/names").toStringList();
     QStringList fileTitles = settings.value("recentFiles/titles").toStringList();
     QStringList fileLocations = settings.value("recentFiles/locations").toStringList();
@@ -550,7 +550,7 @@ void WelcomeView::openJson(const QString &path)
     QDir::setCurrent(dirPath);
 
     ionsui->driverObj()->loadJsonFile(path);
-    ionsui->setCurrentPage(IonsUI::idConfigPage);
+    ionsui->setCurrentPage(MainUI::idConfigPage);
 }
 
 void WelcomeView::openH5(const QString &path)
@@ -566,7 +566,7 @@ void WelcomeView::openH5(const QString &path)
         return;
     }
 
-    ionsui->setCurrentPage(IonsUI::idConfigPage);
+    ionsui->setCurrentPage(MainUI::idConfigPage);
 
     // set path to loaded file
     QFileInfo finfo(path);
