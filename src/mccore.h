@@ -16,6 +16,8 @@
 #include <atomic>
 #include <mutex>
 
+class cascade_queue;
+
 /**
  * \defgroup MC libiradinapp shared library
  *
@@ -100,6 +102,8 @@ public:
         StragglingModel straggling_model{StragglingModel::Bohr};
         /// Way to calculate NRT vacancies in multielement materials
         nrt_calculation_t nrt_calculation{NRT_element};
+        /// Allow intra cascade Frenkel pair recombination
+        bool intra_cascade_recombination{false};
     };
 
     /**
@@ -323,7 +327,7 @@ protected:
      * @param t reference to the tally object
      * @return 0 if succesfull
      */
-    int transport(ion* i, tally& t);
+    int transport(ion* i, tally& t, cascade_queue* q = nullptr);
 
     /**
      * @brief Calculate recoil direction from momentum conservation

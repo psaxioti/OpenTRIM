@@ -6,6 +6,8 @@
 
 #include "geometry.h"
 
+#define S_ERG_TO_TIME_CONST 7.198712007850257e-02 // ps/nm-eV^(1/2)
+
 class atom;
 
 /**
@@ -69,6 +71,9 @@ class ion
     vector3 dir_; // direction cosines
     double erg_; // energy in eV
     double erg0_; // initial energy
+    double t_; // time in ns
+    double t0_; // start time in ns (relative to ??? TODO)
+    double s_erg_to_t_;
     ivector3 icell_;
     int cellid_, // current cell id
         prev_cellid_, // previous cell id
@@ -91,8 +96,10 @@ public:
     /// Default constructor
     ion() :
         pos_(0.f,0.f,0.f),
+        pos0_(0.f,0.f,0.f),
         dir_(0.f,0.f,1.f),
-        erg_(1.f), erg0_(1.f),
+        erg_(1.0), erg0_(1.0),
+        t_(0.0), t0_(0.0),
         icell_(), cellid_(-1), prev_cellid_(-1),
         ion_id_(0), recoil_id_(0),
         atom_(nullptr), grid_(nullptr),
@@ -103,6 +110,9 @@ public:
     /// Returns the ion's position vector [nm]
     const vector3& pos() const { return pos_; }
 
+    /// Returns the ion's position vector [nm]
+    const vector3& pos0() const { return pos0_; }
+
     /// Returns the vector of the ion's direction cosines
     const vector3& dir() const { return dir_; }
 
@@ -111,6 +121,12 @@ public:
 
     /// Returns the ion's initial kinetic energy
     const double& erg0() const { return erg0_; }
+
+    /// Returns the ion's current time
+    const double& t() const { return t_; }
+
+    /// Returns the ion's start time
+    const double& t0() const { return t0_; }
 
     /// Returns the index vector of the cell the ion is currently in
     const ivector3& icell() const { return icell_; }
@@ -206,16 +222,24 @@ public:
 
     /// Set initial position
     int setPos(const vector3& x);
+
     /// Set the atomic species of the ion
-    void setAtom(const atom* a) {
-        atom_ = a;
-    }
+    void setAtom(const atom* a);
+
     /// Set the initial energy of the ion
     void setErg(double e) {
         erg_ = erg0_ = e;
         assert(finite(erg_));
         assert(erg_>0);
     }
+
+    /// Set the initial energy of the ion
+    void setTime(double t) {
+        t_ = t0_ = t;
+        assert(finite(t_));
+        assert(t_>=0.0);
+    }
+
     /// increase recoil id
     void incRecoilId() {
         recoil_id_++;
@@ -243,6 +267,8 @@ public:
     }
 
     BoundaryCrossing propagate(float& s, float &sqrtfp);
+
+    float move(float s);
 };
 
 /**

@@ -95,7 +95,7 @@ void MaterialsDefView::addMaterial()
         newMaterial.id = id.toStdString();
         newMaterial.density = 1.0f;
         QStringList keys;
-        keys << "Z" << "M" << "X" << "Ed" << "El" << "Es" << "Er";
+        keys << "Z" << "M" << "X" << "Ed" << "El" << "Es" << "Er" << "Rc";
         materials.push_back(newMaterial);
         setWidgetData(); // widgets updated
         cbMaterialID->setCurrentText(id);
@@ -263,7 +263,7 @@ int MaterialCompositionModel::rowCount(const QModelIndex & /* parent */) const
 }
 int MaterialCompositionModel::columnCount(const QModelIndex & /* parent */) const
 {
-    return col_labels_.size(); // symbol, M, X, Ed, El, Es, Er
+    return col_labels_.size(); // symbol, M, X, Ed, El, Es, Er, Rc
 }
 QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) const
 {
@@ -288,6 +288,7 @@ QVariant MaterialCompositionModel::data(const QModelIndex &index, int role) cons
     case 4: return at.El;
     case 5: return at.Es;
     case 6: return at.Er;
+    case 7: return at.Rc;
     default: return QVariant();
     }
 }
@@ -339,6 +340,7 @@ bool MaterialCompositionModel::setData(const QModelIndex &index, const QVariant 
     case 4: at.El = value.toFloat(); break;
     case 5: at.Es = value.toFloat(); break;
     case 6: at.Er = value.toFloat(); break;
+    case 7: at.Rc = value.toFloat(); break;
     default: ;
     }
 
@@ -444,8 +446,8 @@ MaterialCompositionView::MaterialCompositionView(OptionsModel *m, QObject *paren
     view->setItemDelegate(delegate_);
     QFontMetrics fm = view->fontMetrics();
     int sz = fm.averageCharWidth();
-    const int W[] = {2, 8, 6, 6, 6, 6, 6};
-    for(int col=0; col<7; ++col)
+    const int W[] = {2, 8, 6, 6, 6, 6, 6, 6};
+    for(int col=0; col<8; ++col)
         view->setColumnWidth(col, sz*W[col]);
 
     selectionModel = view->selectionModel();
@@ -485,6 +487,7 @@ void MaterialCompositionView::addElement()
             model_->setData(model_->index(r,i++),3.);
             model_->setData(model_->index(r,i++),3.);
             model_->setData(model_->index(r,i++),40.);
+            model_->setData(model_->index(r,i++),0.946);
         }
     }
 }

@@ -3,6 +3,8 @@
 #include "dedx.h"
 #include "event_stream.h"
 #include "corteo_xs.h"
+#include "cascade_queue.h"
+
 #include <iostream>
 #include <type_traits>
 
@@ -149,6 +151,9 @@ int mccore::reset()
 
 int mccore::run()
 {
+    cascade_queue* cq = par_.intra_cascade_recombination ?
+                           new cascade_queue : nullptr;
+
     while( !(*abort_flag_) )
     {
         // get the next ion id
@@ -181,16 +186,21 @@ int mccore::run()
 
                 pka.cascade_start(*j);
 
-                transport(j,tion_);
+                if (cq) cq->init(j);
+
+                transport(j,tion_,cq);
+
                 // transport all secondary recoils
                 while (ion* k = q_.pop_recoil()) {
-                    transport(k,tion_);
+                    transport(k,tion_,cq);
                     // free the ion buffer
                     q_.free_ion(k);
                 }
 
+                if (cq) cq->intra_cascade_recombination(target_->grid(), tion_);
+
                 pka.mark(tion_);
-                pka.cascade_end(*j);
+                pka.cascade_end(*j,cq);
 
             }
 
@@ -198,7 +208,7 @@ int mccore::run()
             q_.free_ion(j);
 
             // register NRT values (using j1 - at initial pos!)
-            pka.nrt(j1,tion_,
+            pka.cascade_complete(j1,tion_,
                     par_.nrt_calculation == NRT_average ?
                         target_->cell(j1.cellid()) :
                         nullptr);
@@ -230,10 +240,12 @@ int mccore::run()
 
     } // ion loop
 
+    if (cq) delete cq;
+
     return 0;
 }
 
-int mccore::transport(ion* i, tally &t)
+int mccore::transport(ion* i, tally &t, cascade_queue *q)
 {
     // pointers to dEdx & straggling tables
     const dedx_interp* de_stopping_tbl = nullptr;
@@ -259,6 +271,8 @@ int mccore::transport(ion* i, tally &t)
         if(i->erg() < tr_opt_.min_energy) { 
             /* projectile has to stop. Store as implanted/interstitial atom*/
             t(Event::IonStop,*i);
+            if (q) //q->push(Event::IonStop,*i);
+                q->push_i(i);
             return 0; // history ends
         } 
 
@@ -381,8 +395,12 @@ int mccore::transport(ion* i, tally &t)
             nt.normalize();
 
             // create recoil (it is stored in the ion queue)
-            new_recoil(i,z2,T,nt);
+            ion* j = new_recoil(i,z2,T,nt);
+            ion j1(*j); // keep a copy
 
+            // move recoil to the edge of recomb. area
+            // checking also for boundary crossing
+            j->move(z2->Rc());
 
             /*
              * Now check whether the projectile might replace the recoil
@@ -395,8 +413,11 @@ int mccore::transport(ion* i, tally &t)
             if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
                 // Replacement event, ion energy goes to Phonons
                 t(Event::Replacement,*i,z2);
+                //if (q) q->push(Event::Replacement,*i);
                 return 0; // end of ion history
             }
+
+            if (q) q->push_v(&j1);
 
         } else { // T<E_d, recoil cannot be displaced
             // energy goes to phonons

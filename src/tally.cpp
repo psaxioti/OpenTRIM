@@ -107,7 +107,6 @@ void tally::operator()(Event ev, const ion& i, const void* pv)
         A[isCollision](iid,pid) += i.ncoll();
         A[isFlightPath](iid,pid) += i.path();
         A[eLattice](iid,pid) += i.phonon();
-        A[ePhonon](iid,pid) += i.phonon();
         A[eIoniz](iid,pid) += i.ioniz();
         A[eRecoil](iid,pid) += i.recoil();
         break;
@@ -130,12 +129,10 @@ void tally::operator()(Event ev, const ion& i, const void* pv)
             A[cV](iid,i.cellid0())++;
             A[eStored](iid,i.cellid0()) += i.myAtom()->El()/2;
             A[eLattice](iid,cid) += i.myAtom()->El()/2;
-            A[ePhonon](iid,cid) += i.myAtom()->El();
         }
         A[isCollision](iid,cid) += i.ncoll();
         A[isFlightPath](iid,cid) += i.path();
         A[eIoniz](iid,cid) += i.ioniz();
-        A[ePhonon](iid,cid) += i.erg() + i.phonon();
         A[eLattice](iid,cid) += i.erg() + i.phonon();
         A[eRecoil](iid,cid) += i.recoil();
         break;
@@ -147,12 +144,10 @@ void tally::operator()(Event ev, const ion& i, const void* pv)
             A[cV](iid,i.cellid0())++; // add vacancy at start pos
             A[eStored](iid,i.cellid0()) += i.myAtom()->El()/2; // Add half FP energy there
             A[eStored](iid,cid) += i.myAtom()->El()/2; // Add half FP energy here
-            A[ePhonon](iid,cid) += i.myAtom()->El();
         }
         A[isCollision](iid,cid) += i.ncoll();
         A[isFlightPath](iid,cid) += i.path();
         A[eIoniz](iid,cid) += i.ioniz();
-        A[ePhonon](iid,cid) += i.erg() + i.phonon();
         A[eLattice](iid,cid) += i.erg() + i.phonon();
         A[eRecoil](iid,cid) += i.recoil();
         break;
@@ -164,12 +159,10 @@ void tally::operator()(Event ev, const ion& i, const void* pv)
             A[cV](iid,i.cellid0())++; // add vacancy at start pos
             A[eStored](iid,i.cellid0()) += i.myAtom()->El()/2; // Add half FP energy there
             A[eLattice](iid,cid) += i.myAtom()->El()/2; // half FP energy released as lattice thermal energy
-            A[ePhonon](iid,cid) += i.myAtom()->El();
         }
         A[isCollision](iid,pid) += i.ncoll();
         A[isFlightPath](iid,pid) += i.path();
         A[eIoniz](iid,pid) += i.ioniz();
-        A[ePhonon](iid,pid) += i.phonon();
         A[eLattice](iid,pid) += i.phonon();
         A[eRecoil](iid,pid) += i.recoil();
         A[eLost](iid,pid) += i.erg();

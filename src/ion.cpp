@@ -1,4 +1,5 @@
 #include "ion.h"
+#include "target.h"
 
 
 int ion::setPos(const vector3 &x)
@@ -13,6 +14,13 @@ int ion::setPos(const vector3 &x)
     return 0;
 }
 
+/// Set the atomic species of the ion
+void ion::setAtom(const atom* a)
+{
+    atom_ = a;
+    s_erg_to_t_ = S_ERG_TO_TIME_CONST*std::sqrt(atom_->M());
+}
+
 // assuming the object was cloned from
 // the projectile
 void ion::init_recoil(const atom* a, double T)
@@ -24,7 +32,9 @@ void ion::init_recoil(const atom* a, double T)
     prev_cellid_ = -1;
     // set the energy & atom
     erg_ = erg0_ = T;
-    atom_ = a;
+    setAtom(a);
+    // set starting time to the projectile time
+    t0_ = t_;
     // increase recoil generation
     recoil_id_++;
 }
@@ -70,7 +80,7 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
             assert(finite(fp));
             grid_->apply_bc(x); 
             ivector3 ix = grid_->pos2cell(x);
-            path_ += fp;
+            path_ += fp; t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
             sqrtfp *= std::sqrt(fp/fp0);
             pos_ = x;
             if (ix != icell_) {
@@ -98,6 +108,7 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
             }
         } else { // we remain in the cell
             path_ += fp;
+            t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
             pos_ = x;
             return BoundaryCrossing::None;
         }
@@ -107,25 +118,53 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
         x = pos_;
         fp = grid_->bring2boundary(icell_,x,dir_);
         assert(finite(fp));
+        path_ += fp;
+        t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
         sqrtfp *= std::sqrt(fp/fp0);
         grid_->apply_bc(x);
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
-            pos_ = x;
-            path_ += fp;
+            pos_ = x;            
             prev_cellid_ = cellid_;
             cellid_ = -1;
             return BoundaryCrossing::External;
         } else { // ion is still in target. just change the cell
             // get new pos and cell
             pos_ = x;
-            path_ += fp;
             prev_cellid_ = cellid_;
             icell_ = grid_->pos2cell(x);
             cellid_ = grid_->cellid(icell_);
             return BoundaryCrossing::Internal;
         }
     }
+}
+
+float ion::move(float s)
+{
+    float fp(s);
+    vector3 x = pos_ + fp*dir_;  // calc new ion position
+    if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
+        if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
+            // propagate to the boundary
+            x = pos_;
+            fp = grid_->bring2boundary(icell_, x, dir_);
+            assert(finite(fp));
+            grid_->apply_bc(x);
+            ivector3 ix = grid_->pos2cell(x);
+            pos_ = x;
+            if (ix != icell_) {
+                icell_ = ix;
+                prev_cellid_ = cellid_;
+                cellid_ = grid_->cellid(icell_);
+            }
+        } else { // we remain in the cell
+            pos_ = x;
+        }
+    } else { // ion is bound to exit simulation
+        // do nothing !!
+        fp = 0;
+    }
+    return fp;
 }
 
 // #pragma GCC pop_options

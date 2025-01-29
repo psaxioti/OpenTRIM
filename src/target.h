@@ -84,6 +84,8 @@ public:
         float Es;
         /// Replacement threshold energy (eV) of target atoms
         float Er;
+        /// Frenkel pair recombination radius
+        float Rc{0.946};
     };
 
 private:
@@ -141,6 +143,8 @@ public:
     float Es() const { return p_.Es; }
     /// Returns the replacement threshold energy (eV) of target atoms
     float Er() const { return p_.Er; }
+    /// Returns the recombination radius (nm) of target atoms
+    float Rc() const { return p_.Rc; }
     /// Returns true if this atom's Z and M are equal to Z and M of other
     bool operator==(const atom& other) const
     { return (p_.element.atomic_number == other.p_.element.atomic_number) &&

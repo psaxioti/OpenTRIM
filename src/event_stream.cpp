@@ -3,6 +3,7 @@
 #include "ion.h"
 #include "target.h"
 #include "tally.h"
+#include "cascade_queue.h"
 
 #include <filesystem>
 #include <cstdio>
@@ -12,11 +13,11 @@ namespace fs = std::filesystem;
 
 void pka_event::mark(const tally &t)
 {
-    T_ = 0.0f;
+    mark_T_ = 0.0f;
     int ncells = t.at(1).dim()[1];
-    float * bv = buff2_.data();
-    float * br = buff2_.data() + natoms_;
-    float * bi = buff2_.data() + 2*natoms_;
+    float * bv = mark_buff_.data();
+    float * br = mark_buff_.data() + natoms_;
+    float * bi = mark_buff_.data() + 2*natoms_;
     for(int i=0; i<natoms_; i++) {
         *bv = *br = *bi = 0.0f;
         const double * ps = &t.stored()(i+1,0);
@@ -26,7 +27,7 @@ void pka_event::mark(const tally &t)
         const double * pi = &t.implantations()(i+1,0);
 
         for(int j=0; j<ncells; j++) {
-            T_ += *ps++ + *pl++;
+            mark_T_ += *ps++ + *pl++;
             *bv += *pv++;
             *bi += *pi++;
             *br += *pr++;
@@ -37,33 +38,38 @@ void pka_event::mark(const tally &t)
 
 void pka_event::cascade_start(const ion& i)
 {
-    buff_[ofTdam] = T_;
+    buff_[ofTdam] = mark_T_;
 
     float * p = buff_.data() + ofVac;
     float * pend = p + 3*natoms_;
-    const float * b = buff2_.data();
+    const float * b = mark_buff_.data();
     while (p < pend) {
         *p = *b;
         p++; b++;
     }
 }
 
-void pka_event::cascade_end(const ion& i)
+void pka_event::cascade_end(const ion& i, const cascade_queue *cq)
 {
-    buff_[ofTdam] = T_ - buff_[ofTdam] + i.myAtom()->El();
+    // get the damage energy =
+    buff_[ofTdam] = mark_T_ - buff_[ofTdam]; // + i.myAtom()->El();
     float * p = buff_.data() + ofVac;
     float * pend = p + 3*natoms_;
-    const float * b = buff2_.data();
+    const float * b = mark_buff_.data();
     while (p < pend) {
         *p = *b - *p;
         p++; b++;
     }
+    if (cq) {
+        float * p = buff_.data() + ofVac + 3*natoms_;
+        cq->count_riv(p); // cq returns the count of recombined FPs
+    }
 }
 
-void pka_event::nrt(const ion &i, tally &t, const material* m)
+void pka_event::cascade_complete(const ion &i, tally &t, const material* m)
 {
+    // Make NRT damage estimations
     const atom* z2;
-
     std::array<float, 5> dp;
     dp.fill(0.f);
     dp[0] = recoilE();
@@ -91,8 +97,8 @@ void pka_event::nrt(const ion &i, tally &t, const material* m)
 void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
 {
     natoms_ = n;
-    buff_.resize(5+3*n);
-    buff2_.resize(3*n);
+    buff_.resize(5+4*n);
+    mark_buff_.resize(3*n);
     columnNames_.resize(buff_.size());
     columnDescriptions_.resize(buff_.size());
     columnNames_[0] = "hid"; columnDescriptions_[0] = "history id";
@@ -115,6 +121,11 @@ void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
         columnNames_[k] = "I";
         columnNames_[k] += std::to_string(i+1); 
         columnDescriptions_[k] = "Interstitials of ";
+        columnDescriptions_[k] += labels[i];
+        k += n;
+        columnNames_[k] = "ICR";
+        columnNames_[k] += std::to_string(i+1);
+        columnDescriptions_[k] = "Intra-cascade recombinations of ";
         columnDescriptions_[k] += labels[i];
     }
 }

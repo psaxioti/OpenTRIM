@@ -10,6 +10,7 @@ class event_stream;
 class ion;
 class tally;
 class material;
+class cascade_queue;
 
 /**
  * @brief The event class stores data for a given Monte-Carlo event.
@@ -151,17 +152,23 @@ class pka_event : public event
     int natoms_;
 
     // buffers for calculating pka quantities
-    float T_; // Tdam
-    std::vector<float> buff2_; // Vac, Interstitials, Replacements
+    float mark_T_; // Tdam
+    std::vector<float> mark_buff_; // Vac, Interstitials, Replacements
 
+    // buffer offset of various quantities
     enum offset_t {
-        ofIonId = 0,
-        ofAtomId = 1,
-        ofCellId = 2,
-        ofErg = 3,
-        ofTdam = 4,
-        ofVac = 5
+        ofIonId = 0, // id of the ion that generated the pka
+        ofAtomId = 1, // atom id of pka
+        ofCellId = 2, // cell id where pka was created
+        ofErg = 3, // pka recoil energy
+        ofTdam = 4, // pka damage energy
+        ofVac = 5 // vacancies of 1st atom id
     };
+    /*
+     * After ofVac we have 4*natoms_ memory locations for:
+     * Vacancies, Intersitials, Replacements, Recombinations
+     * for each atom id
+     */
 
 public:
 
@@ -170,10 +177,15 @@ public:
         natoms_(0)
     {}
 
+    // mark total damage energy and defect numbers already in the tally
+    // this is used then to calc the contribution of the current pka
     void mark(const tally& t);
+    // prepare internal buffers before cascade starts
     void cascade_start(const ion &i);
-    void cascade_end(const ion &i);
-    void nrt(const ion& i, tally& t, const material *m);
+    // make calculations after cascade finishes
+    void cascade_end(const ion &i, const cascade_queue* cq = nullptr);
+    // calc NRT values and send CascadeComplete event to tally
+    void cascade_complete(const ion& i, tally& t, const material *m);
 
     /**
      * @brief Set the number of atoms in the target
@@ -202,6 +214,9 @@ public:
     const float& Repl(int atom_id) const { return buff_[ofVac + natoms_ + atom_id]; }
     float& Impl(int atom_id) { return buff_[ofVac + 2*natoms_ + atom_id]; }
     const float& Impl(int atom_id) const { return buff_[ofVac + 2*natoms_ + atom_id]; }
+    float& Icr(int atom_id) { return buff_[ofVac + 3*natoms_ + atom_id]; }
+    const float& Icr(int atom_id) const { return buff_[ofVac + 3*natoms_ + atom_id]; }
+
 };
 
 /**

@@ -97,14 +97,14 @@ private:
     int materialIdx_;
     OptionsModel* model_;
     QPersistentModelIndex materialsIndex_;
-    //QStringList col_names_{"Z", "M", "X", "Ed", "El", "Es", "Er"};
-    QStringList col_labels_{"Element", "mass", "X", "Ed", "El", "Es", "Er"};
+    QStringList col_labels_{"Element", "mass", "X", "Ed", "El", "Es", "Er", "Rc"};
     QStringList col_tooltip_{"Element", "Atomic mass [u]",
                             "Atomic fraction (unnormalized)",
                             "Displacement energy [eV]",
                             "Lattice energy [eV]",
                             "Surface energy [eV]",
-                            "Replacement energy [eV]"};
+                            "Replacement energy [eV]",
+                            "FP capture radius [nm]"};
 };
 
 class MaterialCompositionDelegate : public QStyledItemDelegate

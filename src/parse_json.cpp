@@ -226,7 +226,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     atom::parameters,
     element,
-    X, Ed, El, Es, Er)
+    X, Ed, El, Es, Er, Rc)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     material::material_desc_t,
@@ -258,7 +258,7 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     simulation_type, screening_type,
     scattering_calculation,
     eloss_calculation, straggling_model,
-    nrt_calculation)
+    nrt_calculation, intra_cascade_recombination)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     mccore::transport_options,

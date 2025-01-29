@@ -263,6 +263,18 @@ public:
                    std::nextafter(at(i), std::numeric_limits<float>::lowest());
     }
 
+    float distance(float x1, float x2) const
+    {
+        float d = std::abs(x1-x2);
+        if (periodic_ && d<w_/2) {
+            float d1 = std::abs(x1-w_-x2);
+            if (d1<d) return d1;
+            d1 = std::abs(x1+w_-x2);
+            if (d1<d) return d1;
+        }
+        return d;
+    }
+
 };
 
 
@@ -509,6 +521,14 @@ public:
     /// Returns the total volume
     float volume() const {
         return x_.w() * y_.w() * z_.w();
+    }
+
+    float distance(const vector3& x1, const vector3& x2) const
+    {
+        vector3 r{x_.distance(x1.x(),x2.x()),
+                  y_.distance(x1.y(),x2.y()),
+                  z_.distance(x1.z(),x2.z())};
+        return r.norm();
     }
 };
 

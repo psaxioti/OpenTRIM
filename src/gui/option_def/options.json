@@ -71,6 +71,13 @@
                     "toolTip" : "Define how to implement NRT in multielemental targets.",
                     "whatsThis" : ["Per element: NRT calculated per recoil atom",
                                    "Average: NRT calculated using material average values"]
+                },
+                {
+                    "name" : "intra_cascade_recombination",
+                    "label": "Intra-cascade recombination",
+                    "type" : "bool",
+                    "toolTip" : "Enable intra-cascade recombination of Frenkel pairs.",
+                    "whatsThis" : ""
                 }
             ]    
         },
