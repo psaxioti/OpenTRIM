@@ -368,9 +368,13 @@ protected:
 
         // set atomic species,
         // recoil kinetic energy & direction
-        // subtract the lattice energy (FP creation energy)
+        // Energy partition
+        //   kinetic energy = T-Ed
+        //   Ed-Efp goes to the lattice (phonos)
+        //   Efp is stored energy (will be deposited when the ion finishes)
         j->init_recoil(target, recoil_erg - target->El());
         j->reset_counters();
+        j->de_phonon(target->Ed()-target->El());
         j->setNormalizedDir(nt);
 
         // store recoil in respective queue

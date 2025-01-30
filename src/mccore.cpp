@@ -394,6 +394,10 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             vector3 nt = dir0 - i->dir()*std::sqrt(b/(1.f+b)); // un-normalized
             nt.normalize();
 
+            // TODO
+            // If T-Ed < cutoff then the recoil will die immediately
+            // we could just add the interstitial here
+
             // create recoil (it is stored in the ion queue)
             ion* j = new_recoil(i,z2,T,nt);
             ion j1(*j); // keep a copy
