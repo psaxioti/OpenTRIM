@@ -162,6 +162,7 @@ class pka_event : public event
         ofCellId = 2, // cell id where pka was created
         ofErg = 3, // pka recoil energy
         ofTdam = 4, // pka damage energy
+        // ofRp = 5, // FP distance
         ofVac = 5 // vacancies of 1st atom id
     };
     /*

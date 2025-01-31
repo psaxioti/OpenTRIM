@@ -60,10 +60,14 @@ void pka_event::cascade_end(const ion& i, const cascade_queue *cq)
         *p = *b - *p;
         p++; b++;
     }
+    // get the recombinations
     if (cq) {
         float * p = buff_.data() + ofVac + 3*natoms_;
         cq->count_riv(p); // cq returns the count of recombined FPs
     }
+    // store the Rp
+    //vector3 r = i.pos() - i.pos0();
+    //buff_[ofRp] = r.norm();
 }
 
 void pka_event::cascade_complete(const ion &i, tally &t, const material* m)
@@ -97,15 +101,22 @@ void pka_event::cascade_complete(const ion &i, tally &t, const material* m)
 void pka_event::setNatoms(int n, const std::vector<std::string>& labels)
 {
     natoms_ = n;
-    buff_.resize(5+4*n);
+    buff_.resize(ofVac+4*n);
     mark_buff_.resize(3*n);
     columnNames_.resize(buff_.size());
     columnDescriptions_.resize(buff_.size());
-    columnNames_[0] = "hid"; columnDescriptions_[0] = "history id";
-    columnNames_[1] = "pid"; columnDescriptions_[1] = "PKA species id";
-    columnNames_[2] = "cid"; columnDescriptions_[2] = "cell id";
-    columnNames_[3] = "E"; columnDescriptions_[3] = "PKA energy [eV]";
-    columnNames_[4] = "Tdam"; columnDescriptions_[4] = "Damage energy[eV]";
+    int k = ofIonId;
+    columnNames_[k] = "hid"; columnDescriptions_[k] = "history id";
+    k = ofAtomId;
+    columnNames_[k] = "pid"; columnDescriptions_[k] = "PKA species id";
+    k = ofCellId;
+    columnNames_[k] = "cid"; columnDescriptions_[k] = "cell id";
+    k = ofErg;
+    columnNames_[k] = "E"; columnDescriptions_[k] = "PKA energy [eV]";
+    k = ofTdam;
+    columnNames_[k] = "Tdam"; columnDescriptions_[k] = "Damage energy[eV]";
+    //k = ofRp;
+    //columnNames_[k] = "Rp"; columnDescriptions_[k] = "I-V distance [nm]";
     for(int i=0; i<n; i++) {
         int k = ofVac + i;
         columnNames_[k] = "V";
