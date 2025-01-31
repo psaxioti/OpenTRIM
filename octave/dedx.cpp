@@ -13,7 +13,7 @@ DEFUN_DLD (dedx, args, nargout, "Returns tables of electronic energy loss")
     dedx_index i;
     octave_idx_type n = i.size;
     RowVector e(n), d(n);
-    const float* p = dedx(Z1,Z2);
+    const float* p = raw_dedx(Z1,Z2);
     for (octave_idx_type k=0; k<n; k++) {
         e(k) = *i++;
         d(k) = *p++;
