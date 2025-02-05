@@ -228,11 +228,11 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     element,
     X, Ed, El, Es, Er, Rc)
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
-    material::material_desc_t,
-    id,
-    density,
-    composition)
+//MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+//    material::material_desc_t,
+//    id,
+//    density,
+//    composition)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     ion_beam::energy_distribution_t,
@@ -258,7 +258,8 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     simulation_type, screening_type,
     scattering_calculation,
     eloss_calculation, straggling_model,
-    nrt_calculation, intra_cascade_recombination)
+    nrt_calculation, intra_cascade_recombination,
+    correlated_recombination, i_rc_boost, move_recoil)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     mccore::transport_options,
@@ -286,16 +287,84 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     store_dedx
     )
 
-MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
-    target::target_desc_t,
-    origin,
-    size,
-    cell_count,
-    periodic_bc,
-    materials,
-    regions
-    )
+//MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+//    target::target_desc_t,
+//    origin,
+//    size,
+//    cell_count,
+//    periodic_bc,
+//    materials,
+//    regions
+//    )
 
+void to_json(ojson& j, const material::material_desc_t& md)
+{
+    j["id"] = md.id;
+    j["density"] = md.density;
+    j["composition"] = md.composition;
+
+}
+
+void from_json(const ojson& nlohmann_json_j, material::material_desc_t& nlohmann_json_t)
+{
+    const material::material_desc_t nlohmann_json_default_obj{};
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(id);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(density);
+
+    if (nlohmann_json_j["composition"].is_array())
+        nlohmann_json_t.composition =
+            nlohmann_json_j.value("composition",
+                                  nlohmann_json_default_obj.composition);
+    else if (nlohmann_json_j["composition"].is_object())
+    {
+        atom::parameters atp;
+        from_json(nlohmann_json_j["composition"], atp);
+        nlohmann_json_t.composition.push_back(atp);
+    }
+}
+
+void to_json(ojson& j, const target::target_desc_t& td)
+{
+    j["origin"] = td.origin;
+    j["size"] = td.size;
+    j["cell_count"] = td.cell_count;
+    j["periodic_bc"] = td.periodic_bc;
+    j["materials"] = td.materials;
+    j["regions"] = td.regions;
+
+}
+
+void from_json(const ojson& nlohmann_json_j, target::target_desc_t& nlohmann_json_t)
+{
+    const target::target_desc_t nlohmann_json_default_obj{};
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(origin);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(size);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(cell_count);
+    NLOHMANN_JSON_FROM_WITH_DEFAULT(periodic_bc);
+    if (nlohmann_json_j["materials"].is_array())
+        nlohmann_json_t.materials =
+            nlohmann_json_j.value("materials",
+                                  nlohmann_json_default_obj.materials);
+    else if (nlohmann_json_j["materials"].is_object())
+    {
+        material::material_desc_t md;
+        from_json(nlohmann_json_j["materials"], md);
+        nlohmann_json_t.materials.push_back(md);
+    }
+
+    if (nlohmann_json_j["regions"].is_array())
+        nlohmann_json_t.regions =
+            nlohmann_json_j.value("regions",
+                                  nlohmann_json_default_obj.regions);
+    else if (nlohmann_json_j["regions"].is_object())
+    {
+        target::region rd;
+        from_json(nlohmann_json_j["regions"], rd);
+        nlohmann_json_t.regions.push_back(rd);
+    }
+
+
+}
 
 void to_json(ojson& j, const mcdriver::options& p)
 {
@@ -306,6 +375,9 @@ void to_json(ojson& j, const mcdriver::options& p)
     j["Output"] = p.Output;
     j["Driver"] = p.Driver;
 }
+
+
+
 void from_json(const ojson& j, mcdriver::options& p)
 {
     p = mcdriver::options();
