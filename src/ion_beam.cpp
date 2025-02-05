@@ -13,9 +13,11 @@ void ion_beam::setParameters(const parameters &p)
     par_ = p;
 }
 
-void ion_beam::init(target &t)
+void ion_beam::init(target &t, bool is_cascade_sim)
 {
     t.setProjectile(par_.ion);
+    is_pka_source_ = is_cascade_sim;
+
     par_.energy_distribution.init();
     par_.spatial_distribution.init(t);
     par_.angular_distribution.init(t);
@@ -24,13 +26,21 @@ void ion_beam::init(target &t)
 void ion_beam::source_ion(random_vars &g, const target& t, ion& i)
 {
     i.setGrid(&t.grid());
-    i.setAtom(t.atoms().front());
-    i.setErg(par_.energy_distribution.sample(g));
+
     vector3 v;
     par_.spatial_distribution.sample(g,t,v);
     i.setPos(v);
+
+    if (is_pka_source_) {
+        const material* mat = t.cell(i.cellid());
+        i.setAtom(mat->selectAtom(g));
+    } else i.setAtom(t.atoms().front());
+
+    i.setErg(par_.energy_distribution.sample(g));
+
     par_.angular_distribution.sample(g,t,v);
     i.setNormalizedDir(v);
+
     i.setTime(0.0);
 }
 

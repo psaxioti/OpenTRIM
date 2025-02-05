@@ -162,6 +162,35 @@ public:
         i->de_ioniz(de_stopping);
     }
 
+    void operator()(ion* i, float fp) const
+    {
+        if (type_ == EnergyLossOff) return;
+        float E = i->erg();
+        float de_stopping = fp * (*stopping_interp_)(E);
+
+        /* IRADINA
+         * The stopping tables have no values below minVal = 16 eV.
+         * Therefore, we do sqrt downscaling of electronic
+         * stopping below 16 eV.
+         */
+        if (E < dedx_index::minVal)
+            de_stopping *= std::sqrt(E / dedx_index::minVal);
+
+        /*
+         * This is due to some rare low-energy events (ion E<100 eV)
+         * with IPP flight selection were
+         * a long flight path + large straggling can cause the
+         * stopping + straggling > E
+         *
+         * The code below changes that to almost stopping the ion,
+         * E - stopping ~ 0
+         */
+        if (de_stopping > E)
+            de_stopping = 0.99*E;
+
+        i->de_ioniz(de_stopping);
+    }
+
 protected:
     eloss_calculation_t type_;
 

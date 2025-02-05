@@ -6,6 +6,7 @@
 
 class target;
 class atom;
+class material;
 class random_vars;
 
 /**
@@ -60,12 +61,15 @@ public:
         geometry_t geometry{Surface};
         /// Spatial distribution type
         distribution_t type{SingleValue};
-        /// Center position of generated ions [nm]. Default (0,0,0)
-        vector3 center{0,0,0};
         /// Full-width at half-maximum of ion spatial distribution [nm]
         float fwhm{1.0f};
+        /// Center position of generated ions [nm]. Default (0,0,0)
+        vector3 center{0,0,0};
+
         void sample(random_vars& g, const target &t, vector3& pos) const;
         void init(const target& t);
+
+    private:
         vector3 a,b;
         float sig;
     };
@@ -104,6 +108,9 @@ protected:
 
     parameters par_;
 
+    bool is_pka_source_;
+    const material* pka_source_material_;
+
 public:
     /// Default constructor
     ion_beam();
@@ -115,7 +122,7 @@ public:
     /// Returns the ion_beam parameters
     const parameters& getParameters() const { return par_; }
     /// Initialize the ion_beam class
-    void init(target& t);
+    void init(target& t, bool is_cascade_sim);
 
     /**
      * @brief Generate an ion in the simulation

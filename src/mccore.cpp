@@ -72,7 +72,7 @@ int mccore::init()
 {
     /* the order of object initialization is important */
     target_->init();
-    source_->init(*target_);
+    source_->init(*target_, par_.simulation_type == CascadesOnly);
 
     // init dedx & straggling tables
     dedx_calc_.init(*this);
@@ -152,7 +152,10 @@ int mccore::reset()
 int mccore::run()
 {
     cascade_queue* cq = par_.intra_cascade_recombination ?
-                           new cascade_queue : nullptr;
+                            new cascade_queue(par_.correlated_recombination, par_.i_rc_boost) :
+                            nullptr;
+
+    bool cascadesOnly = par_.simulation_type == CascadesOnly;
 
     while( !(*abort_flag_) )
     {
@@ -166,13 +169,31 @@ int mccore::run()
         // generate ion
         ion* i = q_.new_ion();
         i->setId(ion_id);
-        i->resetRecoilId();
+        i->setRecoilId(cascadesOnly ? 1 : 0);
         i->reset_counters();
         source_->source_ion(rng, *target_, *i);
         tion_(Event::NewSourceIon,*i);
 
-        // transport the ion
-        transport(i,tion_);
+        /*
+         * If it is a cascades-only simulation put the ion in the pka queue
+         * else transport it
+         */
+        if (cascadesOnly) {
+            if (i->erg() >= i->myAtom()->Ed())
+            {
+                i->setErg(i->erg() - i->myAtom()->El());
+                if (par_.move_recoil) {
+                    i->move(i->myAtom()->Rc());
+                    dedx_calc_.init(i,target_->cell(i->cellid()));
+                    dedx_calc_(i, i->myAtom()->Rc());
+                }
+                q_.push_pka(i);
+            } else q_.free_ion(i);
+        } else {
+            transport(i,tion_);
+            // free the ion buffer
+            q_.free_ion(i);
+        }
 
         // transport all PKAs
         pka.mark(tion_);
@@ -232,8 +253,7 @@ int mccore::run()
         // clear the tally scores
         tion_.clear();
 
-        // free the ion buffer
-        q_.free_ion(i);
+
 
         // update thread counter
         thread_ion_counter_++;
@@ -404,7 +424,10 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
 
             // move recoil to the edge of recomb. area
             // checking also for boundary crossing
-            j->move(z2->Rc());
+            if (par_.move_recoil) {
+                j->move(z2->Rc());
+                dedx_calc_(j, z2->Rc());
+            }
 
             /*
              * Now check whether the projectile might replace the recoil
@@ -417,6 +440,7 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
                 // Replacement event, ion energy goes to Phonons
                 t(Event::Replacement,*i,z2);
+                j->setUid(i->uid());
                 //if (q) q->push(Event::Replacement,*i);
                 return 0; // end of ion history
             }

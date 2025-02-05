@@ -111,6 +111,7 @@ set (PROJECT_HEADERS
     src/xs.h
     src/periodic_table.h
     src/ion.h 
+    src/cascade_queue.h
     src/random_vars.h
     src/target.h 
     src/flight_path_calc.h
@@ -146,7 +147,6 @@ add_library(${LIB_TARGET} SHARED
     src/parse_json.cpp    
     src/mcdriver.cpp
     src/dedx_calc.cpp
-
 )
 
 set(PROJECT_LIBS

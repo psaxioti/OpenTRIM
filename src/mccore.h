@@ -104,6 +104,12 @@ public:
         nrt_calculation_t nrt_calculation{NRT_element};
         /// Allow intra cascade Frenkel pair recombination
         bool intra_cascade_recombination{false};
+        /// Allow same Frenkel pair recombination
+        bool correlated_recombination{false};
+        /// interstitial rc boost
+        float i_rc_boost{1.0f};
+
+        bool move_recoil{false};
     };
 
     /**
@@ -330,21 +336,6 @@ protected:
     int transport(ion* i, tally& t, cascade_queue* q = nullptr);
 
     /**
-     * @brief Calculate recoil direction from momentum conservation
-     * @param xs cross-section object for the given projectile/atom pair
-     * @param E initial projectile energy
-     * @param T recoil energy
-     * @param n0 initial projectile direction
-     * @param n1 final projectile direction
-     * @param nt recoil direction
-     */
-    void calcRecoilDir(const abstract_xs_lab* xs,
-                   float E, float T, const vector3& n0, const vector3& n1, vector3& nt)
-    {
-        nt = xs->sqrt_mass_ratio()*std::sqrt(E/T)*(n0 - std::sqrt(1.f - T/E)*n1);
-    }
-
-    /**
      * @brief Generate a new recoil ion
      *
      * This function creates a new recoil ion of atomic species \p target
@@ -374,7 +365,7 @@ protected:
         //   Efp is stored energy (will be deposited when the ion finishes)
         j->init_recoil(target, recoil_erg - target->El());
         j->reset_counters();
-        j->de_phonon(target->Ed()-target->El());
+        //j->de_phonon(target->Ed()); //(target->Ed()-target->El());
         j->setNormalizedDir(nt);
 
         // store recoil in respective queue
