@@ -25,7 +25,7 @@ class cascade_queue {
         vector3 dir;
         int icell;
         const atom* a;
-        const ion* i;
+        size_t pair_id;
     };
 
     struct interstitial : public defect {};
@@ -58,7 +58,7 @@ class cascade_queue {
 
     defect* new_defect(defect_type_t atype,
                        const double& at, const vector3& p, const vector3& n,
-                       int ic, const atom* a, const ion* i) {
+                       int ic, const atom* a, size_t pid) {
         defect* d;
         if (free_buff_.empty()) {
             d = new defect;
@@ -73,7 +73,7 @@ class cascade_queue {
         d->dir = n;
         d->icell = ic;
         d->a = a;
-        d->i = i;
+        d->pair_id = pid;
         return d;
     }
 
@@ -84,7 +84,16 @@ class cascade_queue {
     interstitial_list_t i_;
     pair_buff_t riv_;
     size_t nv{0}, ni{0};
-    const ion* pka;
+    ion pka;
+
+    bool allow_correlated_recombination_;
+    float i_rc_boost_;
+
+    bool can_recombine(const defect* d1, const defect* d2)
+    {
+        return (d1->a == d2->a) && // same atom type
+               ((!allow_correlated_recombination_ && (d1->pair_id != d2->pair_id)) || allow_correlated_recombination_);
+    }
 
     bool recombine(const vacancy* d1, const grid3D& g)
     {
@@ -92,8 +101,7 @@ class cascade_queue {
         auto i = i_.begin();
         for(; i!=i_.end(); ++i) {
             auto d2 = *i;
-            if ((d1->a == d2->a) && // same atom type
-                (d1->i != d2->i) && // not the same I-V pair
+            if (can_recombine(d1,d2) &&
                 g.distance(d1->pos,d2->pos) < rc)
             {
                 riv_.emplace_back(d2,d1);
@@ -109,14 +117,13 @@ class cascade_queue {
         float rc = d1->a->Rc(); // recombination radius
         vector3 x = d1->pos;
         // special I recombination
-        x -= d1->dir*rc/2;
-        rc *= 1.5;
+        // x -= d1->dir*rc/2;
+        rc *= i_rc_boost_;
 
         auto i = v_.begin();
         for(; i!=v_.end(); ++i) {
             auto d2 = *i;
-            if ((d1->a == d2->a) && // same atom type
-                (d1->i != d2->i) && // not the same I-V pair
+            if (can_recombine(d1,d2) &&
                 g.distance(x,d2->pos) < rc)
             {
                 riv_.emplace_back(d1,d2);
@@ -136,28 +143,36 @@ class cascade_queue {
            << d.pos.x() << '\t'
            << d.pos.y() << '\t'
            << d.pos.z() << '\t'
-           << d.icell << std::endl;
+           << d.icell << '\t'
+           << d.pair_id << std::endl;
     }
 
 public:
-    cascade_queue() = default;
+    cascade_queue(bool allow_correlated_recombination, float i_rc_boost) :
+        allow_correlated_recombination_(allow_correlated_recombination),
+        i_rc_boost_(i_rc_boost)
+    {}
     ~cascade_queue() {
         for(defect* d : all_buff_) delete d;
     }
 
     void push_i(const ion* i)
     {
+
         defect_queue.push(new_defect(Interstitial, i->t(),
                                      i->pos(), i->dir(), i->cellid(),
-                                     i->myAtom(), i));
+                                     i->myAtom(), i->uid()));
         ni++;
+
     }
     void push_v(const ion* i)
     {
+
         defect_queue.push(new_defect(Vacancy, i->t(),
                                      i->pos(), i->dir(), i->cellid(),
-                                     i->myAtom(), i));
+                                     i->myAtom(), i->uid()));
         nv++;
+
     }
 
     void intra_cascade_recombination(const grid3D& g, tally& t)
@@ -168,8 +183,8 @@ public:
 
         bool dbg = defect_queue.size() > 10;
         if (dbg) {
-            std::cout << "PKA E=" << pka->erg() << std::endl;
-            std::cout << "R=" << pka->pos() << std::endl;
+            std::cout << "PKA E=" << pka.erg() << std::endl;
+            std::cout << "R=" << pka.pos() << std::endl;
             std::cout << "defect_queue (N=" << defect_queue.size() << "):" << std::endl;
         }
 
@@ -247,10 +262,10 @@ public:
     void init(const ion* i)
     {
         clear();
-        pka = i;
+        pka = *i;
         defect_queue.push(new_defect(Vacancy, i->t(),
                                      i->pos0(), i->dir(),i->cellid0(),
-                                     i->myAtom(), i));
+                                     i->myAtom(), i->uid()));
         nv++;
     }
 

@@ -78,8 +78,9 @@ class ion
     int cellid_, // current cell id
         prev_cellid_, // previous cell id
         cellid0_; // initial cell id (start of track)
-    size_t ion_id_; // history id
+    size_t ion_id_; // ion history id
     int recoil_id_; // recoil id (generation), 0=ion, 1=PKA, ...
+    size_t uid_; // unique recoil id
     const atom* atom_;
     const grid3D* grid_;
 
@@ -90,6 +91,8 @@ class ion
         ioniz_, // total E loss to ionization
         phonon_, // total E loss to phonons
         recoil_; // total E loss to recoils
+
+    friend class ion_queue;
 
 public:
 
@@ -151,6 +154,9 @@ public:
      * @return The current ion's recoil_id
      */
     int recoil_id() const { return recoil_id_; }
+
+    size_t uid() const { return uid_; }
+    void setUid(size_t id) { uid_ = id; }
 
     /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
     const atom* myAtom() const { return atom_; }
@@ -249,8 +255,8 @@ public:
         ion_id_ = id;
     }
     /// reset recoil id to 0
-    void resetRecoilId() {
-        recoil_id_ = 0;
+    void setRecoilId(int id) {
+        recoil_id_ = id;
     }
     /// set a grid3D for the ion
     void setGrid(const grid3D* g) {
@@ -314,9 +320,10 @@ class ion_queue {
     }
 
     size_t sz_;
+    size_t uctr_;
 
 public:
-    explicit ion_queue() : sz_(0) {}
+    explicit ion_queue() : sz_(0), uctr_(0) {}
 
     /// Returns a new ion object, initialized with data copied from non-null p
     ion* new_ion(const ion* p = nullptr) {
@@ -328,7 +335,8 @@ public:
             i = ion_buffer_.front();
             ion_buffer_.pop();
             if (p) *i = *p;
-        }        
+        }
+        i->uid_ = uctr_++;
         return i;
     }
 
@@ -365,12 +373,7 @@ public:
         assert(sz_==0);
     }
 
-    size_t size() const {
-        return sz_;
-//        return ion_buffer_.size() +
-//               pka_queue_.size() +
-//               recoil_queue_.size();
-    }
+    size_t size() const { return sz_; }
 };
 
 #endif // ION_H
