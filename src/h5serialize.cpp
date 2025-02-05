@@ -198,7 +198,6 @@ int dump_array(h5::File& file, const std::string& path,
             const size_t& N)
 {
     assert(A.size()==dA.size());
-    assert(N>1);
     std::string dpath = path + "_sem";
     std::string ddesc("(SEM) ");
     ddesc += desc;
@@ -206,7 +205,7 @@ int dump_array(h5::File& file, const std::string& path,
     for(int i=0; i<A.size(); i++) {
         M[i] = A[i]/N;
         // error in the mean
-        S[i] = std::sqrt((dA[i]/N-M[i]*M[i])/(N-1));
+        S[i] = (N>1) ? std::sqrt((dA[i]/N-M[i]*M[i])/(N-1)) : 0;
     }
     return dump_array(file,  path, M, var_list,  desc) + 
            dump_array(file, dpath, S, var_list, ddesc);
