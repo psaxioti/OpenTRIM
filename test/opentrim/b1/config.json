@@ -6,7 +6,12 @@
     "Simulation": {
         "simulation_type": "FullCascade",
         "screening_type": "ZBL",
-        "scattering_calculation": "Corteo4bitTable"
+        "scattering_calculation": "Corteo4bitTable",
+        "eloss_calculation" : "EnergyLoss", 
+        "intra_cascade_recombination": false,
+        "correlated_recombination" : true,
+        "i_rc_boost" : 1,
+        "move_recoil" : false
     },
     "Transport": {
         "flight_path_type": "AtomicSpacing",
@@ -32,7 +37,7 @@
         "materials" : [
             {
                 "id" : "Fe",
-                "density" : 7.8658, // g/cm^3
+                "density" : 7.8658, 
                 "composition" : [
                     {
                         "element" : {
@@ -42,7 +47,8 @@
                         "Ed" : 40,
                         "El" : 3,
                         "Es" : 3,
-                        "Er" : 40
+                        "Er" : 40,
+                        "Rc" : 0.8 
                     }
                 ]
             }
