@@ -219,6 +219,7 @@ public:
         auto& AV = t.at(tally::cV);
         auto& As = t.at(tally::eStored);
         auto& Al = t.at(tally::eLattice);
+        auto& Ariv = t.at(tally::cRecombinations);
         // update tally
         for(auto& p : riv_) {
             // interstitial
@@ -229,6 +230,7 @@ public:
             AI(iid,cid)--;
             As(iid,cid) -= El/2;
             Al(iid,cid) += El/2;
+            Ariv(iid,cid)++;
             // vacancy
             auto& v = p.second;
             cid =  v->icell;

@@ -85,10 +85,10 @@ public:
         cV, /**< Vacancies  */
         cI, /**< Interstitials or Implanted ions  */
         cR, /**< Replacements  */
+        cRecombinations, /**< Recombinations */
         cP, /**< PKAs  */
         cL, /**< Lost ions (they exit the simulation)  */
         eIoniz, /**< Ionization energy  */
-        ePhonon, /**< Phonon energy = (Lattice + Stored)  */
         eLattice, /**< Lattice energy = thermal energy deposited to the lattice */
         eStored, /**< Energy stored in lattice defects (Frenkel Pairs) */
         eRecoil, /**< Energy transfered to recoil atoms */
@@ -132,39 +132,25 @@ protected:
         V = 1,
         I = 2,
         R = 3,
-        P = 4,
-        L = 5
-    };
-
-    
+        Rec = 4,
+        P = 5,
+        L = 6
+    };    
 
     uint32_t EventMask_ { static_cast<uint32_t>(Event::NEvent) - 1 };
 
 public:
-
-    /// Return the total ion histories
-    const double& Nions() const { return A[cT](H); }
-    /// Return the total # of PKAs
-    const double& Npkas() const { return A[cT](P); }
-    /// Return the total # of replacements
-    const double& Nrepl() const { return A[cT](R); }
-    /// Return the total # of interstitials or implantations
-    const double& Nimpl() const { return A[cT](I); }
-    /// Return the total # of vacancies
-    const double& Nvac()  const { return A[cT](V); }
-    /// Return the total # of lost ions (the ones that exited the simulation volume)
-    const double& Nlost() const { return A[cT](L); }
 
     std::vector<std::string> arrayNames() const;
 
     const ArrayNDd& vacancies() const { return A[cV]; }
     const ArrayNDd& implantations() const { return A[cI]; }
     const ArrayNDd& replacements() const { return A[cR]; }
+    const ArrayNDd& recombinations() const { return A[cRecombinations]; }
     const ArrayNDd& pkas() const { return A[cP]; }
     const ArrayNDd& lost() const { return A[cL]; }
 
     const ArrayNDd& ionization() const { return A[eIoniz]; }
-    const ArrayNDd& phonons() const { return A[ePhonon]; }
     const ArrayNDd& stored() const { return A[eStored]; }
     const ArrayNDd& lattice() const { return A[eLattice]; }
     const ArrayNDd& lostE() const { return A[eLost]; }

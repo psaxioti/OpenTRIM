@@ -103,7 +103,9 @@ RunView::RunView(MainUI *iui, QWidget *parent)
     box3 = new QGroupBox("Simulation Results");
     {
         int k=0;
-        int Nrow[] = {5, 7, 6};
+        int Nrow[] = {tally::cL,
+                      tally::eLost - tally::cL,
+                      tally::isCollision - tally::eLost};
         const char* titles[] = {"Point Defects", "Energy Loss", "Damage"};
         const char* units[] = {"(counts/ion)", "(eV/ion)", "(eV/ion)"};
         QHBoxLayout* hbox = new QHBoxLayout;

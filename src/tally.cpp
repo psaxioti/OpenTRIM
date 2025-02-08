@@ -8,10 +8,10 @@ const char* tally::arrayName(int i)
         "Vacancies",
         "Implantations",
         "Replacements",
+        "Recombinations",
         "PKAs",
         "Lost",
         "Ionization",
-        "Phonons",
         "Lattice",
         "Stored",
         "Recoils",
@@ -45,10 +45,10 @@ const char* tally::arrayDescription(int i)
         "Vacancies",
         "Implantations & Interstitials",
         "Replacements",
+        "Intra-cascade recombinations",
         "PKAs",
         "Ions that exit the simulation volume",
         "Energy deposited to ionization [eV]",
-        "Energy deposited to phonons = lattice+stored [eV]",
         "Energy deposited to the lattice as thermal energy [eV]",
         "Energy stored in lattice defects [eV]",
         "Recoil energy [eV]",
@@ -75,7 +75,7 @@ const char* tally::arrayGroup(int i)
         "defects",
         "defects",
         "defects",
-        "energy_deposition",
+        "defects",
         "energy_deposition",
         "energy_deposition",
         "energy_deposition",
@@ -192,7 +192,9 @@ bool tally::debugCheck(int id, double E0)
 
     p = &A[eIoniz](id,0);
     for(size_t i=0; i<ncell; i++) sI += *p++;
-    p = &A[ePhonon](id,0);
+    p = &A[eLattice](id,0);
+    for(size_t i=0; i<ncell; i++) sPh += *p++;
+    p = &A[eStored](id,0);
     for(size_t i=0; i<ncell; i++) sPh += *p++;
     p = &A[eRecoil](id,0);
     for(size_t i=0; i<ncell; i++) sR += *p++;
@@ -215,8 +217,12 @@ bool tally::debugCheck(double E0)
 
     p = &A[eIoniz](id,0);
     for(size_t i=0; i<ncell; i++) sI0 += *p++;
-    p = &A[ePhonon](id,0);
+
+    p = &A[eLattice](id,0);
     for(size_t i=0; i<ncell; i++) sPh0 += *p++;
+    p = &A[eStored](id,0);
+    for(size_t i=0; i<ncell; i++) sPh0 += *p++;
+
     p = &A[eRecoil](id,0);
     for(size_t i=0; i<ncell; i++) sR0 += *p++;
     p = &A[eLost](id,0);
@@ -229,8 +235,12 @@ bool tally::debugCheck(double E0)
 
     p = A[eIoniz].data();
     for(size_t i=0; i<n; i++) sI += *p++;
-    p = A[ePhonon].data();
-    for(size_t i=0; i<n; i++) sPh += *p++;
+
+    p = &A[eLattice](id,0);
+    for(size_t i=0; i<ncell; i++) sPh += *p++;
+    p = &A[eStored](id,0);
+    for(size_t i=0; i<ncell; i++) sPh += *p++;
+
     p = A[eLost].data();
     for(size_t i=0; i<n; i++) sL += *p++;
 
@@ -250,7 +260,9 @@ double tally::totalErg(int id)
 
     p = &A[eIoniz](id,0);
     for(size_t i=0; i<ncell; i++) sI += *p++;
-    p = &A[ePhonon](id,0);
+    p = &A[eLattice](id,0);
+    for(size_t i=0; i<ncell; i++) sPh += *p++;
+    p = &A[eStored](id,0);
     for(size_t i=0; i<ncell; i++) sPh += *p++;
     p = &A[eRecoil](id,0);
     for(size_t i=0; i<ncell; i++) sR += *p++;
@@ -268,7 +280,9 @@ double tally::totalErg()
 
     p = A[eIoniz].data();
     for(size_t i=0; i<n; i++) sI += *p++;
-    p = A[ePhonon].data();
+    p = A[eLattice].data();
+    for(size_t i=0; i<n; i++) sPh += *p++;
+    p = A[eStored].data();
     for(size_t i=0; i<n; i++) sPh += *p++;
     p = A[eLost].data();
     for(size_t i=0; i<n; i++) sL += *p++;
