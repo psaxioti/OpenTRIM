@@ -137,8 +137,8 @@ This example has all default options and an example target definition.
     "Output": {
         "title": "Ion Simulation", // short title for the simulation 
         "OutputFileBaseName": "out", // base name of output file (extension .h5)
-        "store_transmitted_ions": 1, // store all ions that exit the simulation
-        "store_pka": 1, // store all PKA events
+        "store_exit_events": 1, // store all ions that exit the simulation
+        "store_pka_events": 1, // store all PKA events
         "store_dedx": 1 // store the electronic energy loss tables
     },
     "Driver": {

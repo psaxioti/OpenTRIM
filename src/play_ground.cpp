@@ -108,7 +108,7 @@ int genTestJSON()
 {
     simulation<XS_corteo4bit, std::mt19937> S("2MeV Fe on Fe");
     S.setOutputFileBaseName("FeFC");
-    S.store_pka();
+    S.store_pka_events();
 
     int Zfe = elements::atomicNum("Fe");
     float Mfe = elements::mass(Zfe);

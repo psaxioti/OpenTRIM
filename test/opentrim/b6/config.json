@@ -58,8 +58,8 @@
     "Output" : {
         "title" : "3 MeV H on Fe benchmark 6",
         "OutputFileBaseName" : "b6",
-        "store_pka" : 1,
+        "store_pka_events" : 1,
         "store_dedx" : 1,
-        "store_transmitted_ions" : 1
+        "store_exit_events" : 1
     }
 }

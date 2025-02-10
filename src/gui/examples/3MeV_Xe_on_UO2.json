@@ -87,8 +87,8 @@
     "Output": {
         "title": "3MeV Xe on UO2 example",
         "OutputFileBaseName": "b3",
-        "store_pka": 1,
+        "store_pka_events": 1,
         "store_dedx": 1,
-        "store_transmitted_ions": 1
+        "store_exit_events": 1
     }
 }

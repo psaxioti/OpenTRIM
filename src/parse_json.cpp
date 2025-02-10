@@ -269,21 +269,16 @@ MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     mcdriver::parameters,
-    max_no_ions,
+    max_no_ions, max_cpu_time,
     threads, seed)
 
 MY_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     mcdriver::output_options,
     title,
-    OutputFileBaseName,
+    outfilename,
     storage_interval,
-    store_transmitted_ions,
-    store_range_3d,
-    store_ion_paths,
-    store_path_limit,
-    store_recoil_cascades,
-    store_path_limit_recoils,
-    store_pka,
+    store_exit_events,
+    store_pka_events,
     store_dedx
     )
 

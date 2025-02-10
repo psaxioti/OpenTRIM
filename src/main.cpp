@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
         if (n>0) opt.Driver.max_no_ions = n;
         if (j>0) opt.Driver.threads = j;
         if (s>0) opt.Driver.seed = s;
-        if (!output_file.empty()) opt.Output.OutputFileBaseName = output_file;
+        if (!output_file.empty()) opt.Output.outfilename = output_file;
 
         D.init(opt);
 
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
 
         mcdriver::output_options opts = D.outputOptions();
         if (!output_file.empty()) {
-            opts.OutputFileBaseName = output_file;
+            opts.outfilename = output_file;
             D.setOutputOptions(opts);
         }
     }
@@ -136,9 +136,8 @@ int main(int argc, char* argv[])
     const mcdriver::run_data& rd = D.run_history().back();
     cout << endl << endl
          << "Completed " << rd.total_ion_count << " ion histories." << endl;
-    cout << "ion/s = " << rd.ips << " (total), ";
-    cout << rd.ips/rd.nthreads << " (per thread)" << endl;
-
+    cout << "Cpu time (s) = " << rd.cpu_time << endl;
+    cout << "Ions/s = " << rd.ips << endl;
     cout << "Storing results in " << D.outFileName() << " ...";
     cout.flush();
     D.save(D.outFileName(),&cerr);

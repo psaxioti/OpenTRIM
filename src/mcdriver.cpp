@@ -43,7 +43,7 @@ mcdriver::~mcdriver()
 
 std::string mcdriver::outFileName() const
 {
-    std::string s(out_opts_.OutputFileBaseName);
+    std::string s(out_opts_.outfilename);
     s += ".h5";
     return s;
 }
@@ -89,10 +89,23 @@ void mcdriver::init(const options& o)
     s_->init();
 }
 
+double elapsed_sec(const timespec& t0, const timespec& t1)
+{
+    double d = 1. * (t1.tv_sec - t0.tv_sec);
+    d += 1.e-9 * (t1.tv_nsec - t0.tv_nsec);
+    return d;
+}
+
 int mcdriver::exec(progress_callback cb, size_t msInterval, void *callback_user_data)
 {
     using namespace std::chrono_literals;
     static const size_t msTick = 100;
+    size_t nTickPerInterval = std::max(msInterval / msTick, size_t(1));
+
+    // wall clock time
+    std::time_t start_time_, end_time_;
+    // cpu time
+    struct timespec t_start, t_end;
 
     int nthreads = par_.threads;
     if (nthreads < 1) nthreads = 1;
@@ -103,7 +116,15 @@ int mcdriver::exec(progress_callback cb, size_t msInterval, void *callback_user_
 
     // ion counts
     size_t n_start = s_->ion_count();
-    size_t n_end = n_start + par_.max_no_ions;
+    size_t n_end = par_.max_no_ions;
+    if (n_end <= n_start) return -1;
+
+    // check cpu time limit
+    double tlim = std::numeric_limits<double>::max();
+    if (par_.max_cpu_time) {
+        tlim = par_.max_cpu_time;
+        for(auto& rd : run_history_) tlim -= rd.cpu_time;
+    }
 
     // If ion_count == 0, i.e. simulation starts, seed the rng
     if (s_->ion_count() == 0) s_->seed(par_.seed);
@@ -119,23 +140,21 @@ int mcdriver::exec(progress_callback cb, size_t msInterval, void *callback_user_
 
     // open clone streams
     for(int i=0; i<nthreads; i++) {
-        if (out_opts_.store_pka)
+        if (out_opts_.store_pka_events)
             sim_clones_[i]->open_pka_stream();
-        if (out_opts_.store_transmitted_ions)
+        if (out_opts_.store_exit_events)
             sim_clones_[i]->open_exit_stream();
     }
 
     // If ion_count == 0, i.e. simulation starts,
     // open the main streams
     if (s_->ion_count() == 0) {
-        if (out_opts_.store_pka) s_->open_pka_stream();
-        if (out_opts_.store_transmitted_ions) s_->open_exit_stream();
+        if (out_opts_.store_pka_events) s_->open_pka_stream();
+        if (out_opts_.store_exit_events) s_->open_exit_stream();
     }
 
     // set max ions in each thread
-    for(int i=0; i<nthreads; i++) {
-        sim_clones_[i]->setMaxIons(n_end);
-    }
+    for(int i=0; i<nthreads; i++) sim_clones_[i]->setMaxIons(n_end);
 
     // clear the abort flag
     s_->clear_abort_flag();
@@ -144,33 +163,32 @@ int mcdriver::exec(progress_callback cb, size_t msInterval, void *callback_user_
     for(int i=0; i<nthreads; i++)
         thread_pool_.emplace_back(&mccore::run, sim_clones_[i]);
 
+    // waiting loop
+    do  {
 
-    // report progress if callback function is given
-    if (cb) {
-        size_t iTick, nTick = std::max(msInterval / msTick, size_t(1));
+        // wait time in msTick intervals
+        // always checking if simulation is finished or aborted
+        size_t iTick = 0;
+        do {
+            std::this_thread::sleep_for(std::chrono::milliseconds(msTick));
+            iTick++;
+            clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t_end);
+            if (elapsed_sec(t_start,t_end)>=tlim) abort();
+        } while ((iTick < nTickPerInterval) &&
+                 (s_->ion_count() < n_end) &&
+                 !(s_->abort_flag()));
 
-        // waiting loop
-        do  {
-
+        // report progress if callback function is given
+        if (cb) {
             // consolidate results
             for(int i=0; i<nthreads; i++)
                 s_->mergeTallies(*(sim_clones_[i]));
-
+            // callback
             cb(*this,callback_user_data);
+        }
 
-            // wait time in msTick intervals
-            // always checking if simulation is finished or aborted
-            iTick = 0;
-            while ((iTick < nTick) &&
-                   (s_->ion_count() < n_end) &&
-                   !(s_->abort_flag()))
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(msTick));
-                iTick++;
-            }
 
-        } while((s_->ion_count() < n_end) && !(s_->abort_flag()));
-    }
+    } while((s_->ion_count() < n_end) && !(s_->abort_flag()));
 
     // wait for threads to finish...
     for(int i=0; i<nthreads; i++) thread_pool_[i].join();
@@ -192,11 +210,10 @@ int mcdriver::exec(progress_callback cb, size_t msInterval, void *callback_user_
 
     // save run info
     run_data rd;
-    rd.cpu_time = 1. * (t_end.tv_sec - t_start.tv_sec);
-    rd.cpu_time += 1.e-9 * (t_end.tv_nsec - t_start.tv_nsec);
+    rd.cpu_time = elapsed_sec(t_start, t_end);
     rd.run_ion_count = s_->ion_count()-n_start;
     rd.total_ion_count = s_->ion_count();
-    rd.ips = rd.run_ion_count/rd.cpu_time*nthreads;
+    rd.ips = rd.run_ion_count/rd.cpu_time;
     rd.nthreads = nthreads;
     {
         std::stringstream ss;
@@ -265,7 +282,7 @@ int mcdriver::options::validate(bool AcceptIncomplete)
     }
 
     // Output
-    const std::string& fname = Output.OutputFileBaseName;
+    const std::string& fname = Output.outfilename;
     if (fname.empty() && !AcceptIncomplete)
         throw std::invalid_argument("Output.OutputFileBaseName is empty.");
 

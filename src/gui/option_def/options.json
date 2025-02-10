@@ -352,14 +352,14 @@
                     "whatsThis" : ""
                 },
                 {
-                    "name" : "store_transmitted_ions",
+                    "name" : "store_exit_events",
                     "label": "Store transmitted ions",
                     "type" : "bool",
                     "toolTip" : "Store a table with ions that exit the simulation.",
                     "whatsThis" : ""
                 },
                 {
-                    "name" : "store_pka",
+                    "name" : "store_pka_events",
                     "label": "Store PKAs",
                     "type" : "bool",
                     "toolTip" : "Store a table of PKA data.",

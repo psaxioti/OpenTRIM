@@ -58,7 +58,7 @@
     "Output" : {
         "title" : "2MeV Fe on Fe benchmark",
         "OutputFileBaseName" : "b2",
-        "store_pka" : 1,
-        "store_transmitted_ions" : 1
+        "store_pka_events" : 1,
+        "store_exit_events" : 1
     }
 }

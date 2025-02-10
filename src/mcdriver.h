@@ -53,8 +53,10 @@ class mcdriver
 public:
     /// mcdriver parameters for running the simulation
     struct parameters {
-        /// Ions to run
+        /// Maximum number of ions to run
         size_t max_no_ions{100};
+        /// Maximum cpu time to run (s)
+        size_t max_cpu_time{0};
         /// Number of threads to use
         int threads{1};
         /// Seed for the random number generator
@@ -66,23 +68,13 @@ public:
         /// Simulation title
         std::string title{"Ion Simulation"};
         /// Base name for the output file
-        std::string OutputFileBaseName{"out"};
+        std::string outfilename{"out"};
         /// Interval in sec to store the output @todo
         int storage_interval{1000};
         /// Store ion exit events
-        int store_transmitted_ions{0};
-        /// @todo
-        int store_range_3d{0};
-        /// @todo
-        int store_ion_paths{0};
-        /// @todo
-        int store_path_limit{100};
-        /// @todo
-        int store_recoil_cascades{0};
-        /// @todo
-        int store_path_limit_recoils{4};
+        int store_exit_events{0};
         /// Store the pka events
-        int store_pka{0};
+        int store_pka_events{0};
         /// Store electron energy loss data
         int store_dedx{1};
     };
@@ -169,10 +161,6 @@ public:
     };
 
 protected:
-
-    // timing
-    std::time_t start_time_, end_time_;
-    struct timespec t_start, t_end;
 
     std::vector<run_data> run_history_;
 
