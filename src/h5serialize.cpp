@@ -13,7 +13,7 @@ namespace h5e = H5Easy;
 namespace h5= HighFive;
 
 #define FILE_TYPE_FIELD_NAME "FileType"
-#define FILE_TYPE_FIELD_VALUE "IONS"
+#define FILE_TYPE_FIELD_VALUE "OpenTRIM"
 #define FILE_VERSION_MAJOR_FIELD_NAME "FileVersionMajor"
 #define FILE_VERSION_MINOR_FIELD_NAME "FileVersionMinor"
 #define FILE_VERSION_MAJOR_FIELD_VALUE 1
@@ -546,8 +546,8 @@ try {
 
     // 5. events
     page = "/events/";
-    if (opt.Output.store_pka) dump_event_stream(h5f,page + "pka",s_->pka_stream(),var_list);
-    if (opt.Output.store_transmitted_ions) dump_event_stream(h5f,page + "exit",s_->exit_stream(),var_list);
+    if (opt.Output.store_pka_events) dump_event_stream(h5f,page + "pka",s_->pka_stream(),var_list);
+    if (opt.Output.store_exit_events) dump_event_stream(h5f,page + "exit",s_->exit_stream(),var_list);
 
 
 
@@ -644,14 +644,14 @@ int mcdriver::load(const std::string &h5filename, std::ostream *os)
         }
 
         // load pka events
-        if (opt.Output.store_pka)
+        if (opt.Output.store_pka_events)
         {
             s_->open_pka_stream();
             load_event_stream(h5f,"/events/pka",s_->pka_stream());
         }
 
         // load pka events
-        if (opt.Output.store_transmitted_ions)
+        if (opt.Output.store_exit_events)
         {
             s_->open_exit_stream();
             load_event_stream(h5f,"/events/exit",s_->exit_stream());
