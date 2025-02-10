@@ -25,7 +25,6 @@ public:
 
 public slots:
     void revert();
-    void onSimulationCreated();
     void onTallyUpdate();
     void onDriverStatusChanged();
 
@@ -36,13 +35,8 @@ private:
     MainUI* ionsui;
     MyDataWidgetMapper* mapper;
     QLineEdit* simTitle;
-    QGroupBox* box1;
-    QGroupBox* box2;
     QGroupBox* box3;
-    QSpinBox* sbIons;
-    QSpinBox* sbNThreads;
-    QSpinBox* sbSeed;
-    QSpinBox* sbUpdInterval;
+
     std::vector<QLineEdit*> simTotals;
 
 };

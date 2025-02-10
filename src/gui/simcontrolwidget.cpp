@@ -1,20 +1,26 @@
 #include "simcontrolwidget.h"
 
 #include "mcdriverobj.h"
+#include "mainui.h"
+#include "optionsmodel.h"
+#include "simulationoptionsview.h"
 
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QFormLayout>
+#include <QGridLayout>
 #include <QFrame>
 #include <QLineEdit>
 #include <QToolButton>
 #include <QProgressBar>
+#include <QSpinBox>
 #include <QLabel>
 #include <QStyle>
 #include <QMessageBox>
 
-SimControlWidget::SimControlWidget(McDriverObj *d, QWidget *parent)
-    : QWidget{parent}, driver_(d)
+SimControlWidget::SimControlWidget(MainUI *ui, QWidget *parent)
+    : QWidget{parent}, mainui_(ui), driver_(ui->driverObj())
 {
     /* Create Controls */
     QSize bsz(32,32);
@@ -40,10 +46,41 @@ SimControlWidget::SimControlWidget(McDriverObj *d, QWidget *parent)
     runIndicator->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
     runIndicator->setStyleSheet("font-size: 24px");
 
+
+    // These /Driver/xxx items are NOT connected to mapper
+    // because they can be overriden every time we run the sim
+    OptionsModel* model = mainui_->optionsModel;
+    QModelIndex driverOptionsIdx = model->index("Driver");
+    QModelIndex idx = model->index("max_no_ions",0,driverOptionsIdx);
+    OptionsItem* item = model->getItem(idx);
+    sbIons = (QSpinBox *)item->createEditor(this);
+    simCtrls.push_back(sbIons);
+
+    idx = model->index("threads",0,driverOptionsIdx);
+    item = model->getItem(idx);
+    sbNThreads = (QSpinBox *)item->createEditor(this);
+    simCtrls.push_back(sbNThreads);
+
+    QModelIndex outputOptionsIdx = model->index("Output");
+    idx = model->index("storage_interval",0,outputOptionsIdx);
+    item = model->getItem(idx);
+    sbUpdInterval = (QSpinBox *)item->createEditor(this);
+    simCtrls.push_back(sbUpdInterval);
+
+    idx = model->index("seed",0,driverOptionsIdx);
+    item = model->getItem(idx);
+    sbSeed = (QSpinBox *)item->createEditor(this);
+    simCtrls.push_back(sbSeed);
+
+
     /* Create Info items */
 
-    QStringList indicatorLabels{ "Ions", "Ions/s", "Elapsed", "ETC"};
-    QStringList typContent{ "10000000000000", "100000000", "00000:00:00", "00000:00:00"};
+    QStringList ctrlLabels{ "Ions to run", "Threads", "Upd period (ms)", "Seed"};
+    QStringList indicatorLabels{ "Ions finished", "Ions/s", "Elapsed", "ETC"};
+    QStringList typContent{ "10000000000000000",
+                            "100000",
+                            "00000:00:00",
+                            "00000:00:00"};
 
     QColor clr = palette().color(QPalette::Window);
     QString styleSheet = QString("background: %1").arg(clr.name());
@@ -54,8 +91,8 @@ SimControlWidget::SimControlWidget(McDriverObj *d, QWidget *parent)
         //edt->setFrame(false);
         edt->setStyleSheet(styleSheet);
         edt->setMinimumWidth(fontMetrics().horizontalAdvance(typContent.at(i)));
-        edt->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
-        edt->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        //edt->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+        //edt->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         simIndicators.push_back(edt);
     }
 
@@ -84,14 +121,33 @@ SimControlWidget::SimControlWidget(McDriverObj *d, QWidget *parent)
         }
         {
             QVBoxLayout* vbox = new QVBoxLayout;
-            { // Indicators
-                QHBoxLayout* hbox2 = new QHBoxLayout;
-                for(int i=0; i<indicatorLabels.count(); ++i) {
-                    hbox2->addWidget(new QLabel(indicatorLabels.at(i)));
-                    hbox2->addWidget(simIndicators[i]);
+
+//            { // Indicators
+//                QHBoxLayout* hbox2 = new QHBoxLayout;
+//                for(int i=0; i<indicatorLabels.count(); ++i) {
+//                    hbox2->addWidget(new QLabel(indicatorLabels.at(i)));
+//                    hbox2->addWidget(simIndicators[i]);
+//                }
+//                hbox2->addStretch();
+//                vbox->addLayout(hbox2);
+//            }
+            {
+                QGridLayout* grid = new QGridLayout;
+                vbox->addLayout(grid);
+
+                int icol = 0;
+                for(int i=0; i<4; i++) {
+                    grid->addWidget(new QLabel(ctrlLabels.at(i)),0,icol);
+                    grid->addWidget(new QLabel(indicatorLabels.at(i)),1,icol);
+                    //grid->setColumnStretch(icol,1);
+                    icol++;
+                    grid->addWidget(simCtrls[i],0,icol);
+                    grid->addWidget(simIndicators[i],1,icol);
+                    int w = fontMetrics().horizontalAdvance(typContent.at(i));
+                    grid->setColumnMinimumWidth(icol,w);
+                    //grid->setColumnStretch(icol,100);
+                    icol++;
                 }
-                hbox2->addStretch();
-                vbox->addLayout(hbox2);
             }
             vbox->addWidget(progressBar);
             hbox->addLayout(vbox);
@@ -120,31 +176,60 @@ SimControlWidget::SimControlWidget(McDriverObj *d, QWidget *parent)
                   this, &SimControlWidget::onSimulationStarted, Qt::QueuedConnection);
     assert(ret);
 
+    connect(driver_, &McDriverObj::configChanged,
+            this, &SimControlWidget::revert);
+
+    connect(sbIons,QOverload<int>::of(&QSpinBox::valueChanged),
+            driver_, &McDriverObj::setMaxIons);
+    connect(sbNThreads,QOverload<int>::of(&QSpinBox::valueChanged),
+            driver_, &McDriverObj::setNThreads);
+    connect(sbSeed,QOverload<int>::of(&QSpinBox::valueChanged),
+            driver_, &McDriverObj::setSeed);
+    connect(sbUpdInterval,QOverload<int>::of(&QSpinBox::valueChanged),
+            driver_, &McDriverObj::setUpdInterval);
+
 }
 
 void SimControlWidget::onStart(bool b)
 {
-    McDriverObj* D = driver_;
-    McDriverObj::DriverStatus st = D->status();
+    McDriverObj::DriverStatus st = driver_->status();
     if (b) {
         // already running ?
         if (st == McDriverObj::mcRunning) return;
+
+        // check if there are unsaved options
+        if (mainui_->optionsView->modified()) {
+            int ret = QMessageBox::warning(window(),
+                                 "Run Simulation",
+                                 "Changes to some options have not been applied.\n"
+                                 "Apply them before starting the simulation?",
+                                 QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+            if (ret==QMessageBox::Yes) {
+                mainui_->optionsView->submit();
+
+            } else if (ret==QMessageBox::No) {
+
+            } else {
+                btStart->setChecked(false);
+                return;
+            }
+
+        }
         // validate
         QString msg;
-        bool ret = D->validateOptions(&msg);
+        bool ret = driver_->validateOptions(&msg);
         if (!ret) {
             QMessageBox::warning(window(),"Run Simulation",msg);
             btStart->setChecked(false);
             return;
         }
-        D->start(b);
+        driver_->start(b);
         //simTimer->start(100);
         btStart->setIcon(QIcon(":/icons/assets/ionicons/pause-circle-outline.png"));
     } else {
-        D->start(b);
-        //simTimer->stop();
+        driver_->start(b);
         btStart->setIcon(QIcon(":/icons/assets/ionicons/play-circle-outline.png"));
-        //runIndicator->setText("");
     }
 }
 
@@ -182,6 +267,10 @@ void SimControlWidget::onDriverStatusChanged()
         for(auto edt : simIndicators) edt->setText("");
         progressBar->setValue(0);
     }
+    sbIons->setEnabled(st != McDriverObj::mcRunning);
+    sbNThreads->setEnabled(st != McDriverObj::mcRunning);
+    sbUpdInterval->setEnabled(st != McDriverObj::mcRunning);
+    sbSeed->setEnabled(st == McDriverObj::mcReset);
 }
 
 QString mytimefmt_(double t, bool ceil = false)
@@ -199,19 +288,17 @@ QString mytimefmt_(double t, bool ceil = false)
 
 void SimControlWidget::onSimTimer()
 {
-    driver_->update_run_data();
+    const McDriverObj::running_sim_info& info = driver_->sim_info();
 
     QString cool_chars = "⣾⣷⣯⣟⡿⢿⣻⣽";
     static int k = 0;
     runIndicator->setText(QString(cool_chars[k++ & 7]));
 
-    const McDriverObj* D = driver_;
-
-    progressBar->setValue(D->progress());
-    simIndicators[0]->setText(QString::number(D->nions()));
-    simIndicators[1]->setText(QString::number(D->ips()));
-    simIndicators[2]->setText(mytimefmt_(D->elapsed()));
-    simIndicators[3]->setText(mytimefmt_(D->eta(),true));
+    progressBar->setValue(info.progress());
+    simIndicators[0]->setText(QString::number(info.nions()));
+    simIndicators[1]->setText(QString::number(info.ips()));
+    simIndicators[2]->setText(mytimefmt_(info.elapsed()));
+    simIndicators[3]->setText(mytimefmt_(info.etc(),true));
 }
 
 void SimControlWidget::onSimulationStarted(bool b)
@@ -226,8 +313,16 @@ void SimControlWidget::onSimulationStarted(bool b)
 
 void SimControlWidget::onSimulationCreated()
 {
-    const McDriverObj* D = driver_;
+    const McDriverObj::running_sim_info& info = driver_->sim_info();
 
-    progressBar->setValue(D->progress());
-    simIndicators[0]->setText(QString::number(D->nions()));
+    progressBar->setValue(info.progress());
+    simIndicators[0]->setText(QString::number(info.nions()));
+}
+
+void SimControlWidget::revert()
+{
+    sbIons->setValue(driver_->maxIons());
+    sbNThreads->setValue(driver_->nThreads());
+    sbSeed->setValue(driver_->seed());
+    sbUpdInterval->setValue(driver_->updInterval());
 }

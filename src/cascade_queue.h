@@ -175,11 +175,13 @@ public:
 
     }
 
+//#define CASCADE_DEBUG_PRINT
+
     void intra_cascade_recombination(const grid3D& g, tally& t)
     {
         //if (defect_queue.size()<=2) return;
 
-#ifndef NDEBUG
+#ifdef CASCADE_DEBUG_PRINT
 
         bool dbg = defect_queue.size() > 10;
         if (dbg) {
@@ -193,7 +195,7 @@ public:
         for (; !defect_queue.empty(); defect_queue.pop()) {
             defect* d = defect_queue.top();
 
-#ifndef NDEBUG
+#ifdef CASCADE_DEBUG_PRINT
             if (dbg) print(std::cout, *d);
 #endif
 
@@ -201,7 +203,7 @@ public:
             else recombine((vacancy*)d,g);
         }
 
-#ifndef NDEBUG
+#ifdef CASCADE_DEBUG_PRINT
         if (dbg) {
             std::cout << "END defect_queue\n\n";
             std::cout << "Recombinations (" << riv_.size() << "):\n";

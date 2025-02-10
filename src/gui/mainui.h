@@ -27,7 +27,7 @@ public:
     OptionsModel* optionsModel;
 
     SimulationOptionsView* optionsView;
-    RunView* runView;
+
 
     explicit MainUI(QWidget *parent = nullptr);
     ~MainUI();
@@ -67,7 +67,9 @@ private:
     QStackedWidget * _stackedWidget;
     QThread runnerThread;
     QButtonGroup* pageButtonGrp;
+    RunView* runView;
     SimControlWidget* ctrlWidget;
+
 };
 
 

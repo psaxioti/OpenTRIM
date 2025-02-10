@@ -45,13 +45,15 @@ const mcdriver::options& McDriverObj::options() const
     return options_;
 }
 
-void McDriverObj::setOptions(const mcdriver::options &opt)
+void McDriverObj::setOptions(const mcdriver::options &opt, bool initFromFile)
 {
     options_ = opt;
-    max_ions_ = opt.Driver.max_no_ions;
-    nThreads_ = opt.Driver.threads;
-    seed_ = opt.Driver.seed;
-    updInterval_ = opt.Output.storage_interval;
+    if (initFromFile) {
+        max_ions_ = opt.Driver.max_no_ions;
+        nThreads_ = opt.Driver.threads;
+        seed_ = opt.Driver.seed;
+        updInterval_ = opt.Output.storage_interval;
+    }
     emit configChanged();
     setModified(true);
 }
@@ -174,7 +176,7 @@ void McDriverObj::loadJsonTemplate(const QString &path)
         bool validate = false;
         opt.parseJSON(is,validate);
     }
-    setOptions(opt);
+    setOptions(opt, true);
 
     // In any case, this is called Untitled
     setTemplateName("Untitled");
@@ -200,7 +202,7 @@ void McDriverObj::loadJsonFile(const QString &path)
     bool validate = false;
     opt.parseJSON(is,validate);
 
-    setOptions(opt);
+    setOptions(opt,true);
 
     setFileName(path);
     setTemplate(false);
@@ -247,13 +249,13 @@ bool McDriverObj::loadH5File(const QString &path)
 
     mcdriver::options opt;
     driver_->getOptions(opt);
-    setOptions(opt);
+    setOptions(opt,true);
 
     setFileName(path);
     setTemplate(false);
     setModified(false);
 
-    init_run_data();
+    info_.init(*this);
 
     emit configChanged();
     emit simulationCreated();
@@ -273,17 +275,19 @@ void McDriverObj::saveJson(const QString &fname)
 {
     setFileName(fname);
 
+    // get from our local json
     mcdriver::options opt(options_);
+    // if there is an active sim
     if (driver_->getSim())
         driver_->getOptions(opt); // get options from mccore object
-    else { // get from our local json
+    else { // get my current driver options
         opt.Driver.max_no_ions = max_ions_;
         opt.Driver.seed = seed_;
         opt.Driver.threads = nThreads_;
         opt.Output.storage_interval = updInterval_;
     }
 
-    opt.Output.OutputFileBaseName = fileName().toStdString();
+    opt.Output.outfilename = fileName().toStdString();
 
     std::ofstream os(fname.toLatin1().constData());   
     opt.printJSON(os);
@@ -344,7 +348,7 @@ void McDriverObj::start(bool b)
 
             driver_->init(opt);
 
-            total_elapsed_ = 0;
+            info_.clear();
 
             emit simulationCreated();
 
@@ -374,7 +378,7 @@ void McDriverObj::start_()
     is_running_ = true;
     setStatus(mcRunning);
 
-    init_run_data();
+    info_.init(*this);
 
     emit simulationStarted(true);
 
@@ -383,10 +387,8 @@ void McDriverObj::start_()
         ret = driver_->exec(mc_callback_,updInterval,this);
 
     is_running_ = false;
-    update_run_data();
-    eta_ = 0;
-    total_elapsed_ += elapsed_;
-    elapsed_ = 0.;
+
+    info_.update(*this);
 
     emit simulationStarted(false);
 
@@ -405,7 +407,7 @@ void McDriverObj::onLoadH5_(const QString &path)
 void McDriverObj::onSaveH5_()
 {    
     mcdriver::output_options opts = driver_->outputOptions();
-    opts.OutputFileBaseName = fileName_.toStdString();
+    opts.outfilename = fileName_.toStdString();
     driver_->setOutputOptions(opts);
 
     std::stringstream os;
@@ -420,33 +422,6 @@ void McDriverObj::setStatus(DriverStatus s)
         status_ = s;
         emit statusChanged();
     }
-
-}
-
-void McDriverObj::init_run_data()
-{  
-    tstart_ = my_clock_t::now();
-    nstart_ = driver_->getSim()->ion_count();
-    ncurr_ = nstart_;
-    ntarget_ = nstart_ + driver_->driverOptions().max_no_ions;
-    progress_ = 0;
-    elapsed_ = 0.;
-    eta_ = std::numeric_limits<double>::infinity();
-    ips_ = 0.;
-
-    update_tally_totals_();
-}
-
-void McDriverObj::update_run_data()
-{
-    time_point t = my_clock_t::now();
-    ncurr_ = driver_->getSim()->ion_count();
-    // floating-point duration: no duration_cast needed
-    const std::chrono::duration<double> fp_sec = t - tstart_;
-    elapsed_ = fp_sec.count();
-    ips_ = (ncurr_ - nstart_)/elapsed_;
-    eta_ = (ntarget_ - ncurr_)/ips_;
-    progress_ = int(1000.0*(ncurr_ - nstart_)/(ntarget_-nstart_));
 }
 
 const tally &McDriverObj::getTally() const
@@ -476,3 +451,40 @@ void McDriverObj::reset()
 }
 
 
+void McDriverObj::running_sim_info::clear()
+{
+    tstart_ = hr_clock_t::now();
+    nstart_ = 0;
+    ncurr_ = nstart_;
+    ntarget_ = 0;
+    progress_ = 0;
+    total_elapsed_ = 0;
+    elapsed_ = 0.;
+    etc_ = 0;
+    ips_ = 0.;
+}
+
+void McDriverObj::running_sim_info::init(const McDriverObj &D)
+{
+    tstart_ = hr_clock_t::now();
+    nstart_ = D.driver_->getSim()->ion_count();
+    ncurr_ = nstart_;
+    ntarget_ = D.driver_->driverOptions().max_no_ions;
+    progress_ = int(1000.0*ncurr_/ntarget_);
+    total_elapsed_ += elapsed_;
+    elapsed_ = 0.;
+    etc_ = 0;
+    ips_ = 0.;
+}
+
+void McDriverObj::running_sim_info::update(const McDriverObj &D)
+{
+    time_point t = hr_clock_t::now();
+    ncurr_ = D.driver_->getSim()->ion_count();
+    // floating-point duration: no duration_cast needed
+    const std::chrono::duration<double> fp_sec = t - tstart_;
+    elapsed_ = fp_sec.count();
+    ips_ = (ncurr_ - nstart_)/elapsed_;
+    etc_ = ips_ > 0 ? (ntarget_ - ncurr_)/ips_ : 0;
+    progress_ = int(1000.0*ncurr_/ntarget_);
+}

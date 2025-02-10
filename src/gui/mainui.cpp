@@ -92,7 +92,7 @@ MainUI::MainUI(QWidget *parent)
 //    statusBar->addWidget(statusLabel,1);
 //    statusBar->addWidget(progressBar,10);
 
-    ctrlWidget = new SimControlWidget(driverObj_);
+    ctrlWidget = new SimControlWidget(this);
 
     /* Create the layout */
     QVBoxLayout * vbox = new QVBoxLayout;

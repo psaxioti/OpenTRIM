@@ -8,40 +8,99 @@
 
 #include "mcdriver.h"
 
+/*
+ * QObject encalpsulating the OpenTRIM simulation driver
+ *
+ * The object "lives" in a separate Qt worker thread with its own message queue
+ * (see MainUI constructor)
+ *
+ * The simulation is run from this worker thread.
+ *
+ * Note that a simulation spawns its own separate threads. The worker thread
+ * waits for the simulation to end
+ *
+ */
 class McDriverObj : public QObject
 {
     Q_OBJECT
 
 public:
 
+    // helper class for getting real-time info
+    // for the running simulation
+    class running_sim_info {
+
+        // timing
+        typedef std::chrono::high_resolution_clock hr_clock_t;
+        typedef hr_clock_t::time_point time_point;
+        // sim data
+        time_point tstart_; // time when sim started
+        size_t nstart_; // # of ions when started
+        size_t ncurr_; // # of ions current
+        size_t ntarget_; // max # of ions
+        int progress_; // 0..1000
+        double elapsed_;
+        double total_elapsed_;
+        double etc_; // estimated time to completion (s)
+        double ips_; // ions per second
+
+        friend class McDriverObj;
+
+        // clear = zero out everything
+        void clear();
+        // init : called before simulation starts
+        void init(const McDriverObj& D);
+        // update : called during simulation run
+        void update(const McDriverObj& D);
+
+    public:
+        int progress() const { return progress_; }
+        double elapsed() const { return total_elapsed_ + elapsed_; }
+        double ips() const { return ips_; }
+        double etc() const { return etc_; }
+        size_t nions() const { return ncurr_; }
+    };
+
     explicit McDriverObj();
     virtual ~McDriverObj() override;
 
+    // get/set the simulation options
     const mcdriver::options& options() const;
-    void setOptions(const mcdriver::options& opt);
+    void setOptions(const mcdriver::options& opt, bool initFromFile);
+    // return options as json
     std::string json() const;
 
+    // get/set modified flag
+    // modified = sim options or data have changed
     bool isModified() const { return modified_; }
     void setModified(bool b);
+    // get/set template flag
+    // template = the sim is a template or example
     bool isTemplate() const { return template_; }
     void setTemplate(bool b);
 
+    // get/set file name or full path
     QString fileName() const { return fileName_; }
     QString filePath() const { return filePath_; }
     void setFileName(const QString& path);
     void setTemplateName(const QString& name);
 
+    // get sim title
     QString title() const;
 
+    // validate sim options
+    // error msgs are optionally returned in msg pointer
     bool validateOptions(QString* msg = nullptr) const;
 
     enum DriverStatus {
-        mcReset = 0,
-        mcIdle = 1,
-        mcRunning = 2,
+        mcReset = 0, // reset state = mccore object does not exist,
+                     //               options can be changed
+        mcIdle = 1, // mccore created, not running
+        mcRunning = 2, // simulation running
         mcMax = 3
     };
 
+    // get driver status
     DriverStatus status() const { return (DriverStatus)int(status_); };
 
     // load a json example or the default if path = QString()
@@ -57,33 +116,39 @@ public:
     void start(bool b);
     void reset();
 
-    void init_run_data();
-    void update_run_data();
-    int progress() const { return progress_; }
-    double elapsed() const { return total_elapsed_ + elapsed_; }
-    double ips() const { return ips_; }
-    double eta() const { return eta_; }
-    size_t nions() const { return ncurr_; }
+    // get real time simulation info
+    const running_sim_info& sim_info()
+    { info_.update(*this); return info_; }
     const ArrayNDd& totals() const { return totals_; }
     const ArrayNDd& dtotals() const { return dtotals_; }
 
     const tally& getTally() const;
     const mccore* getSim() const;
 
+    // get run parameters
     size_t maxIons() const { return max_ions_; }
     int nThreads() const { return nThreads_; }
     int seed() const { return seed_; }
     int updInterval() const { return updInterval_; }
 
 public slots:
+
+    // set run parameters
     void setMaxIons(int n) { max_ions_ = n; };
     void setNThreads(int n) { nThreads_ = n; };
     void setSeed(int n) { seed_ = n; }
     void setUpdInterval(int n) { updInterval_ = n; }
 
 private slots:
+
+    // internal slots to pass commands to
+    // worker thread
+
+    // start the simulation
     void start_();
+    // load HDF5 file
     void onLoadH5_(const QString& path);
+    // save data to HDF5
     void onSaveH5_();
 
 signals:
@@ -122,26 +187,21 @@ private:
     int seed_;
     int updInterval_;
 
-    // state
-    typedef std::chrono::high_resolution_clock my_clock_t;
-    typedef my_clock_t::time_point time_point;
+    // run info
+    running_sim_info info_;
+    friend class running_sim_info;
 
-    time_point tstart_; // time when sim started
-    size_t nstart_; // # of ions when starting
-    size_t ncurr_; // # of ions current
-    size_t ntarget_; // max # of ions
-    int progress_; // 0..100 in percent
-    double elapsed_;
-    double total_elapsed_;
-    double eta_; // s
-    double ips_; // ions per second
+    // tally totals - to be updated in regular intervals
+    void update_tally_totals_();
     ArrayNDd totals_, dtotals_;
 
     void setStatus(DriverStatus s);
 
     static void mc_callback_(const mcdriver& d, void* p);
 
-    void update_tally_totals_();
+
+
+
 };
 
 #endif // MCDRIVEROBJ_H

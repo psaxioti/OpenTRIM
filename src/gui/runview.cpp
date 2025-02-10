@@ -46,26 +46,6 @@ RunView::RunView(MainUI *iui, QWidget *parent)
         simTitle->setStyleSheet("font-size : 14pt");
     }
 
-    // These /Driver/xxx items are NOT connected to mapper
-    // because they can be overriden every time we run the sim
-    QModelIndex driverOptionsIdx = model->index("Driver");
-    QModelIndex idx = model->index("max_no_ions",0,driverOptionsIdx);
-    OptionsItem* item = model->getItem(idx);
-    sbIons = (QSpinBox *)item->createEditor(this);
-
-    idx = model->index("threads",0,driverOptionsIdx);
-    item = model->getItem(idx);
-    sbNThreads = (QSpinBox *)item->createEditor(this);
-
-    idx = model->index("seed",0,driverOptionsIdx);
-    item = model->getItem(idx);
-    sbSeed = (QSpinBox *)item->createEditor(this);
-
-    QModelIndex outputOptionsIdx = model->index("Output");
-    idx = model->index("storage_interval",0,outputOptionsIdx);
-    item = model->getItem(idx);
-    sbUpdInterval = (QSpinBox *)item->createEditor(this);
-
     /* Create Info items */
 
     int ntotals = tally::std_tallies - 1;
@@ -81,24 +61,6 @@ RunView::RunView(MainUI *iui, QWidget *parent)
     }
 
     /* Layout items */
-
-    box1 = new QGroupBox("Run Settings");
-    {
-        QFormLayout* flayout1 = new QFormLayout;
-        flayout1->addRow("Ions to simulate",sbIons);
-        flayout1->addRow("# of Threads", sbNThreads);
-
-        QFormLayout* flayout2 = new QFormLayout;
-        flayout2->addRow("Random seed",sbSeed);
-        flayout2->addRow("Update interval (s)",sbUpdInterval);
-
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->addLayout(flayout1);
-        hbox->addSpacing(20);
-        hbox->addLayout(flayout2);
-        box1->setLayout(hbox);
-        box1->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Fixed);
-    }
 
     box3 = new QGroupBox("Simulation Results");
     {
@@ -132,8 +94,7 @@ RunView::RunView(MainUI *iui, QWidget *parent)
         hbox->addStretch();
         vbox->addLayout(hbox);
     }
-    vbox->addWidget(box1);
-    //vbox->addWidget(box2);
+
     vbox->addWidget(box3);
     vbox->addStretch();
     setLayout(vbox);
@@ -148,36 +109,14 @@ RunView::RunView(MainUI *iui, QWidget *parent)
     connect(ionsui->driverObj(), &McDriverObj::tallyUpdate,
             this, &RunView::onTallyUpdate, Qt::QueuedConnection);
 
-//    connect(ionsui->driverObj(), &McDriverObj::simulationCreated,
-//            this, &RunView::onTallyUpdate);
-
     connect(ionsui->driverObj(), &McDriverObj::configChanged,
             this, &RunView::revert);
 
-    connect(sbIons,QOverload<int>::of(&QSpinBox::valueChanged),
-            ionsui->driverObj(), &McDriverObj::setMaxIons);
-    connect(sbNThreads,QOverload<int>::of(&QSpinBox::valueChanged),
-            ionsui->driverObj(), &McDriverObj::setNThreads);
-    connect(sbSeed,QOverload<int>::of(&QSpinBox::valueChanged),
-            ionsui->driverObj(), &McDriverObj::setSeed);
-    connect(sbUpdInterval,QOverload<int>::of(&QSpinBox::valueChanged),
-            ionsui->driverObj(), &McDriverObj::setUpdInterval);
 }
 
 void RunView::revert()
 {
     mapper->revert();
-
-    McDriverObj* D = ionsui->driverObj();
-    sbIons->setValue(D->maxIons());
-    sbNThreads->setValue(D->nThreads());
-    sbSeed->setValue(D->seed());
-    sbUpdInterval->setValue(D->updInterval());
-}
-
-void RunView::onSimulationCreated()
-{
-    ionsui->optionsView->setEnabled(false);
 }
 
 void RunView::onTallyUpdate()
@@ -196,10 +135,6 @@ void RunView::onDriverStatusChanged()
 {
     const McDriverObj* D = ionsui->driverObj();
     McDriverObj::DriverStatus st = D->status();
-
-    box1->setEnabled(st != McDriverObj::mcRunning);
-
-    sbSeed->setEnabled(st == McDriverObj::mcReset);
 
     if (st == McDriverObj::mcReset)
         for(auto edt : simTotals) edt->setText("");
