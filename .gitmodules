@@ -1,3 +1,0 @@
-[submodule "src/gui/qmatplotwidget"]
-	path = src/gui/qmatplotwidget
-	url = ../../qdaq/qmatplotwidget.git

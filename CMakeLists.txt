@@ -202,6 +202,20 @@ message(STATUS "Found Qt${QT_VERSION_MAJOR}")
 find_package(Qwt REQUIRED)
 message(STATUS "Found Qwt ${QWT_VERSION_STRING} at ${QWT_INCLUDE_DIR}")
 
+include(ExternalProject)
+ExternalProject_Add(qmatplotwidget
+    GIT_REPOSITORY https://gitlab.com/qdaq/qmatplotwidget.git
+    GIT_TAG master
+    SOURCE_DIR qmatplotwidget
+    CONFIGURE_COMMAND ""
+    CMAKE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+    BUILD_BYPRODUCTS qmatplotwidget/src/QMatPlotWidget.cpp qmatplotwidget/src/QMatPlotWidget.h
+)
+
+ExternalProject_Get_Property(qmatplotwidget SOURCE_DIR)
+
 set(GUI_SOURCES
     src/gui/main.cpp
     src/gui/mainui.cpp
@@ -232,8 +246,7 @@ set(GUI_SOURCES
     src/gui/simcontrolwidget.h 
     src/gui/simcontrolwidget.cpp
     src/gui/error_fmt.h
-    src/gui/qmatplotwidget/src/QMatPlotWidget.h 
-    src/gui/qmatplotwidget/src/QMatPlotWidget.cpp
+    ${SOURCE_DIR}/src/QMatPlotWidget.cpp
     src/gui/jsedit/jsedit.h 
     src/gui/jsedit/jsedit.cpp
 )
@@ -251,9 +264,12 @@ else()
     )
 endif()
 
+add_dependencies(${GUI_TARGET} qmatplotwidget)
+
 target_include_directories(${GUI_TARGET} PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     extern/json-3.11.3/single_include/
+    ${SOURCE_DIR}/src
 )
 
 target_link_libraries(${GUI_TARGET} PRIVATE
