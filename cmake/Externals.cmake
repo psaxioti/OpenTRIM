@@ -12,6 +12,7 @@ FetchContent_Declare(external_cxxopts
    EXCLUDE_FROM_ALL
    SOURCE_SUBDIR dummy
 )
+FetchContent_MakeAvailable(external_cxxopts)
 
 FetchContent_Declare(external_highfive
    GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
@@ -21,6 +22,7 @@ FetchContent_Declare(external_highfive
    EXCLUDE_FROM_ALL
    SOURCE_SUBDIR dummy
 )
+FetchContent_MakeAvailable(external_highfive)
 
 FetchContent_Declare(external_isotope
    GIT_REPOSITORY git@github.com:Gregstrq/Isotope-data.git
@@ -30,6 +32,7 @@ FetchContent_Declare(external_isotope
    EXCLUDE_FROM_ALL
    SOURCE_SUBDIR dummy
 )
+FetchContent_MakeAvailable(external_isotope)
 
 FetchContent_Declare(external_json
    GIT_REPOSITORY git@github.com:nlohmann/json.git
@@ -39,6 +42,7 @@ FetchContent_Declare(external_json
    EXCLUDE_FROM_ALL
    SOURCE_SUBDIR dummy
 )
+FetchContent_MakeAvailable(external_json)
 
 FetchContent_Declare(external_periodic
    GIT_REPOSITORY git@github.com:Bowserinator/Periodic-Table-JSON.git
@@ -48,15 +52,7 @@ FetchContent_Declare(external_periodic
    EXCLUDE_FROM_ALL
    SOURCE_SUBDIR dummy
 )
-
-# FetchContent_Declare(external_progress
-#    GIT_REPOSITORY git@github.com:gipert/progressbar.git
-#    GIT_TAG v2.1
-#    GIT_SUBMODULES_RECURSE FALSE
-#    GIT_SHALLOW TRUE
-#    EXCLUDE_FROM_ALL
-#    SOURCE_SUBDIR dummy
-# )
+FetchContent_MakeAvailable(external_periodic)
 
 if (BUILD_GUI)
    FetchContent_Declare(external_qmatplotwidget
@@ -67,4 +63,5 @@ if (BUILD_GUI)
       EXCLUDE_FROM_ALL
       SOURCE_SUBDIR dummy
    )
+   FetchContent_MakeAvailable(external_qmatplotwidget)
 endif()

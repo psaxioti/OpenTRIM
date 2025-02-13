@@ -42,12 +42,16 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/.local" CACHE PATH "Default install path" FORCE)
   endif()
 endif()
+message (STATUS "Install prefix =  ${CMAKE_INSTALL_PREFIX}")
 
-message (STATUS "Install prefix =  ${CMAKE_INSTALL_PREFIX}") 
+if((CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (NOT CMAKE_CROSSCOMPILING))
+    # use install rpath, no need to use LD_LIBRARY_PATH 
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+endif()
+message (STATUS "Install rpath =  ${CMAKE_INSTALL_RPATH}")
 
-# use install rpath, no need to use LD_LIBRARY_PATH 
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+
 
 find_package(Eigen3 3.4 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -122,6 +126,10 @@ target_sources(${LIB_TARGET}
             source/include/tally.h 
             source/include/mcdriver.h 
 )
+target_sources(${LIB_TARGET}
+    PRIVATE 
+        source/include/json_defs_p.h
+)
 
 set(PROJECT_LIBS
     "-lm"
@@ -132,8 +140,6 @@ set(PROJECT_LIBS
 
 target_link_libraries(${LIB_TARGET} ${PROJECT_LIBS})
 
-FetchContent_MakeAvailable(external_json)
-FetchContent_MakeAvailable(external_highfive)
 target_include_directories(${LIB_TARGET} PRIVATE
     ${external_json_SOURCE_DIR}/single_include/ 
     ${external_highfive_SOURCE_DIR}/include)
@@ -144,7 +150,6 @@ add_executable(${EXE_TARGET}
 # adjust exe name to be the same as the library's
 set_property(TARGET ${EXE_TARGET} PROPERTY OUTPUT_NAME ${PROJECT_NAME_LOWERCASE})
 
-FetchContent_MakeAvailable(external_cxxopts)
 target_include_directories(${EXE_TARGET} PRIVATE
     ${external_cxxopts_SOURCE_DIR}/include
     source/external-progressbar/include)
