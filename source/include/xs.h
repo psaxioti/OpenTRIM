@@ -9,8 +9,6 @@
 #define BOHR_RADIUS 0.05291772108 /* Bohr radius [nm] */
 #define SCREENCONST 0.88534 /* Lindhard screening length constant */
 #define E2C2 1.43996445      /* e^2 / 4 pi eps0 = e^2 c^2 in [eV][nm] */
-#define AMUbyE 1.036426883E-8 /* amu/e = 1.660538782E-27/1.602176487E-19 */
-#define ELEMENTARY_CHARGE 1.602176487E-19
 
 /**
  * \defgroup XS Screened Coulomb scattering calculations

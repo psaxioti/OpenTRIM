@@ -161,29 +161,33 @@ public:
     /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
     const atom* myAtom() const { return atom_; }
 
+#define E_MIN -1.0e-6
+
     void de_phonon(double de) {
         erg_ -= de;
         phonon_ += de;
-        assert(erg_>=0);
+        assert(erg_>=E_MIN);
         assert(finite(erg_));
     }
     void de_ioniz(double de) {
         erg_ -= de;
         ioniz_ += de;
-        assert(erg_>0);
+        assert(erg_>E_MIN);
         assert(finite(erg_));
     }
     void de_recoil(double T) {
+        erg_ -= T;
+        recoil_ += T;
         // This is needed because recoil T is calculated in single precision
         // and it can happen that T > erg by a small amount, e.g. 1e-6
-        if (T >= erg_) {
-            recoil_ += erg_;
-            erg_ = 0;
-        } else {
-            erg_ -= T;
-            recoil_ += T;
-        }
-        assert(erg_>=0);
+//        if (T >= erg_) {
+//            recoil_ += erg_;
+//            erg_ = 0;
+//        } else {
+//            erg_ -= T;
+//            recoil_ += T;
+//        }
+        assert(erg_>=E_MIN);
         assert(finite(erg_));
     }
     const double& phonon() const { return phonon_; }

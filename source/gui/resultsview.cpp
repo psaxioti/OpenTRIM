@@ -168,18 +168,20 @@ ResultsView::ResultsView(MainUI *iui, QWidget *parent)
   connect(plotSelect, &QListWidget::itemChanged, this,
           &ResultsView::onPlotSelectChanged);
 
+  connect(axisButtonGrp, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked),
+          this, &ResultsView::updateAxisSelection);
+
+  connect(axPts[0], QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &ResultsView::onDataSelectionChanged);
+  connect(axPts[1], QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &ResultsView::onDataSelectionChanged);
+
   /* set the current item to "Vacancies" */
   tallyTree->setCurrentItem(curr);
 }
 
 void ResultsView::setCurrentTable(int i) {
   currentTable_ = i;
-
-  QStringList lbls{"Y pts.", "Z pts."};
-  for (int i = 0; i < 2; ++i) {
-    axPts[i]->clear();
-    axPtsLbls[i]->setText(lbls.at(i));
-  }
 
   plotSelect->clear();
 
@@ -200,7 +202,14 @@ void ResultsView::updateTableData() {
 
   int natoms = A.dim()[0];
   int axId = axisButtonGrp->checkedId();
+
+  QVector<int> axes{0, 1, 2};
+  axes.remove(axId);
   int idx[3] = {0, 0, 0};
+  for(int i=0; i<axes.size(); i++) {
+      int axId1 = axes[i];
+      if (Nx[axId1]>1) idx[axId1] = axPts[i]->currentIndex();
+  }
 
   Data.clear();
 
@@ -228,7 +237,8 @@ void ResultsView::updateTableData() {
   }
 }
 
-void ResultsView::copyTable() {
+void ResultsView::copyTable()
+{
   ArrayNDd A0 = tally_.at(0);
   ionsui->driverObj()->getSim()->copyTallyTable(0, A0);
   ArrayNDd A = tally_.at(currentTable_);
@@ -274,12 +284,24 @@ void ResultsView::updatePlotSeries() {
   }
 }
 
-void ResultsView::updateAxisSelection() {}
+void ResultsView::updateAxisSelection()
+{
+    int axId = axisButtonGrp->checkedId();
+    makeAxisCtrls();
+    updateTableData();
+    updatePlot();
+}
 
 void ResultsView::onPlotSelectChanged(QListWidgetItem *i) {
   int idx = i->data(Qt::UserRole).toInt();
   plotFlag[idx] = i->checkState() == Qt::Checked;
   updatePlot();
+}
+
+void ResultsView::onDataSelectionChanged()
+{
+    updateTableData();
+    updatePlot();
 }
 
 void ResultsView::onExportCSV() {
@@ -326,7 +348,10 @@ void ResultsView::onExportPlot() {
   plotWidget->exportToFile("ions_export.pdf", QSize(160, 120));
 }
 
-void ResultsView::updateDataSelection() {}
+void ResultsView::updateDataSelection()
+{
+
+}
 
 void ResultsView::updatePlot() {
   static const char *xAxisLabel[] = {"x (nm)", "y (nm)", "z (nm)"};
@@ -369,6 +394,30 @@ void ResultsView::updatePlot() {
                            .arg(tally::arrayDescription(currentTable_)));
 }
 
+void ResultsView::makeAxisCtrls()
+{
+    const char* lbls[] = {"X pts.", "Y pts.", "Z pts."};
+
+    QVector<int> axes{0, 1, 2};
+
+    int axId = axisButtonGrp->checkedId();
+
+    axes.remove(axId);
+
+    for (int i = 0; i < axes.size(); ++i) {
+        axId = axes[i];
+        axPtsLbls[i]->setText(lbls[axId]);
+        axPts[i]->blockSignals(true);
+        axPts[i]->clear();
+        if (Nx[axId]>1) {
+            for(int j=0; j<Nx[axId]; j++)
+                axPts[i]->addItem(QString("%1. %2nm").arg(j+1).arg(X[axId][2*j]));
+            axPts[i]->setCurrentIndex(Nx[axId]/2);
+        }
+        axPts[i]->blockSignals(false);
+    }
+}
+
 void ResultsView::onSimulationCreated() {
   McDriverObj *D = ionsui->driverObj();
 
@@ -409,10 +458,13 @@ void ResultsView::onSimulationCreated() {
     X.push_back(ArrayNDd(2 * Nx[k]));
     int j = 0;
     for (int i = 0; i < Nx[k]; ++i) {
-      X[k][j++] = grid.x()[i];
-      X[k][j++] = grid.x()[i + 1];
+      X[k][j++] = grid.z()[i];
+      X[k][j++] = grid.z()[i + 1];
     }
   }
+
+  axisButtonGrp->button(0)->setChecked(true);
+  makeAxisCtrls();
 
   // atom labels
   auto atom_labels = D->getSim()->getTarget().atom_labels();

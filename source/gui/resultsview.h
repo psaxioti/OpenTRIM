@@ -23,15 +23,6 @@ class ResultsView : public QSplitter
     Q_OBJECT
 public:
 
-    QTreeWidget* tallyTree;
-    QMatPlotWidget* plotWidget;
-    QToolButton* axButton[3];
-    QButtonGroup* axisButtonGrp;
-    QToolButton* btExport;
-    QComboBox* axPts[2];
-    QLabel* axPtsLbls[2];
-    QListWidget* plotSelect;
-
     explicit ResultsView(MainUI* iui, QWidget *parent = nullptr);
 
     int currentTable() const { return currentTable_; }
@@ -49,6 +40,7 @@ private slots:
     void updatePlotSeries();
     void updateAxisSelection();
     void onPlotSelectChanged(QListWidgetItem* i);
+    void onDataSelectionChanged();
     void onExportCSV();
     void onExportPlot();
 
@@ -65,6 +57,17 @@ private:
     QVector<int> plotFlag;
     QStringList atomLabels;
 
+    // widgets
+    QTreeWidget* tallyTree;
+    QMatPlotWidget* plotWidget;
+    QToolButton* axButton[3];
+    QButtonGroup* axisButtonGrp;
+    QToolButton* btExport;
+    QComboBox* axPts[2];
+    QLabel* axPtsLbls[2];
+    QListWidget* plotSelect;
+
+
     int idx_(int i, int j, int k) const {
         return  (i*Nx[1]+j)*Nx[2]+k;
     }
@@ -75,6 +78,7 @@ private:
     void updateTableData();
     void updateDataSelection();
     void updatePlot();
+    void makeAxisCtrls();
 
     QTreeWidgetItem* createItem(const QString &text, QTreeWidgetItem *parent, int index);
     void updateChildItems(QTreeWidgetItem *parent);
