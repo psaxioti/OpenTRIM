@@ -11,10 +11,14 @@ set(ISOTOPE_CSV ${external_isotope_SOURCE_DIR}/isotopes_data.csv)
 set(PTABLE_CSV ${external_periodic_SOURCE_DIR}/PeriodicTableCSV.csv)
 set(PTABLE_DATA_CPP periodic_table.cpp)
 
-add_custom_command(OUTPUT ${PTABLE_DATA_CPP}
-    COMMAND genptable ${ISOTOPE_CSV} ${PTABLE_CSV} ${PTABLE_DATA_CPP}
-    DEPENDS genptable
-)
+if(EXISTS ${ISOTOPE_CSV} AND EXISTS ${PTABLE_CSV})
+    add_custom_command(OUTPUT ${PTABLE_DATA_CPP}
+        COMMAND genptable ${ISOTOPE_CSV} ${PTABLE_CSV} ${PTABLE_DATA_CPP}
+        DEPENDS genptable
+    )
+else()
+    message(FATAL_ERROR "Periodic table and/or isotope data not Found!!!")
+endif()
 
 add_executable(gencorteo EXCLUDE_FROM_ALL
     source/src/gencorteo.cpp
