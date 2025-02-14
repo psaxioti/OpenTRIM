@@ -53,9 +53,9 @@ SimulationOptionsView::SimulationOptionsView(MainUI *iui, QWidget *parent)
 {
     tabWidget = new QTabWidget;
 
-    QObjectList opts;
-    QWidget* widget;
-    QFormLayout* flayout;
+//    QObjectList opts;
+//    QWidget* widget;
+//    QFormLayout* flayout;
 
     OptionsModel* model = ionsui->optionsModel;
     mapper = new MyDataWidgetMapper(model,this);
@@ -85,7 +85,7 @@ SimulationOptionsView::SimulationOptionsView(MainUI *iui, QWidget *parent)
         QModelIndex idxOut = model->index("Output",0);
         QModelIndex idxTitle = model->index("title",0,idxOut);
         OptionsItem* item = model->getItem(idxTitle);
-        simTitle = (QLineEdit*)item->createEditor(widget);
+        simTitle = (QLineEdit*)item->createEditor(nullptr);
         simTitleLabel->setToolTip(simTitle->toolTip());
         simTitleLabel->setWhatsThis(simTitle->whatsThis());
         mapper->addMapping(simTitle,idxTitle,item->editorSignal());

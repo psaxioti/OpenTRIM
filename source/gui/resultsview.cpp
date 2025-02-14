@@ -252,8 +252,12 @@ void ResultsView::onTallyUpdate() {
 }
 
 void ResultsView::updatePlotSeries() {
-  static const int useFirstCol[] = {0, 0, 1, 1, 0, 1, // defects
-                                    1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1};
+
+    // use 1st column if projectile ions contribute
+  static const int useFirstCol[] = {0,
+                                    0, 1, 1, 0, 0, 1, // defects
+                                    1, 1, 0, 1, 0, 1, // energy
+                                    0, 0, 0, 0, 1, 1};
 
   plotSelect->clear();
   plotFlag.clear();
@@ -361,7 +365,7 @@ void ResultsView::updatePlot() {
                                      "count / ion",
                                      "count / ion",
                                      "count / ion",
-                                     "eV / ion",
+                                     "count / ion",
                                      "eV / ion",
                                      "eV / ion",
                                      "eV / ion",
