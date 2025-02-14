@@ -4,7 +4,7 @@
 #     ${PTABLE_DATA_CPP})
 
 add_executable(genptable EXCLUDE_FROM_ALL
-    src/genptable.cpp
+    source/src/genptable.cpp
 )
 
 FetchContent_MakeAvailable(external_isotope)
@@ -20,7 +20,7 @@ add_custom_command(OUTPUT ${PTABLE_DATA_CPP}
 )
 
 add_executable(gencorteo EXCLUDE_FROM_ALL
-    src/gencorteo.cpp
+    source/src/gencorteo.cpp
 )
 
 FetchContent_MakeAvailable(external_cxxopts)
