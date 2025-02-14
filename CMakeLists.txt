@@ -151,8 +151,7 @@ add_executable(${EXE_TARGET}
 set_property(TARGET ${EXE_TARGET} PROPERTY OUTPUT_NAME ${PROJECT_NAME_LOWERCASE})
 
 target_include_directories(${EXE_TARGET} PRIVATE
-    ${external_cxxopts_SOURCE_DIR}/include
-    source/external-progressbar/include)
+    ${external_cxxopts_SOURCE_DIR}/include)
 
 target_link_libraries(${EXE_TARGET}
     ${LIB_TARGET}

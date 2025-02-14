@@ -9,7 +9,24 @@ message(STATUS "Found Qt${QT_VERSION_MAJOR}")
 find_package(Qwt REQUIRED)
 message(STATUS "Found Qwt ${QWT_VERSION_STRING} at ${QWT_INCLUDE_DIR}")
 
-FetchContent_MakeAvailable(external_qmatplotwidget)
+set(GUI_HEADERS
+    mainui.h
+    simulationoptionsview.h 
+    periodictablewidget.h  
+    materialsdefview.h 
+    optionsmodel.h 
+    floatlineedit.h 
+    mydatawidgetmapper.h 
+    regionsview.h 
+    welcomeview.h 
+    runview.h 
+    mcdriverobj.h 
+    resultsview.h 
+    simcontrolwidget.h 
+    error_fmt.h
+    jsedit/jsedit.h 
+    ${external_qmatplotwidget_SOURCE_DIR}/src/QMatPlotWidget.h
+)
 
 set(GUI_SOURCES
     main.cpp
@@ -36,15 +53,14 @@ set (GUI_TARGET ${PROJECT_NAME_LOWERCASE}-gui)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(${GUI_TARGET}
         MANUAL_FINALIZATION
-        ${GUI_SOURCES}
+        ${GUI_SOURCES} ${GUI_HEADERS}
     )
 else()
     add_executable(${GUI_TARGET}
-        ${GUI_SOURCES}
+        ${GUI_SOURCES} ${GUI_HEADERS}
     )
 endif()
 
-FetchContent_MakeAvailable(external_json)
 target_include_directories(${GUI_TARGET} PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${external_json_SOURCE_DIR}/single_include/
