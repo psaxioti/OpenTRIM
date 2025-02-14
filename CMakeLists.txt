@@ -46,7 +46,7 @@ message (STATUS "Install prefix =  ${CMAKE_INSTALL_PREFIX}")
 
 if((CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (NOT CMAKE_CROSSCOMPILING))
     # use install rpath, no need to use LD_LIBRARY_PATH 
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}")
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 endif()
 message (STATUS "Install rpath =  ${CMAKE_INSTALL_RPATH}")
