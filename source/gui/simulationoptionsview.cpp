@@ -53,10 +53,6 @@ SimulationOptionsView::SimulationOptionsView(MainUI *iui, QWidget *parent)
 {
     tabWidget = new QTabWidget;
 
-//    QObjectList opts;
-//    QWidget* widget;
-//    QFormLayout* flayout;
-
     OptionsModel* model = ionsui->optionsModel;
     mapper = new MyDataWidgetMapper(model,this);
 
