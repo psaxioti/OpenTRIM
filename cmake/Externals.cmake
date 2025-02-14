@@ -46,7 +46,7 @@ FetchContent_MakeAvailable(external_json)
 
 FetchContent_Declare(external_periodic
    GIT_REPOSITORY git@github.com:Bowserinator/Periodic-Table-JSON.git
-   GIT_TAG v.4.0.0
+   GIT_TAG master
    GIT_SUBMODULES_RECURSE FALSE
    GIT_SHALLOW TRUE
    EXCLUDE_FROM_ALL
