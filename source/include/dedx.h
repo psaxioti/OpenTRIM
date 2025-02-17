@@ -18,18 +18,19 @@
  *
  * \f$dE/dx\f$ is given as a function of ion energy on a log-spaced corteo range
  * defined by \ref dedx_index.
- * 
- * Tables are provided for all projectile (\f$Z=Z_1\f$) / target (\f$Z=Z_2\f$) compinations with \f$ 1 \leq Z_1, Z_2 \leq 92\f$ 
+ *
+ * Tables are provided for all projectile (\f$Z=Z_1\f$) / target (\f$Z=Z_2\f$) compinations with \f$
+ * 1 \leq Z_1, Z_2 \leq 92\f$
  *
  * The data are compiled into a dynamic library (libdedx.so or .dll).
- * 
+ *
  * The \ref dedx_interp interpolator object can be used for stopping
- * calculations in mono- and polyatomic materials. The stopping at a given 
+ * calculations in mono- and polyatomic materials. The stopping at a given
  * ion energy is obtained by log-log interpolation.
- * 
+ *
  * \ref straggling_interp is a similar interpolator class for calculating
  * energy straggling.
- * 
+ *
  * Direct access to the stopping tables is provided by the function \ref raw_dedx().
  *
  * @}
@@ -51,7 +52,8 @@
 typedef corteo::index<float, int, 4, 4, 30> dedx_index;
 
 /**
- * @brief Return a table of electronic stopping for a projectile (atomic number Z1) moving inside a target (atomic number Z2)
+ * @brief Return a table of electronic stopping for a projectile (atomic number Z1) moving inside a
+ * target (atomic number Z2)
  *
  * Stopping data is calculated at log-spaced ion energy values given by \ref dedx_index.
  *
@@ -69,9 +71,9 @@ typedef corteo::index<float, int, 4, 4, 30> dedx_index;
  *
  * @ingroup dedx
  */
-const float* raw_dedx(int Z1, int Z2);
+const float *raw_dedx(int Z1, int Z2);
 
-constexpr int dedx_max_Z{92};
+constexpr int dedx_max_Z{ 92 };
 
 /**
  * @brief Interpolator class for ion electronic stopping calculations
@@ -89,16 +91,14 @@ constexpr int dedx_max_Z{92};
  *
  * data() returns a pointer to the first element in the internal
  * energy loss data table.
- * 
+ *
  * Raw stopping data is obtained internally by calling raw_dedx().
  *
  * @ingroup dedx
  */
-class dedx_interp : public corteo::log_interp< dedx_index >
+class dedx_interp : public corteo::log_interp<dedx_index>
 {
-    int init(int Z1, float M1,
-             const std::vector<int> &Z2,
-             const std::vector<float> &X2,
+    int init(int Z1, float M1, const std::vector<int> &Z2, const std::vector<float> &X2,
              float atomicDensity);
 
 public:
@@ -109,40 +109,37 @@ public:
      * @param Z2 target atom atomic number
      * @param N target atomic density in [at/nm3]
      */
-    dedx_interp(int Z1, float M1,
-         int Z2, float N = 1.f);
+    dedx_interp(int Z1, float M1, int Z2, float N = 1.f);
     /**
      * @brief Construct an interpolator for polyatomic targets
-     * 
+     *
      * The total stopping power is given by the Bragg mixing rule:
      * \f[
      * dE/dx = N\sum_i{X_i (dE/dx)_i}
      * \f]
      * where the sum is over all atomic species in the target.
-     * 
+     *
      * @param Z1 projectile atomic number
      * @param M1 projectile atomic mass
      * @param Z2 vector of target atom atomic numbers
      * @param X2 vector of target atomic fractions (sum of X2 assumed equal to 1.0)
      * @param N target atomic density in [at/nm3]
      */
-    dedx_interp(int Z1, float M1,
-         const std::vector<int> &Z2,
-         const std::vector<float> &X2,
-         float N = 1);
+    dedx_interp(int Z1, float M1, const std::vector<int> &Z2, const std::vector<float> &X2,
+                float N = 1);
 };
 
 /**
  * @brief The model used to calculate electronic energy straggling of ions
- * 
+ *
  * The implementation of the different models is from Yang et al (1991) NIMB
- * 
+ *
  *  @ingroup dedx
  */
 enum class StragglingModel {
-    Bohr = 0,         /**< Bohr straggling model */
-    Chu = 1,          /**< Chu straggling model */
-    Yang = 2,         /**< Yang straggling model */
+    Bohr = 0, /**< Bohr straggling model */
+    Chu = 1, /**< Chu straggling model */
+    Yang = 2, /**< Yang straggling model */
     Invalid = -1
 };
 
@@ -165,16 +162,12 @@ enum class StragglingModel {
  *
  * @ingroup dedx
  */
-class straggling_interp : public corteo::log_interp< dedx_index >
+class straggling_interp : public corteo::log_interp<dedx_index>
 {
-    int init(StragglingModel model,
-             int Z1, float M1,
-             const std::vector<int> &Z2,
-             const std::vector<float> &X2,
-             float atomicDensity);
+    int init(StragglingModel model, int Z1, float M1, const std::vector<int> &Z2,
+             const std::vector<float> &X2, float atomicDensity);
 
 public:
-
     /**
      * @brief Construct an interpolator for monoatomic targets
      * @param model the \ref StragglingModel to apply
@@ -183,18 +176,16 @@ public:
      * @param Z2 target atom atomic number
      * @param N target atomic density in [at/nm3]
      */
-    straggling_interp(StragglingModel model,
-                      int Z1, float M1,
-                      int Z2, float N = 1.f);
+    straggling_interp(StragglingModel model, int Z1, float M1, int Z2, float N = 1.f);
     /**
      * @brief Construct an interpolator for polyatomic targets
-     * 
+     *
      * The total straggling is given by the Bragg mixing rule:
      * \f[
      * \Omega^2 = N\sum_i{X_i \Omega_i^2}
      * \f]
      * where the sum is over all atomic species in the target.
-     * 
+     *
      * @param model The \ref StragglingModel to apply
      * @param Z1 projectile atomic number
      * @param M1 projectile atomic mass
@@ -202,11 +193,8 @@ public:
      * @param X2 vector of target atomic fractions (sum of X2 assumed equal to 1.0)
      * @param N target atomic density in [at/nm3]
      */
-    straggling_interp(StragglingModel model,
-                      int Z1, float M1,
-                      const std::vector<int> &Z2,
-                      const std::vector<float> &X2,
-                      float N = 1);
+    straggling_interp(StragglingModel model, int Z1, float M1, const std::vector<int> &Z2,
+                      const std::vector<float> &X2, float N = 1);
 };
 
 #endif // DEDX_H

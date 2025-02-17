@@ -10,29 +10,25 @@
 #include <QProgressDialog>
 #include <QElapsedTimer>
 
-
 // McDriverObj should not have a parent
 // because it lives in a separate thread
 McDriverObj::McDriverObj()
     : QObject(),
-    driver_(new mcdriver),
-    modified_(false),
-    is_running_(false),
-    status_(0),
-    max_ions_(100),
-    nThreads_(1),
-    seed_(123456789),
-    updInterval_(1000)
+      driver_(new mcdriver),
+      modified_(false),
+      is_running_(false),
+      status_(0),
+      max_ions_(100),
+      nThreads_(1),
+      seed_(123456789),
+      updInterval_(1000)
 {
     // internal start signal connection
-    connect(this, &McDriverObj::startSignal,
-            this, &McDriverObj::start_,Qt::QueuedConnection);
+    connect(this, &McDriverObj::startSignal, this, &McDriverObj::start_, Qt::QueuedConnection);
 
     // internal io operations signal connection
-    connect(this, &McDriverObj::loadH5_,
-            this, &McDriverObj::onLoadH5_,Qt::QueuedConnection);
-    connect(this, &McDriverObj::saveH5_,
-            this, &McDriverObj::onSaveH5_,Qt::QueuedConnection);
+    connect(this, &McDriverObj::loadH5_, this, &McDriverObj::onLoadH5_, Qt::QueuedConnection);
+    connect(this, &McDriverObj::saveH5_, this, &McDriverObj::onSaveH5_, Qt::QueuedConnection);
 }
 
 McDriverObj::~McDriverObj()
@@ -40,7 +36,7 @@ McDriverObj::~McDriverObj()
     delete driver_;
 }
 
-const mcdriver::options& McDriverObj::options() const
+const mcdriver::options &McDriverObj::options() const
 {
     return options_;
 }
@@ -90,12 +86,11 @@ void McDriverObj::setFileName(const QString &path)
     QString baseName = finfo.baseName();
     bool updateName = filePath_.isEmpty();
     if (!updateName)
-        updateName = finfo.absoluteFilePath()!=filePath_;
+        updateName = finfo.absoluteFilePath() != filePath_;
     if (!updateName)
         updateName = baseName != fileName();
 
-    if (updateName)
-    {
+    if (updateName) {
         fileName_ = baseName;
         filePath_ = finfo.absoluteFilePath();
         emit fileNameChanged();
@@ -114,33 +109,32 @@ QString McDriverObj::title() const
     return QString::fromStdString(options_.Output.title);
 }
 
-void McDriverObj::mc_callback_(const mcdriver& d, void* p)
+void McDriverObj::mc_callback_(const mcdriver &d, void *p)
 {
-    McDriverObj* me = static_cast<McDriverObj*>(p);
+    McDriverObj *me = static_cast<McDriverObj *>(p);
 
     me->update_tally_totals_();
-
 }
 
 void McDriverObj::update_tally_totals_()
 {
     totals_ = driver_->getSim()->getTallyTable(0);
     dtotals_ = driver_->getSim()->getTallyTableVar(0);
-    if (totals_[0]>1.) {
-        double f = 1./totals_[0];
-        double f1 = 1./(totals_[0]-1.);
-        for(int i=1; i<totals_.size(); ++i) {
+    if (totals_[0] > 1.) {
+        double f = 1. / totals_[0];
+        double f1 = 1. / (totals_[0] - 1.);
+        for (int i = 1; i < totals_.size(); ++i) {
             totals_[i] *= f;
             // error in the mean
             // S[i] = std::sqrt((dA[i]/N-M[i]*M[i])/(N-1));
-            dtotals_[i] = std::sqrt((dtotals_[i]*f-totals_[i]*totals_[i])*f1);
+            dtotals_[i] = std::sqrt((dtotals_[i] * f - totals_[i] * totals_[i]) * f1);
         }
     }
 
     emit tallyUpdate();
 }
 
-bool McDriverObj::validateOptions(QString* msg) const
+bool McDriverObj::validateOptions(QString *msg) const
 {
     mcdriver::options opt(options_);
 
@@ -153,9 +147,10 @@ bool McDriverObj::validateOptions(QString* msg) const
 
     try {
         opt.validate();
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument &e) {
         isValid = false;
-        if (msg) *msg = QString("Errors found:\n%1").arg(e.what());
+        if (msg)
+            *msg = QString("Errors found:\n%1").arg(e.what());
     }
 
     return isValid;
@@ -171,10 +166,10 @@ void McDriverObj::loadJsonTemplate(const QString &path)
         // path should point to an example in resources.
         // open file and read config, no checks!
         QFile f(path);
-        f.open( QFile::ReadOnly );
+        f.open(QFile::ReadOnly);
         std::stringstream is(f.readAll().constData());
         bool validate = false;
-        opt.parseJSON(is,validate);
+        opt.parseJSON(is, validate);
     }
     setOptions(opt, true);
 
@@ -197,12 +192,12 @@ void McDriverObj::loadJsonFile(const QString &path)
     // path should point to a valid config file.
     // open file and read config, no checks!
     QFile f(path);
-    f.open( QFile::ReadOnly );
+    f.open(QFile::ReadOnly);
     std::stringstream is(f.readAll().constData());
     bool validate = false;
-    opt.parseJSON(is,validate);
+    opt.parseJSON(is, validate);
 
-    setOptions(opt,true);
+    setOptions(opt, true);
 
     setFileName(path);
     setTemplate(false);
@@ -217,9 +212,9 @@ void McDriverObj::loadJsonFile(const QString &path)
 bool McDriverObj::loadH5File(const QString &path)
 {
     // Try to load the file
-    QProgressDialog dlg("Loading HDF5. Please wait ...",QString(),0,110);
+    QProgressDialog dlg("Loading HDF5. Please wait ...", QString(), 0, 110);
     dlg.setWindowModality(Qt::WindowModal);
-    dlg.setMinimumDuration( 0 );
+    dlg.setMinimumDuration(0);
 
     io_op_active_ = true;
     emit loadH5_(path);
@@ -229,17 +224,19 @@ bool McDriverObj::loadH5File(const QString &path)
     int k = 0;
     QElapsedTimer tmr;
     tmr.start();
-    while(io_op_active_) {
+    while (io_op_active_) {
         dlg.setValue(k);
         if (tmr.hasExpired(250)) {
             k += 10;
-            if (k>90) k=0;
+            if (k > 90)
+                k = 0;
             tmr.restart();
         }
         QApplication::processEvents(QEventLoop::AllEvents, 100);
     }
 
-    if (io_ret_!=0) return false;
+    if (io_ret_ != 0)
+        return false;
 
     reset();
 
@@ -249,7 +246,7 @@ bool McDriverObj::loadH5File(const QString &path)
 
     mcdriver::options opt;
     driver_->getOptions(opt);
-    setOptions(opt,true);
+    setOptions(opt, true);
 
     setFileName(path);
     setTemplate(false);
@@ -289,7 +286,7 @@ void McDriverObj::saveJson(const QString &fname)
 
     opt.Output.outfilename = fileName().toStdString();
 
-    std::ofstream os(fname.toLatin1().constData());   
+    std::ofstream os(fname.toLatin1().constData());
     opt.printJSON(os);
 
     setTemplate(false);
@@ -298,14 +295,15 @@ void McDriverObj::saveJson(const QString &fname)
 
 bool McDriverObj::saveH5(const QString &fname)
 {
-    if (!driver_->getSim()) return false;
+    if (!driver_->getSim())
+        return false;
 
     setFileName(fname);
 
     // Try to save the file
-    QProgressDialog dlg("Saving HDF5. Please wait ...",QString(),0,110);
+    QProgressDialog dlg("Saving HDF5. Please wait ...", QString(), 0, 110);
     dlg.setWindowModality(Qt::WindowModal);
-    dlg.setMinimumDuration( 0 );
+    dlg.setMinimumDuration(0);
 
     io_op_active_ = true;
     emit saveH5_();
@@ -315,17 +313,19 @@ bool McDriverObj::saveH5(const QString &fname)
     int k = 0;
     QElapsedTimer tmr;
     tmr.start();
-    while(io_op_active_) {
+    while (io_op_active_) {
         dlg.setValue(k);
         if (tmr.hasExpired(250)) {
             k += 10;
-            if (k>90) k=0;
+            if (k > 90)
+                k = 0;
             tmr.restart();
         }
         QApplication::processEvents(QEventLoop::AllEvents, 100);
     }
 
-    if (io_ret_!=0) return false;
+    if (io_ret_ != 0)
+        return false;
 
     setTemplate(false);
     setModified(false);
@@ -336,7 +336,8 @@ bool McDriverObj::saveH5(const QString &fname)
 void McDriverObj::start(bool b)
 {
     if (is_running_) {
-        if (!b) driver_->abort();
+        if (!b)
+            driver_->abort();
     } else if (b) {
 
         if (driver_->getSim() == nullptr) {
@@ -384,7 +385,7 @@ void McDriverObj::start_()
 
     int ret = -1;
     if (driver_->getSim())
-        ret = driver_->exec(mc_callback_,updInterval,this);
+        ret = driver_->exec(mc_callback_, updInterval, this);
 
     is_running_ = false;
 
@@ -400,19 +401,21 @@ void McDriverObj::onLoadH5_(const QString &path)
     test_driver_ = new mcdriver;
     std::stringstream os;
     io_ret_ = test_driver_->load(path.toStdString(), &os);
-    if (io_ret_ != 0) io_err_ = os.str();
+    if (io_ret_ != 0)
+        io_err_ = os.str();
     io_op_active_ = false;
 }
 
 void McDriverObj::onSaveH5_()
-{    
+{
     mcdriver::output_options opts = driver_->outputOptions();
     opts.outfilename = fileName_.toStdString();
     driver_->setOutputOptions(opts);
 
     std::stringstream os;
     io_ret_ = driver_->save(filePath_.toStdString(), &os);
-    if (io_ret_ != 0) io_err_ = os.str();
+    if (io_ret_ != 0)
+        io_err_ = os.str();
     io_op_active_ = false;
 }
 
@@ -438,9 +441,8 @@ void McDriverObj::reset()
 {
     if (status() == mcRunning) {
         start(false);
-        while(status() == mcRunning)
-            QCoreApplication::processEvents(QEventLoop::AllEvents,100);
-
+        while (status() == mcRunning)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
     }
     if (status() == mcIdle) {
         driver_->reset();
@@ -449,7 +451,6 @@ void McDriverObj::reset()
         setModified(true);
     }
 }
-
 
 void McDriverObj::running_sim_info::clear()
 {
@@ -470,7 +471,7 @@ void McDriverObj::running_sim_info::init(const McDriverObj &D)
     nstart_ = D.driver_->getSim()->ion_count();
     ncurr_ = nstart_;
     ntarget_ = D.driver_->driverOptions().max_no_ions;
-    progress_ = int(1000.0*ncurr_/ntarget_);
+    progress_ = int(1000.0 * ncurr_ / ntarget_);
     total_elapsed_ += elapsed_;
     elapsed_ = 0.;
     etc_ = 0;
@@ -484,7 +485,7 @@ void McDriverObj::running_sim_info::update(const McDriverObj &D)
     // floating-point duration: no duration_cast needed
     const std::chrono::duration<double> fp_sec = t - tstart_;
     elapsed_ = fp_sec.count();
-    ips_ = (ncurr_ - nstart_)/elapsed_;
-    etc_ = ips_ > 0 ? (ntarget_ - ncurr_)/ips_ : 0;
-    progress_ = int(1000.0*ncurr_/ntarget_);
+    ips_ = (ncurr_ - nstart_) / elapsed_;
+    etc_ = ips_ > 0 ? (ntarget_ - ncurr_) / ips_ : 0;
+    progress_ = int(1000.0 * ncurr_ / ntarget_);
 }

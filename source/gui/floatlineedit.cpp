@@ -2,16 +2,10 @@
 
 #include <cmath>
 
-bool validateChars(QStringView str, QByteArray *buff,
-                   int decDigits);
+bool validateChars(QStringView str, QByteArray *buff, int decDigits);
 
-
-FloatValidator::FloatValidator(QObject * parent)
-    : FloatValidator(-1.e30, 1.e30, 1000, parent)
-{
-}
-FloatValidator::FloatValidator(float bottom, float top, int decimals,
-                                 QObject * parent)
+FloatValidator::FloatValidator(QObject *parent) : FloatValidator(-1.e30, 1.e30, 1000, parent) { }
+FloatValidator::FloatValidator(float bottom, float top, int decimals, QObject *parent)
     : QValidator(parent)
 {
     b = bottom;
@@ -19,15 +13,13 @@ FloatValidator::FloatValidator(float bottom, float top, int decimals,
     dec = decimals;
 }
 
-FloatValidator::~FloatValidator()
-{
-}
+FloatValidator::~FloatValidator() { }
 
-//#ifndef LLONG_MAX
-//#   define LLONG_MAX Q_INT64_C(0x7fffffffffffffff)
-//#endif
+// #ifndef LLONG_MAX
+// #   define LLONG_MAX Q_INT64_C(0x7fffffffffffffff)
+// #endif
 
-QValidator::State FloatValidator::validate(QString & input, int &) const
+QValidator::State FloatValidator::validate(QString &input, int &) const
 {
     QByteArray buff;
     if (!validateChars(input, &buff, dec)) {
@@ -116,20 +108,18 @@ bool validateChars(QStringView str, QByteArray *buff, int decDigits)
             lastWasDigit = true;
         } else {
             switch (c) {
-            case '.':
-            {
+            case '.': {
                 // If a double has more than one decimal point, it shall be Invalid.
                 if (++decPointCnt > 1)
                     return false;
-#if 0 \
-    // If a double with no decimal digits has a decimal point, it shall be \
+#if 0
+                    // If a double with no decimal digits has a decimal point, it shall be \
     // Invalid.
                         if (decDigits == 0)
                             return false;
-#endif                  // On second thoughts, it shall be Valid.
+#endif // On second thoughts, it shall be Valid.
                 dec = true;
-            }
-            break;
+            } break;
             case '+':
             case '-':
                 // If num has a sign that's not at the beginning or after
@@ -158,31 +148,26 @@ bool validateChars(QStringView str, QByteArray *buff, int decDigits)
 
 /***********************************************************************/
 
-Vector3dValidator::Vector3dValidator(QObject * parent)
-    : Vector3dValidator(-1.e30, 1.e30, parent)
-{
-}
-Vector3dValidator::Vector3dValidator(float bottom, float top,
-                                     QObject * parent)
-    : QValidator(parent)
+Vector3dValidator::Vector3dValidator(QObject *parent) : Vector3dValidator(-1.e30, 1.e30, parent) { }
+Vector3dValidator::Vector3dValidator(float bottom, float top, QObject *parent) : QValidator(parent)
 {
     b = bottom;
     t = top;
 }
 
-Vector3dValidator::~Vector3dValidator()
-{
-}
+Vector3dValidator::~Vector3dValidator() { }
 
-QValidator::State Vector3dValidator::validate(QString & input, int &) const
+QValidator::State Vector3dValidator::validate(QString &input, int &) const
 {
     QString s = input.trimmed();
 
     if (s.isEmpty())
         return QValidator::Intermediate;
 
-    if (s.front()!='[') return QValidator::Intermediate;
-    if (s.back()!=']') return QValidator::Intermediate;
+    if (s.front() != '[')
+        return QValidator::Intermediate;
+    if (s.back() != ']')
+        return QValidator::Intermediate;
 
     bool ok = false;
     vector3 v = qstring_serialize<vector3>::fromString(input, &ok); // returns 0.0 if !ok
@@ -226,31 +211,30 @@ void Vector3dValidator::setTop(float top)
 
 /***********************************************************************/
 
-IntVector3dValidator::IntVector3dValidator(QObject * parent)
+IntVector3dValidator::IntVector3dValidator(QObject *parent)
     : IntVector3dValidator(-2000000000, 2000000000, parent)
 {
 }
-IntVector3dValidator::IntVector3dValidator(int bottom, int top,
-                                     QObject * parent)
+IntVector3dValidator::IntVector3dValidator(int bottom, int top, QObject *parent)
     : QValidator(parent)
 {
     b = bottom;
     t = top;
 }
 
-IntVector3dValidator::~IntVector3dValidator()
-{
-}
+IntVector3dValidator::~IntVector3dValidator() { }
 
-QValidator::State IntVector3dValidator::validate(QString & input, int &) const
+QValidator::State IntVector3dValidator::validate(QString &input, int &) const
 {
     QString s = input.trimmed();
 
     if (s.isEmpty())
         return QValidator::Intermediate;
 
-    if (s.front()!='[') return QValidator::Intermediate;
-    if (s.back()!=']') return QValidator::Intermediate;
+    if (s.front() != '[')
+        return QValidator::Intermediate;
+    if (s.back() != ']')
+        return QValidator::Intermediate;
 
     bool ok = false;
     ivector3 v = qstring_serialize<ivector3>::fromString(input, &ok); // returns 0.0 if !ok
@@ -294,28 +278,25 @@ void IntVector3dValidator::setTop(int top)
 
 /*************************************************************/
 
-FloatLineEdit::FloatLineEdit(QWidget* parent) :
-    QLineEdit(parent)
+FloatLineEdit::FloatLineEdit(QWidget *parent) : QLineEdit(parent)
 {
-    setValidator(new FloatValidator(-1.e30f,1.e30f,6));
+    setValidator(new FloatValidator(-1.e30f, 1.e30f, 6));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &FloatLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &FloatLineEdit::checkInput);
 }
 
-FloatLineEdit::FloatLineEdit(float fmin, float fmax, int decimals, QWidget* parent) :
-    QLineEdit(parent)
+FloatLineEdit::FloatLineEdit(float fmin, float fmax, int decimals, QWidget *parent)
+    : QLineEdit(parent)
 {
-    setValidator(new FloatValidator(fmin,fmax,decimals));
+    setValidator(new FloatValidator(fmin, fmax, decimals));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &FloatLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &FloatLineEdit::checkInput);
 }
 
 void FloatLineEdit::setValue(float v)
 {
-    const FloatValidator* vld = dynamic_cast<const FloatValidator*>(validator());
-    setText(QString::number(1.0*v,'g',vld->decimals()));
+    const FloatValidator *vld = dynamic_cast<const FloatValidator *>(validator());
+    setText(QString::number(1.0 * v, 'g', vld->decimals()));
 }
 
 float FloatLineEdit::value() const
@@ -334,22 +315,19 @@ void FloatLineEdit::checkInput()
 
 /*************************************************************/
 
-Vector3dLineEdit::Vector3dLineEdit(QWidget* parent) :
-    QLineEdit(parent)
+Vector3dLineEdit::Vector3dLineEdit(QWidget *parent) : QLineEdit(parent)
 {
-    setValidator(new FloatValidator(-1.e30,1.e30,6));
+    setValidator(new FloatValidator(-1.e30, 1.e30, 6));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &Vector3dLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &Vector3dLineEdit::checkInput);
 }
 
-Vector3dLineEdit::Vector3dLineEdit(float fmin, float fmax, int decimals, QWidget* parent) :
-    QLineEdit(parent)
+Vector3dLineEdit::Vector3dLineEdit(float fmin, float fmax, int decimals, QWidget *parent)
+    : QLineEdit(parent)
 {
-    setValidator(new Vector3dValidator(fmin,fmax));
+    setValidator(new Vector3dValidator(fmin, fmax));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &Vector3dLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &Vector3dLineEdit::checkInput);
 }
 
 void Vector3dLineEdit::setValue(const vector3 &v)
@@ -373,25 +351,21 @@ void Vector3dLineEdit::checkInput()
 
 /*************************************************************/
 
-IntVector3dLineEdit::IntVector3dLineEdit(QWidget* parent) :
-    QLineEdit(parent)
+IntVector3dLineEdit::IntVector3dLineEdit(QWidget *parent) : QLineEdit(parent)
 {
-    setValidator(new IntVector3dValidator(-2000000000,2000000000));
+    setValidator(new IntVector3dValidator(-2000000000, 2000000000));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &IntVector3dLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &IntVector3dLineEdit::checkInput);
 }
 
-IntVector3dLineEdit::IntVector3dLineEdit(int imin, int imax, QWidget* parent) :
-    QLineEdit(parent)
+IntVector3dLineEdit::IntVector3dLineEdit(int imin, int imax, QWidget *parent) : QLineEdit(parent)
 {
-    setValidator(new IntVector3dValidator(imin,imax));
+    setValidator(new IntVector3dValidator(imin, imax));
 
-    connect(this, &QLineEdit::textEdited,
-            this, &IntVector3dLineEdit::checkInput);
+    connect(this, &QLineEdit::textEdited, this, &IntVector3dLineEdit::checkInput);
 }
 
-void IntVector3dLineEdit::setValue(const ivector3& v)
+void IntVector3dLineEdit::setValue(const ivector3 &v)
 {
     setText(qstring_serialize<ivector3>::toString(v));
 }
@@ -409,4 +383,3 @@ void IntVector3dLineEdit::checkInput()
         setStyleSheet("");
     }
 }
-

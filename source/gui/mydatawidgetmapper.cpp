@@ -6,42 +6,39 @@
 #include <QMetaMethod>
 #include <QDebug>
 
-MyDataWidgetMapper::MyDataWidgetMapper(OptionsModel *m,
-                                       QObject *parent)
-    : QObject{parent}, model_(m),
-    delegate_(new OptionsItemDelegate(this))
+MyDataWidgetMapper::MyDataWidgetMapper(OptionsModel *m, QObject *parent)
+    : QObject{ parent }, model_(m), delegate_(new OptionsItemDelegate(this))
 {
-    connect(model_, &QAbstractItemModel::dataChanged,
-            this, &MyDataWidgetMapper::dataChanged);
+    connect(model_, &QAbstractItemModel::dataChanged, this, &MyDataWidgetMapper::dataChanged);
 
     // The following connections are for Qt Views (QTableView etc)
-//    connect(delegate_, &QAbstractItemDelegate::commitData,
-//            this, &MyDataWidgetMapper::commitData);
-//    connect(delegate_, &QAbstractItemDelegate::closeEditor,
-//            this, &MyDataWidgetMapper::closeEditor);
+    //    connect(delegate_, &QAbstractItemDelegate::commitData,
+    //            this, &MyDataWidgetMapper::commitData);
+    //    connect(delegate_, &QAbstractItemDelegate::closeEditor,
+    //            this, &MyDataWidgetMapper::closeEditor);
 }
 
 void MyDataWidgetMapper::addMapping(QWidget *widget, const QModelIndex &idx, const char *signal)
 {
     removeMapping(widget);
-    widgetMap.push_back({widget, idx, signal});
+    widgetMap.push_back({ widget, idx, signal });
     widget->installEventFilter(delegate_);
     if (signal) {
-        const QMetaObject* wmo = widget->metaObject();
+        const QMetaObject *wmo = widget->metaObject();
         int is = wmo->indexOfSignal(signal);
         QMetaMethod M1 = wmo->method(is);
         is = metaObject()->indexOfSlot("commitData_()");
         QMetaMethod M2 = metaObject()->method(is);
-        bool ret = connect(widget, M1,
-                           this, M2);
+        bool ret = connect(widget, M1, this, M2);
         assert(ret);
     }
 }
 
 void MyDataWidgetMapper::removeMapping(const QString &key)
 {
-    QWidget* w = findWidget(key);
-    if (w) removeMapping(w);
+    QWidget *w = findWidget(key);
+    if (w)
+        removeMapping(w);
 }
 
 void MyDataWidgetMapper::removeMapping(QWidget *w)
@@ -65,7 +62,7 @@ int MyDataWidgetMapper::findWidget(QWidget *w) const
     return -1;
 }
 
-QWidget* MyDataWidgetMapper::findWidget(const QString& key) const
+QWidget *MyDataWidgetMapper::findWidget(const QString &key) const
 {
     for (const mapItem &m : widgetMap) {
         assert(!m.widget.isNull()); // widget must be there
@@ -84,11 +81,13 @@ void MyDataWidgetMapper::revert()
 bool MyDataWidgetMapper::submit()
 {
     for (auto &m : widgetMap) {
-        if (m.widget.isNull()) continue;
+        if (m.widget.isNull())
+            continue;
 
         if (m.idx.isValid())
             delegate_->setModelData(m.widget, model_, m.idx);
-        else return false;
+        else
+            return false;
     }
 
     return model_->submit();
@@ -97,7 +96,8 @@ bool MyDataWidgetMapper::submit()
 void MyDataWidgetMapper::setEnabled(bool b)
 {
     for (auto &m : widgetMap) {
-        if (m.widget.isNull()) continue;
+        if (m.widget.isNull())
+            continue;
 
         m.widget->setEnabled(b);
     }
@@ -107,11 +107,10 @@ static bool qContainsIndex(const QModelIndex &idx, const QModelIndex &topLeft,
                            const QModelIndex &bottomRight)
 {
     return idx.row() >= topLeft.row() && idx.row() <= bottomRight.row()
-           && idx.column() >= topLeft.column() && idx.column() <= bottomRight.column();
+            && idx.column() >= topLeft.column() && idx.column() <= bottomRight.column();
 }
 
-void MyDataWidgetMapper::dataChanged(const QModelIndex &topLeft,
-                                     const QModelIndex &bottomRight,
+void MyDataWidgetMapper::dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight,
                                      const QVector<int> &)
 {
     for (mapItem &m : widgetMap) {
@@ -131,8 +130,8 @@ void MyDataWidgetMapper::populate(mapItem &m)
 
 void MyDataWidgetMapper::commitData(QWidget *w)
 {
-    //if (submitPolicy == QDataWidgetMapper::ManualSubmit)
-    //    return;
+    // if (submitPolicy == QDataWidgetMapper::ManualSubmit)
+    //     return;
 
     int idx = findWidget(w);
     if (idx == -1)
@@ -143,7 +142,7 @@ void MyDataWidgetMapper::commitData(QWidget *w)
 
 void MyDataWidgetMapper::commitData_()
 {
-    QWidget *w = qobject_cast<QWidget*>(sender());
+    QWidget *w = qobject_cast<QWidget *>(sender());
     commitData(w);
 }
 
@@ -166,21 +165,19 @@ void MyDataWidgetMapper::closeEditor(QWidget *w, int i)
     if (idx == -1)
         return; // not our widget
 
-    QAbstractItemDelegate::EndEditHint hint =
-        (QAbstractItemDelegate::EndEditHint)i;
+    QAbstractItemDelegate::EndEditHint hint = (QAbstractItemDelegate::EndEditHint)i;
 
     switch (hint) {
-    case QAbstractItemDelegate::RevertModelCache:
-    {
+    case QAbstractItemDelegate::RevertModelCache: {
         populate(widgetMap[idx]);
         break;
     }
-//    case QAbstractItemDelegate::EditNextItem:
-//        w->focusNextChild();
-//        break;
-//    case QAbstractItemDelegate::EditPreviousItem:
-//        w->focusPreviousChild();
-//        break;
+        //    case QAbstractItemDelegate::EditNextItem:
+        //        w->focusNextChild();
+        //        break;
+        //    case QAbstractItemDelegate::EditPreviousItem:
+        //        w->focusPreviousChild();
+        //        break;
     case QAbstractItemDelegate::EditNextItem:
     case QAbstractItemDelegate::EditPreviousItem:
     case QAbstractItemDelegate::SubmitModelCache:
@@ -189,4 +186,3 @@ void MyDataWidgetMapper::closeEditor(QWidget *w, int i)
         break;
     }
 }
-

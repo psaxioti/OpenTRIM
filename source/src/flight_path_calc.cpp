@@ -2,41 +2,40 @@
 
 #include "mccore.h"
 
-flight_path_calc::flight_path_calc()
-{}
+flight_path_calc::flight_path_calc() { }
 
-flight_path_calc::flight_path_calc(const flight_path_calc &o) :
-    type_(o.type_),
-    fp_const(o.fp_const),
-    sqrtfp_const(o.sqrtfp_const),
-    ip0(o.ip0),
-    mfp_(o.mfp_),
-    ipmax_(o.ipmax_),
-    fp_max_(o.fp_max_),
-    Tcutoff_(o.Tcutoff_)
+flight_path_calc::flight_path_calc(const flight_path_calc &o)
+    : type_(o.type_),
+      fp_const(o.fp_const),
+      sqrtfp_const(o.sqrtfp_const),
+      ip0(o.ip0),
+      mfp_(o.mfp_),
+      ipmax_(o.ipmax_),
+      fp_max_(o.fp_max_),
+      Tcutoff_(o.Tcutoff_)
 {
-
 }
 
 int flight_path_calc::init(const mccore &s)
 {
-    auto& trgt = s.getTarget();
-    auto& tr_opt_ = s.getTransportOptions();
+    auto &trgt = s.getTarget();
+    auto &tr_opt_ = s.getTransportOptions();
 
     type_ = tr_opt_.flight_path_type;
 
     // calculate sqrt{l/l0} in each material for constant flight path
-    auto& materials = trgt.materials();
-    //auto& tr_opt_ = s_->getTransportOptions();
+    auto &materials = trgt.materials();
+    // auto& tr_opt_ = s_->getTransportOptions();
     int nmat = materials.size();
     fp_const.resize(nmat);
     sqrtfp_const.resize(nmat);
     ip0.resize(nmat);
-    for(int i=0; i<nmat; i++) {
+    for (int i = 0; i < nmat; i++) {
         fp_const[i] = tr_opt_.flight_path_const;
         sqrtfp_const[i] = std::sqrt(fp_const[i] / materials[i]->atomicRadius());
         ip0[i] = materials[i]->meanImpactPar();
-        if (type_ == Constant) ip0[i] /= sqrtfp_const[i];
+        if (type_ == Constant)
+            ip0[i] /= sqrtfp_const[i];
     }
 
     /*
@@ -67,65 +66,64 @@ int flight_path_calc::init(const mccore &s)
      * - ipmax = 1/(pi*mfp*N)^(1/2)
      *
      */
-    auto& atoms = trgt.atoms();
+    auto &atoms = trgt.atoms();
     int natoms = atoms.size();
     int nerg = dedx_index::size;
     auto ScMatrix = s.scattering_matrix();
     auto dedx = s.get_dedx_calc().dedx();
-    mfp_ = ArrayNDf(natoms,nmat,nerg);
-    ipmax_ = ArrayNDf(natoms,nmat,nerg);
-    fp_max_ = ArrayNDf(natoms,nmat,nerg);
-    Tcutoff_ = ArrayNDf(natoms,nmat,nerg);
+    mfp_ = ArrayNDf(natoms, nmat, nerg);
+    ipmax_ = ArrayNDf(natoms, nmat, nerg);
+    fp_max_ = ArrayNDf(natoms, nmat, nerg);
+    Tcutoff_ = ArrayNDf(natoms, nmat, nerg);
     float delta_dedx = tr_opt_.max_rel_eloss;
     float Tmin = tr_opt_.min_recoil_energy;
     float mfp_ub = tr_opt_.max_mfp;
     float Tmin_rel = 0.99f; /// @TODO: make it user option
-    for(int z1 = 0; z1<natoms; z1++)
-    {
-        for(int im=0; im<materials.size(); im++)
-        {
-            const material* m = materials[im];
-            const float & N = m->atomicDensity();
-            const float & Rat = m->atomicRadius();
-            float mfp_lb = type_ == IPP && tr_opt_.allow_sub_ml_scattering ?
-                               0.f : Rat;
-            for(dedx_index ie; ie!=ie.end(); ie++) {
-                float & mfp = mfp_(z1,im,ie);
-                float & ipmax = ipmax_(z1,im,ie);
-                float & fpmax = fp_max_(z1,im,ie);
-                float & T0 = Tcutoff_(z1,im,ie);
+    for (int z1 = 0; z1 < natoms; z1++) {
+        for (int im = 0; im < materials.size(); im++) {
+            const material *m = materials[im];
+            const float &N = m->atomicDensity();
+            const float &Rat = m->atomicRadius();
+            float mfp_lb = type_ == IPP && tr_opt_.allow_sub_ml_scattering ? 0.f : Rat;
+            for (dedx_index ie; ie != ie.end(); ie++) {
+                float &mfp = mfp_(z1, im, ie);
+                float &ipmax = ipmax_(z1, im, ie);
+                float &fpmax = fp_max_(z1, im, ie);
+                float &T0 = Tcutoff_(z1, im, ie);
                 // float & dedxn = dedxn_(z1,im,ie);
                 float E = *ie;
                 T0 = Tmin;
 
                 // ensure Tmin is below Tm of all target atoms
-                for(const atom* a : m->atoms()) {
+                for (const atom *a : m->atoms()) {
                     int z2 = a->id();
-                    float Tm = E*ScMatrix(z1,z2)->gamma();
-                    if (T0 > Tmin_rel*Tm) T0 = Tmin_rel*Tm;
+                    float Tm = E * ScMatrix(z1, z2)->gamma();
+                    if (T0 > Tmin_rel * Tm)
+                        T0 = Tmin_rel * Tm;
                 }
 
-                // Calc mfp corresponding to T0, mfp = 1/(N*sig0), sig0 = pi*sum_i{ X_i * [P_i(E,T0)]^2 }
+                // Calc mfp corresponding to T0, mfp = 1/(N*sig0), sig0 = pi*sum_i{ X_i *
+                // [P_i(E,T0)]^2 }
                 mfp = 0.f;
-                for(const atom* a : m->atoms()) {
+                for (const atom *a : m->atoms()) {
                     int z2 = a->id();
-                    float d = ScMatrix(z1,z2)->impactPar(E, T0);
-                    mfp += a->X()*d*d;
+                    float d = ScMatrix(z1, z2)->impactPar(E, T0);
+                    mfp += a->X() * d * d;
                 }
-                mfp = 1/N/M_PI/mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
+                mfp = 1 / N / M_PI / mfp; // mfp = 1/(N*sig0) = 1/(N*pi*sum_i(ip_i^2))
 
                 // ensure mfp*dEdx/E is below max_rel_eloss
-                fpmax = delta_dedx*E / dedx(z1,im)->data()[ie];
-                mfp = std::min(mfp,fpmax);
+                fpmax = delta_dedx * E / dedx(z1, im)->data()[ie];
+                mfp = std::min(mfp, fpmax);
 
                 // ensure mfp not smaller than lower bound
-                mfp = std::max(mfp,mfp_lb);
+                mfp = std::max(mfp, mfp_lb);
 
                 // ensure mfp not larger than upper bound
-                mfp = std::min(mfp,mfp_ub);
+                mfp = std::min(mfp, mfp_ub);
 
                 // Find the max impact parameter ipmax = (N*pi*mfp)^(-1/2)
-                ipmax = std::sqrt(1.f/M_PI/mfp/N);
+                ipmax = std::sqrt(1.f / M_PI / mfp / N);
 
                 // Calc dedxn for  T<T0 = N*sum_i { X_i * Sn(E,T0) }
                 // Add this to dedx
@@ -138,7 +136,8 @@ int flight_path_calc::init(const mccore &s)
                 //                dedxn = 0;
                 //                for(const atom* a : m->atoms()) {
                 //                    int z2 = a->id();
-                //                    dedxn += scattering_matrix_(z1,z2)->stoppingPower(E,T0) * a->X();
+                //                    dedxn += scattering_matrix_(z1,z2)->stoppingPower(E,T0) *
+                //                    a->X();
                 //                }
                 //                dedxn *= N;
                 //                if (tr_opt_.flight_path_type == MyFFP) dedx_(z1,im,ie) += dedxn;
@@ -158,8 +157,7 @@ int flight_path_calc::init(const ion *i, const material *m)
     int iid = i->myAtom()->id();
     int mid = m->id();
 
-    switch (type_)
-    {
+    switch (type_) {
     case AtomicSpacing:
         fp_ = m->atomicRadius();
         sqrtfp_ = 1.f;
@@ -172,9 +170,9 @@ int flight_path_calc::init(const ion *i, const material *m)
         break;
     case MendenhallWeller:
     case IPP:
-        ipmax_tbl = &(ipmax_(iid,mid,0));
-        mfp_tbl = &(mfp_(iid,mid,0));
-        fpmax_tbl = &(fp_max_(iid,mid,0));
+        ipmax_tbl = &(ipmax_(iid, mid, 0));
+        mfp_tbl = &(mfp_(iid, mid, 0));
+        fpmax_tbl = &(fp_max_(iid, mid, 0));
         fp_ = m->atomicRadius();
         sqrtfp_ = 1.f;
         ip_ = ip0[mid];
@@ -185,5 +183,3 @@ int flight_path_calc::init(const ion *i, const material *m)
 
     return 0;
 }
-
-

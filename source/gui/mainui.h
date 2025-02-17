@@ -23,27 +23,20 @@ class MainUI : public QWidget
     Q_OBJECT
 
 public:
+    OptionsModel *optionsModel;
 
-    OptionsModel* optionsModel;
-
-    SimulationOptionsView* optionsView;
-
+    SimulationOptionsView *optionsView;
 
     explicit MainUI(QWidget *parent = nullptr);
     ~MainUI();
 
-    //const McDriverObj* driverObj() const { return ions_driver; }
-    McDriverObj* driverObj() { return driverObj_; }
+    // const McDriverObj* driverObj() const { return ions_driver; }
+    McDriverObj *driverObj() { return driverObj_; }
 
-    void push(const QString& title, QWidget * page);
+    void push(const QString &title, QWidget *page);
     void pop();
 
-    enum PageId {
-        idWelcomePage = 0,
-        idConfigPage = 1,
-        idRunPage = 2,
-        idResultsPage = 3
-    };
+    enum PageId { idWelcomePage = 0, idConfigPage = 1, idRunPage = 2, idResultsPage = 3 };
 
     PageId currentPage() const;
 
@@ -57,21 +50,17 @@ private slots:
 protected:
     void closeEvent(QCloseEvent *event) override;
 
-
 private:
-    QToolButton * createSidebarButton(const QString& iconPath, const QString& title);
+    QToolButton *createSidebarButton(const QString &iconPath, const QString &title);
 
-    McDriverObj* driverObj_;
-    WelcomeView* welcomeView;
-    ResultsView* resultsView;
-    QStackedWidget * _stackedWidget;
+    McDriverObj *driverObj_;
+    WelcomeView *welcomeView;
+    ResultsView *resultsView;
+    QStackedWidget *_stackedWidget;
     QThread runnerThread;
-    QButtonGroup* pageButtonGrp;
-    RunView* runView;
-    SimControlWidget* ctrlWidget;
-
+    QButtonGroup *pageButtonGrp;
+    RunView *runView;
+    SimControlWidget *ctrlWidget;
 };
-
-
 
 #endif // IONSUI_H

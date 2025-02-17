@@ -22,16 +22,16 @@ class cascade_queue;
  * \defgroup MC libiradinapp shared library
  *
  * \brief A library containing the main ion transport simulation code.
- * 
- * The building blocks for the Monte-Carlo ion transport simulation are: \ref Geometry, 
+ *
+ * The building blocks for the Monte-Carlo ion transport simulation are: \ref Geometry,
  * \ref Ions "Ion transport", \ref RNG and \ref target "Target definition".
- * 
+ *
  * All these are combined into the simulation \ref Core.
- * 
+ *
  * The \ref Driver part facilitates the process of loading the configuration,
  * setting up the simulation, executing on multiple threads and adding up and storing the results.
  *
- * 
+ *
  */
 
 /**
@@ -57,14 +57,13 @@ class cascade_queue;
 class mccore
 {
 public:
-
     /**
      * @brief Type of simulation
      */
     enum simulation_type_t {
-        FullCascade = 0,    /**< Full Damage Cascade, follow recoils */
-        IonsOnly = 1,       /**< Ions only. Recoils are not followed. Damage estimate by NRT */
-        CascadesOnly = 2,       /**< Cascades generated and followed */
+        FullCascade = 0, /**< Full Damage Cascade, follow recoils */
+        IonsOnly = 1, /**< Ions only. Recoils are not followed. Damage estimate by NRT */
+        CascadesOnly = 2, /**< Cascades generated and followed */
         InvalidSimulationType = -1
     };
 
@@ -72,8 +71,8 @@ public:
      * @brief Determines how ion scattering is simulated
      */
     enum scattering_calculation_t {
-        Corteo4bitTable = 0,     /**< Using 4bit corteo-tabulated scattering integrals */
-        ZBL_MAGICK = 1,     /**< Using the MAGIC formula for the scattering integrals (as in SRIM) */
+        Corteo4bitTable = 0, /**< Using 4bit corteo-tabulated scattering integrals */
+        ZBL_MAGICK = 1, /**< Using the MAGIC formula for the scattering integrals (as in SRIM) */
         InvalidScatteringOption = -1
     };
 
@@ -82,58 +81,59 @@ public:
      */
     enum nrt_calculation_t {
         NRT_element = 0, /**< NRT calculated using Ed of struck atom (similar to SRIM) */
-        NRT_average = 1,  /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
+        NRT_average = 1, /**< NRT calculated with average Ed (J.-P. Crocombette 2019) */
         NRT_InvalidOption = -1
     };
 
     /**
      * @brief Simulation parameters/options
      */
-    struct parameters {        
+    struct parameters
+    {
         /// Type of the simulation
-        simulation_type_t simulation_type{FullCascade};
+        simulation_type_t simulation_type{ FullCascade };
         /// screeninig
-        Screening screening_type{Screening::ZBL};
+        Screening screening_type{ Screening::ZBL };
         /// Way to calculate nuclear scattering
-        scattering_calculation_t scattering_calculation{Corteo4bitTable};
+        scattering_calculation_t scattering_calculation{ Corteo4bitTable };
         /// Electronic energy loss calculation option
-        dedx_calc::eloss_calculation_t eloss_calculation{dedx_calc::EnergyLoss};
+        dedx_calc::eloss_calculation_t eloss_calculation{ dedx_calc::EnergyLoss };
         /// Model to use for calculating electronic straggling (if calculated)
-        StragglingModel straggling_model{StragglingModel::Bohr};
+        StragglingModel straggling_model{ StragglingModel::Bohr };
         /// Way to calculate NRT vacancies in multielement materials
-        nrt_calculation_t nrt_calculation{NRT_element};
+        nrt_calculation_t nrt_calculation{ NRT_element };
         /// Allow intra cascade Frenkel pair recombination
-        bool intra_cascade_recombination{false};
+        bool intra_cascade_recombination{ false };
         /// Allow same Frenkel pair recombination
-        bool correlated_recombination{false};
+        bool correlated_recombination{ false };
         /// interstitial rc boost
-        float i_rc_boost{1.0f};
+        float i_rc_boost{ 1.0f };
 
-        bool move_recoil{false};
+        bool move_recoil{ false };
     };
 
     /**
      * @brief Ion transport options
      */
-    struct transport_options {
+    struct transport_options
+    {
         /// Free flight path selection algorithm
-        flight_path_calc::flight_path_type_t flight_path_type{flight_path_calc::AtomicSpacing};
+        flight_path_calc::flight_path_type_t flight_path_type{ flight_path_calc::AtomicSpacing };
         /// The constant flight path (for algorithm flight_path_type_t=Constant) [nm]
-        float flight_path_const{0.1f};
+        float flight_path_const{ 0.1f };
         /// Minimum energy cutoff for ion transport [eV]
-        float min_energy{1.f};
+        float min_energy{ 1.f };
         /// Minimum recoil energy
-        float min_recoil_energy{1.f};
+        float min_recoil_energy{ 1.f };
         /// Scattering at shorter distances than interatomic distance
-        bool allow_sub_ml_scattering{false};
+        bool allow_sub_ml_scattering{ false };
         /// Max mfp
-        float max_mfp{1.0e30f};
+        float max_mfp{ 1.0e30f };
         /// Max dE/E per mfp, dE = dEdx*mfp
-        float max_rel_eloss{0.05f};
+        float max_rel_eloss{ 0.05f };
     };
 
 protected:
-
     ion_queue q_;
 
     // simulation paramenters
@@ -142,8 +142,8 @@ protected:
     transport_options tr_opt_;
 
     // components
-    ion_beam* source_;
-    target* target_;
+    ion_beam *source_;
+    target *target_;
     tally tally_, dtally_, tion_;
     random_vars rng;
     event_stream pka_stream_, exit_stream_;
@@ -157,14 +157,14 @@ protected:
     size_t max_no_ions_;
 
     // shared ion counter
-    std::shared_ptr< std::atomic_size_t > ion_counter_; // shared ion counter
+    std::shared_ptr<std::atomic_size_t> ion_counter_; // shared ion counter
     std::atomic_size_t thread_ion_counter_; // per thread ion counter
 
     // shared abort flag
-    std::shared_ptr< std::atomic_bool > abort_flag_; // thread safe abort simulation flag
+    std::shared_ptr<std::atomic_bool> abort_flag_; // thread safe abort simulation flag
 
     // shared mutex for tally data
-    std::shared_ptr< std::mutex > tally_mutex_;
+    std::shared_ptr<std::mutex> tally_mutex_;
 
     // electronic dedx & straggling calculator
     dedx_calc dedx_calc_;
@@ -173,12 +173,12 @@ protected:
     flight_path_calc flight_path_calc_;
 
     // Scattering cross-sections
-    ArrayND< abstract_xs_lab* > scattering_matrix_;
+    ArrayND<abstract_xs_lab *> scattering_matrix_;
 
 public:
     mccore();
-    mccore(const parameters& p, const transport_options& t);
-    mccore(const mccore& S);
+    mccore(const parameters &p, const transport_options &t);
+    mccore(const mccore &S);
     ~mccore();
 
     void setMaxIons(unsigned int n) { max_no_ions_ = n; }
@@ -187,62 +187,59 @@ public:
     size_t thread_ion_count() const { return thread_ion_counter_; }
 
     /// Returns the core simulation parameters
-    const parameters& getSimulationParameters() const { return par_; }
+    const parameters &getSimulationParameters() const { return par_; }
     /// Returns the core simulation parameters
-    const transport_options& getTransportOptions() const { return tr_opt_; }
+    const transport_options &getTransportOptions() const { return tr_opt_; }
 
     /// Return a reference to the \ref target object
-    target& getTarget() { return *target_; }
+    target &getTarget() { return *target_; }
     /// Return a const reference to the target object
-    const target& getTarget() const { return *target_; }
+    const target &getTarget() const { return *target_; }
     /// Return a reference to the source (ion_beam) object
-    ion_beam& getSource() { return *source_; }
+    ion_beam &getSource() { return *source_; }
     /// Return a const reference to the source (ion_beam) object
-    const ion_beam& getSource() const { return *source_; }    
+    const ion_beam &getSource() const { return *source_; }
     /// Return a const reference to the tally object
-    const tally& getTally() const { return tally_; }
+    const tally &getTally() const { return tally_; }
     /// Return a const reference to the tally variance object
-    const tally& getTallyVar() const { return dtally_; }
+    const tally &getTallyVar() const { return dtally_; }
     /// Return a reference to the tally object
-    tally& getTally() { return tally_; }
+    tally &getTally() { return tally_; }
     /// Return a reference to the tally variance object
-    tally& getTallyVar() { return dtally_; }
+    tally &getTallyVar() { return dtally_; }
 
     ArrayNDd getTallyTable(int i) const;
     ArrayNDd getTallyTableVar(int i) const;
-    void copyTallyTable(int i, ArrayNDd& A) const;
-    void copyTallyTableVar(int i, ArrayNDd& dA) const;
+    void copyTallyTable(int i, ArrayNDd &A) const;
+    void copyTallyTableVar(int i, ArrayNDd &dA) const;
 
     /// Open file stream to store \ref pka_event data
-    int open_pka_stream() {
-        return pka_stream_.open(pka);
-    }
+    int open_pka_stream() { return pka_stream_.open(pka); }
     /// Return reference to the pka stream
-    event_stream& pka_stream() { return pka_stream_; }
+    event_stream &pka_stream() { return pka_stream_; }
     /// Open file stream to store \ref exit_event data
-    int open_exit_stream() {
-        return exit_stream_.open(exit_ev);
-    }
+    int open_exit_stream() { return exit_stream_.open(exit_ev); }
     /// Return reference to the exit stream
-    event_stream& exit_stream() { return exit_stream_; }
+    event_stream &exit_stream() { return exit_stream_; }
 
     // scattering matrix (atoms x materials)
-    ArrayND<abstract_xs_lab*> scattering_matrix() const
-    { return scattering_matrix_; }
+    ArrayND<abstract_xs_lab *> scattering_matrix() const { return scattering_matrix_; }
 
     /// Return a reference to the electronic energy loss calculator object
-    const dedx_calc& get_dedx_calc() const { return dedx_calc_; }
+    const dedx_calc &get_dedx_calc() const { return dedx_calc_; }
 
     /// Return a reference to the flight path calculator object
-    const flight_path_calc& get_fp_calc() const { return flight_path_calc_; }
+    const flight_path_calc &get_fp_calc() const { return flight_path_calc_; }
 
     /**
      * @brief Initialize internal variables of the mccore object
      *
      * The init() function performs the following:
      *  - calls the init() function of the underlying target and ion_beam objects
-     *  - creates electronic stopping and straggling interpolation tables for all atom/material combinations
-     *  - creates an array of lab frame scattering cross-section objects (\ref xs_lab) for all ion combinations
+     *  - creates electronic stopping and straggling interpolation tables for all atom/material
+     * combinations
+     *  - creates an array of lab frame scattering cross-section objects (\ref xs_lab) for all ion
+     * combinations
      *  - creates tables of mean free path and max impact parameter for flight path selection
      *  - allocates tally memory
      *
@@ -258,8 +255,7 @@ public:
 
     void rngJump() { rng.longJump(); }
     random_vars::state_type rngState() const { return rng.state(); }
-    void setRngState(const random_vars::state_type& s)
-    { return rng.state(s); }
+    void setRngState(const random_vars::state_type &s) { return rng.state(s); }
 
     /**
      * @brief Merge the results from another simulation object
@@ -303,13 +299,12 @@ public:
     int run();
 
     void clear_abort_flag() { *abort_flag_ = false; }
-    void abort()            { *abort_flag_ = true; }
+    void abort() { *abort_flag_ = true; }
     bool abort_flag() const { return *abort_flag_; }
 
     int reset();
 
 protected:
-
     /**
      * @brief Transport an ion through the target
      *
@@ -317,23 +312,25 @@ protected:
      *   - Call flightPath() to select flight path and impact parameter
      *   - Call ion::propagate() to advance the ion position
      *   - Call calcDedx() to calculate stopping and straggling and subtract it from the ion energy
-     *   - Select collision partner and call xs_lab::scatter() to obtain scattering angle and recoil energy \f$T\f$
-     *   - If \f$T>E_d\f$, where \f$E_d\f$ is the \ref atom::parameters::Ed "displacement energy", call new_recoil() to create a recoil ion and put it the \ref ion_queue "simulation queue"
-     *   - Otherwise \f$T\f$ is deposited as lattice vibrations 
+     *   - Select collision partner and call xs_lab::scatter() to obtain scattering angle and recoil
+     * energy \f$T\f$
+     *   - If \f$T>E_d\f$, where \f$E_d\f$ is the \ref atom::parameters::Ed "displacement energy",
+     * call new_recoil() to create a recoil ion and put it the \ref ion_queue "simulation queue"
+     *   - Otherwise \f$T\f$ is deposited as lattice vibrations
      *
      * The loop is repeated until either the ion exits the target or
      * its energy becomes less than parameters::min_energy whereupon the ion
      * stops and remains implanted in the target.
      *
-     * Tally scoring is performed at specific simulation events 
-     * (cell change, ion exit, implantation) 
+     * Tally scoring is performed at specific simulation events
+     * (cell change, ion exit, implantation)
      * using the \ref tally object \p t.
      *
      * @param i pointer to the ion object
      * @param t reference to the tally object
      * @return 0 if succesfull
      */
-    int transport(ion* i, tally& t, cascade_queue* q = nullptr);
+    int transport(ion *i, tally &t, cascade_queue *q = nullptr);
 
     /**
      * @brief Generate a new recoil ion
@@ -350,12 +347,11 @@ protected:
      * @param nt recoil direction
      * @return a pointer to the newly created moving ion
      */
-    ion *new_recoil(const ion* proj, const atom* target, const float& recoil_erg,
-                    const vector3& nt)
+    ion *new_recoil(const ion *proj, const atom *target, const float &recoil_erg, const vector3 &nt)
     {
         // init the recoil by cloning the projectile ion
         // this gets the correct position and cell id
-        ion* j = q_.new_ion(proj);
+        ion *j = q_.new_ion(proj);
 
         // set atomic species,
         // recoil kinetic energy & direction
@@ -365,17 +361,17 @@ protected:
         //   Efp is stored energy (will be deposited when the ion finishes)
         j->init_recoil(target, recoil_erg - target->El());
         j->reset_counters();
-        //j->de_phonon(target->Ed()); //(target->Ed()-target->El());
+        // j->de_phonon(target->Ed()); //(target->Ed()-target->El());
         j->setNormalizedDir(nt);
 
         // store recoil in respective queue
-        if (j->recoil_id()==1) q_.push_pka(j);
-        else q_.push_recoil(j);
+        if (j->recoil_id() == 1)
+            q_.push_pka(j);
+        else
+            q_.push_recoil(j);
 
         return j;
     }
 };
-
-
 
 #endif // SIMULATION_H

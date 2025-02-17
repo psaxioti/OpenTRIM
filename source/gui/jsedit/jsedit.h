@@ -37,16 +37,16 @@
 
 class JSEditPrivate;
 
-class JSEdit: public QPlainTextEdit
+class JSEdit : public QPlainTextEdit
 {
     Q_OBJECT
-    Q_PROPERTY(bool bracketsMatchingEnabled READ isBracketsMatchingEnabled WRITE setBracketsMatchingEnabled)
+    Q_PROPERTY(bool bracketsMatchingEnabled READ isBracketsMatchingEnabled WRITE
+                       setBracketsMatchingEnabled)
     Q_PROPERTY(bool codeFoldingEnabled READ isCodeFoldingEnabled WRITE setCodeFoldingEnabled)
     Q_PROPERTY(bool lineNumbersVisible READ isLineNumbersVisible WRITE setLineNumbersVisible)
     Q_PROPERTY(bool textWrapEnabled READ isTextWrapEnabled WRITE setTextWrapEnabled)
 
 public:
-
     typedef enum {
         Background,
         Normal,

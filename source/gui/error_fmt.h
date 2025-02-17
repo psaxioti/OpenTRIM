@@ -13,16 +13,16 @@
  * with 0.1 <= |x| < 1
  *
  */
-template<class T>
-constexpr T frexp10 (const T& num, int* exp)
+template <class T>
+constexpr T frexp10(const T &num, int *exp)
 {
-    if (num==T(0)) { // similar to frexp
+    if (num == T(0)) { // similar to frexp
         *exp = 0;
         return T(0);
     }
     T logn = std::log10(std::abs(num));
     *exp = std::floor(logn) + 1;
-    return num * std::pow(T(10),-(*exp));
+    return num * std::pow(T(10), -(*exp));
 }
 
 /*
@@ -35,37 +35,38 @@ constexpr T frexp10 (const T& num, int* exp)
  * Default d=2. d=1 is also often used.
  *
  */
-template<class T>
-T round_with_err (const T& f, const T& df, int d=2)
+template <class T>
+T round_with_err(const T &f, const T &df, int d = 2)
 {
-    if (df<=0) return f;
+    if (df <= 0)
+        return f;
 
     // split numbers to mantissa and exponent
     int n, dn;
-    T  x = frexp10( f, &n);
-    T dx = frexp10(df,&dn);
+    T x = frexp10(f, &n);
+    T dx = frexp10(df, &dn);
 
     // find the required precision = # of
     // significant digits to express
     // the value within error.
     // min precision is 1 (1 digit for the result)
     // round f to the precision
-    int precision = std::max(n-dn+d, 1);
+    int precision = std::max(n - dn + d, 1);
     T sc = std::pow(T(10), precision - n);
-    return std::round(f*sc)/sc;
+    return std::round(f * sc) / sc;
 }
 
 std::string superscript(int i)
 {
-    const char* ss[] = {"\u2070", "\u00b9", "\u00b2", "\u00b3",
-                        "\u2074", "\u2075", "\u2076", "\u2077",
-                        "\u2078", "\u2079", "\u207a", "\u207b"};
+    const char *ss[] = { "\u2070", "\u00b9", "\u00b2", "\u00b3", "\u2074", "\u2075",
+                         "\u2076", "\u2077", "\u2078", "\u2079", "\u207a", "\u207b" };
     char buff[32];
-    std::snprintf(buff,32,"%d",std::abs(i));
-    char* p = buff;
+    std::snprintf(buff, 32, "%d", std::abs(i));
+    char *p = buff;
     std::string s;
-    if (i < 0) s = ss[11];
-    while(*p) {
+    if (i < 0)
+        s = ss[11];
+    while (*p) {
         int k = *p - 48;
         s.append(std::string(ss[k]));
         p++;
@@ -101,52 +102,55 @@ std::string superscript(int i)
  * @param parenthesis use parenthesis style when printing the error
  * @return a std::string containing the printed value
  */
-template<class T>
-std::string print_with_err(const T& f, const T& df, char fmt = 'g', int d = 2, bool parenthesis = true)
+template <class T>
+std::string print_with_err(const T &f, const T &df, char fmt = 'g', int d = 2,
+                           bool parenthesis = true)
 {
     // check invalid input
-    if (df<=T(0) || d<=0) return std::string();
+    if (df <= T(0) || d <= 0)
+        return std::string();
     // check invalid fmt char, replace with 'g'
-    static const char* fmt_chars = "fFeEgG";
-    if (std::strchr(fmt_chars,fmt)==NULL) fmt = 'g';
+    static const char *fmt_chars = "fFeEgG";
+    if (std::strchr(fmt_chars, fmt) == NULL)
+        fmt = 'g';
 
     // split numbers to mantissa and exponent
     int n, dn;
-    T  x = frexp10( f, &n);
-    T dx = frexp10(df,&dn);
+    T x = frexp10(f, &n);
+    T dx = frexp10(df, &dn);
 
     // round error to the required digits d
-    T sc =std::pow(T(10),d);
-    dx = std::round(dx*sc)/sc;
+    T sc = std::pow(T(10), d);
+    dx = std::round(dx * sc) / sc;
 
     // find the required precision = # of
     // significant digits to express
     // the value + error.
     // min precision is 1 (1 digit for the result)
     // round f to the precision
-    int precision = std::max(n-dn+d, 1);
-    sc = std::pow(T(10),precision);
-    x = std::round(x*sc)/sc;
+    int precision = std::max(n - dn + d, 1);
+    sc = std::pow(T(10), precision);
+    x = std::round(x * sc) / sc;
 
-    if (fmt=='g' || fmt=='G') {
-        fmt = ((precision > n-1) && (n>=-3)) ? 'f' : 'e';
+    if (fmt == 'g' || fmt == 'G') {
+        fmt = ((precision > n - 1) && (n >= -3)) ? 'f' : 'e';
     }
 
     char buff[1024];
 
     if (parenthesis) {
 
-        if (fmt=='f' || fmt=='F') {
+        if (fmt == 'f' || fmt == 'F') {
             // convert x to the rounded f value
-            x *= std::pow(T(10),n);
-            dx *= std::pow(T(10),dn);
+            x *= std::pow(T(10), n);
+            dx *= std::pow(T(10), dn);
 
             // find required # of decimals
             int decimals = std::max(precision - n, 0);
 
             if (decimals) {
-                if (d<=decimals) {
-                    dx *= std::pow(T(10),decimals);
+                if (d <= decimals) {
+                    dx *= std::pow(T(10), decimals);
                     snprintf(buff, 1024, "%.*f(%.0f)", decimals, x, dx);
                 } else {
                     snprintf(buff, 1024, "%.*f(%.*f)", decimals, x, decimals, dx);
@@ -157,35 +161,35 @@ std::string print_with_err(const T& f, const T& df, char fmt = 'g', int d = 2, b
 
             return std::string(buff);
 
-        } else if (fmt=='e' || fmt=='E') {
+        } else if (fmt == 'e' || fmt == 'E') {
 
-            x *= std::pow(T(10),1);
-            //dx *= std::pow(T(10),dn+1-n);
+            x *= std::pow(T(10), 1);
+            // dx *= std::pow(T(10),dn+1-n);
 
-            int decimals = std::max(precision-1,0);
+            int decimals = std::max(precision - 1, 0);
 
             if (decimals) {
-                if (d<=decimals) {
-                    dx *= std::pow(T(10),d);
+                if (d <= decimals) {
+                    dx *= std::pow(T(10), d);
                     snprintf(buff, 1024, "%.*f(%.0f)", decimals, x, dx);
                     std::string s(buff);
                     s.append("×10");
-                    s.append(superscript(n-1));
+                    s.append(superscript(n - 1));
                     return s;
                 } else {
-                    dx *= std::pow(T(10),d-decimals);
+                    dx *= std::pow(T(10), d - decimals);
                     snprintf(buff, 1024, "%.*f(%.*f)", decimals, x, decimals, dx);
                     std::string s(buff);
                     s.append("×10");
-                    s.append(superscript(n-1));
+                    s.append(superscript(n - 1));
                     return s;
                 }
             } else {
-                dx *= std::pow(T(10),dn+1-n);
+                dx *= std::pow(T(10), dn + 1 - n);
                 snprintf(buff, 1024, "%.0f(%.0f)", x, dx);
                 std::string s(buff);
                 s.append("×10");
-                s.append(superscript(n-1));
+                s.append(superscript(n - 1));
                 return s;
             }
 
@@ -193,41 +197,39 @@ std::string print_with_err(const T& f, const T& df, char fmt = 'g', int d = 2, b
         }
     } else { // !parentheses
 
-        if (fmt=='f' || fmt=='F') {
+        if (fmt == 'f' || fmt == 'F') {
             // convert x,dx to the rounded f,df values
-            x *= std::pow(T(10),n);
-            dx *= std::pow(T(10),dn);
+            x *= std::pow(T(10), n);
+            dx *= std::pow(T(10), dn);
 
             // find required # of decimals
             int decimals = std::max(precision - n, 0);
 
             if (decimals) {
-                snprintf(buff, 1024, "%.*f±%.*f",
-                         decimals, x, decimals, dx);
+                snprintf(buff, 1024, "%.*f±%.*f", decimals, x, decimals, dx);
             } else {
-                snprintf(buff, 1024, "%.0f±%.0f",x,dx);
+                snprintf(buff, 1024, "%.0f±%.0f", x, dx);
             }
 
             return std::string(buff);
 
-        } else if (fmt=='e' || fmt=='E') {
-            x *= std::pow(T(10),1);
-            dx *= std::pow(T(10),dn+1-n);
+        } else if (fmt == 'e' || fmt == 'E') {
+            x *= std::pow(T(10), 1);
+            dx *= std::pow(T(10), dn + 1 - n);
 
-            int decimals = std::max(precision-1,0);
+            int decimals = std::max(precision - 1, 0);
 
             if (decimals) {
-                snprintf(buff, 1024, "(%.*f±%.*f)",
-                         decimals, x, decimals, dx);
+                snprintf(buff, 1024, "(%.*f±%.*f)", decimals, x, decimals, dx);
                 std::string s(buff);
                 s.append("×10");
-                s.append(superscript(n-1));
+                s.append(superscript(n - 1));
                 return s;
             } else {
-                snprintf(buff, 1024, "(%.0f±%.0f)",x,dx);
+                snprintf(buff, 1024, "(%.0f±%.0f)", x, dx);
                 std::string s(buff);
                 s.append("×10");
-                s.append(superscript(n-1));
+                s.append(superscript(n - 1));
                 return s;
             }
         }

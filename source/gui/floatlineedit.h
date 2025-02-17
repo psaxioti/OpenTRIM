@@ -5,7 +5,6 @@
 #include <QValidator>
 #include "geometry.h"
 
-
 class FloatValidator : public QValidator
 {
     Q_OBJECT
@@ -13,7 +12,7 @@ class FloatValidator : public QValidator
     Q_PROPERTY(float top READ top WRITE setTop NOTIFY topChanged)
     Q_PROPERTY(int decimals READ decimals WRITE setDecimals NOTIFY decimalsChanged)
 public:
-    explicit FloatValidator(QObject * parent = nullptr);
+    explicit FloatValidator(QObject *parent = nullptr);
     FloatValidator(float bottom, float top, int decimals, QObject *parent = nullptr);
     ~FloatValidator();
     QValidator::State validate(QString &, int &) const override;
@@ -28,6 +27,7 @@ Q_SIGNALS:
     void bottomChanged(float bottom);
     void topChanged(float top);
     void decimalsChanged(int decimals);
+
 private:
     Q_DISABLE_COPY(FloatValidator)
     float b;
@@ -35,62 +35,64 @@ private:
     int dec;
 };
 
-template <class T> struct num_convert;
+template <class T>
+struct num_convert;
 
 template <>
-struct num_convert<float> {
-    static float str2num(const QString& s, bool& ok) {
-        return s.toFloat(&ok);
-    }
+struct num_convert<float>
+{
+    static float str2num(const QString &s, bool &ok) { return s.toFloat(&ok); }
 };
 
 template <>
-struct num_convert<int> {
-    static int str2num(const QString& s, bool& ok) {
-        return s.toInt(&ok);
-    }
+struct num_convert<int>
+{
+    static int str2num(const QString &s, bool &ok) { return s.toInt(&ok); }
 };
 
-template<class vector_t>
+template <class vector_t>
 struct qstring_serialize
 {
     typedef typename vector3::Scalar scalar_t;
 
-    static vector_t fromString(const QString& S, bool *ok = nullptr)
+    static vector_t fromString(const QString &S, bool *ok = nullptr)
     {
         vector_t v;
         bool myok;
-        bool& ok_ = ok ? *ok : myok;
+        bool &ok_ = ok ? *ok : myok;
         ok_ = false;
 
         QString t = S.trimmed();
-        if (t.startsWith('[')) t.remove(0,1);
-        else return v;
+        if (t.startsWith('['))
+            t.remove(0, 1);
+        else
+            return v;
 
-        if (t.endsWith(']')) t.chop(1);
-        else return v;
+        if (t.endsWith(']'))
+            t.chop(1);
+        else
+            return v;
 
-        QStringList lst = t.split(',',Qt::SkipEmptyParts);
-        if (lst.count()!=3) return v;
+        QStringList lst = t.split(',', Qt::SkipEmptyParts);
+        if (lst.count() != 3)
+            return v;
 
         bool numok = true;
-        int i =0;
-        while(i<3 && numok) {
-            v[i] = num_convert<scalar_t>::str2num(lst.at(i),numok);
+        int i = 0;
+        while (i < 3 && numok) {
+            v[i] = num_convert<scalar_t>::str2num(lst.at(i), numok);
             i++;
         }
-        if (!numok) return vector_t{};
+        if (!numok)
+            return vector_t{};
 
         ok_ = true;
         return v;
     }
 
-    static QString toString(const vector_t& v)
+    static QString toString(const vector_t &v)
     {
-        return QString("[%1, %2, %3]")
-            .arg(v[0])
-            .arg(v[1])
-            .arg(v[2]);
+        return QString("[%1, %2, %3]").arg(v[0]).arg(v[1]).arg(v[2]);
     }
 };
 
@@ -119,6 +121,7 @@ public:
 Q_SIGNALS:
     void bottomChanged(float bottom);
     void topChanged(float top);
+
 private:
     Q_DISABLE_COPY(Vector3dValidator)
     float b;
@@ -144,6 +147,7 @@ public:
 Q_SIGNALS:
     void bottomChanged(int bottom);
     void topChanged(int top);
+
 private:
     Q_DISABLE_COPY(IntVector3dValidator)
     int b;
@@ -154,9 +158,9 @@ class FloatLineEdit : public QLineEdit
 {
     Q_OBJECT
 
-public:     
-    explicit FloatLineEdit(QWidget* parent = nullptr);
-    FloatLineEdit(float fmin, float fmax, int decimals, QWidget* parent = nullptr);
+public:
+    explicit FloatLineEdit(QWidget *parent = nullptr);
+    FloatLineEdit(float fmin, float fmax, int decimals, QWidget *parent = nullptr);
 
     void setValue(float v);
     float value() const;
@@ -170,10 +174,10 @@ class Vector3dLineEdit : public QLineEdit
     Q_OBJECT
 
 public:
-    explicit Vector3dLineEdit(QWidget* parent = nullptr);
-    Vector3dLineEdit(float fmin, float fmax, int decimals, QWidget* parent = nullptr);
+    explicit Vector3dLineEdit(QWidget *parent = nullptr);
+    Vector3dLineEdit(float fmin, float fmax, int decimals, QWidget *parent = nullptr);
 
-    void setValue(const vector3& v);
+    void setValue(const vector3 &v);
     vector3 value() const;
 
 private slots:
@@ -185,10 +189,10 @@ class IntVector3dLineEdit : public QLineEdit
     Q_OBJECT
 
 public:
-    explicit IntVector3dLineEdit(QWidget* parent = nullptr);
-    IntVector3dLineEdit(int imin, int imax, QWidget* parent = nullptr);
+    explicit IntVector3dLineEdit(QWidget *parent = nullptr);
+    IntVector3dLineEdit(int imin, int imax, QWidget *parent = nullptr);
 
-    void setValue(const ivector3& v);
+    void setValue(const ivector3 &v);
     ivector3 value() const;
 
 private slots:

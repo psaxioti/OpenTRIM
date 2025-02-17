@@ -20,8 +20,7 @@ class RunView : public QWidget
     Q_OBJECT
 
 public:
-
-    explicit RunView(MainUI* iui, QWidget *parent = nullptr);
+    explicit RunView(MainUI *iui, QWidget *parent = nullptr);
 
 public slots:
     void revert();
@@ -31,16 +30,12 @@ public slots:
 signals:
 
 private:
+    MainUI *ionsui;
+    MyDataWidgetMapper *mapper;
+    QLineEdit *simTitle;
+    QGroupBox *box3;
 
-    MainUI* ionsui;
-    MyDataWidgetMapper* mapper;
-    QLineEdit* simTitle;
-    QGroupBox* box3;
-
-    std::vector<QLineEdit*> simTotals;
-
+    std::vector<QLineEdit *> simTotals;
 };
-
-
 
 #endif // RUNVIEW_H

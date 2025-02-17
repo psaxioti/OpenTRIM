@@ -55,7 +55,6 @@ class mccore;
 class flight_path_calc
 {
 public:
-
     /**
      * @brief Flight path selection algorithm
      *
@@ -63,15 +62,15 @@ public:
      * free flight path \f$\ell\f$ between collisions.
      */
     enum flight_path_type_t {
-        AtomicSpacing = 0,  /**< Constant, equal to interatomic distance */
-        Constant = 1,       /**< Constant, equal to user supplied value */
+        AtomicSpacing = 0, /**< Constant, equal to interatomic distance */
+        Constant = 1, /**< Constant, equal to user supplied value */
         MendenhallWeller = 2, /**< Algorithm from Mendenhall-Weller NIMB2005*/
-        IPP = 3,            /**< IPP algorithm */
+        IPP = 3, /**< IPP algorithm */
         InvalidPath = -1
     };
 
     flight_path_calc();
-    flight_path_calc(const flight_path_calc& other);
+    flight_path_calc(const flight_path_calc &other);
 
     flight_path_type_t type() const { return type_; }
 
@@ -82,10 +81,10 @@ public:
     ArrayNDf Tcutoff() const { return Tcutoff_; }
 
     /// Initialize object
-    int init(const mccore& s);
+    int init(const mccore &s);
 
     /// Init object for a specific ion/material combination
-    int init(const ion* i, const material* m);
+    int init(const ion *i, const material *m);
 
     /**
      * @brief Select the ion's flight path and impact parameter
@@ -95,9 +94,9 @@ public:
      * the mccore::flight_path_type_t enum.
      *
      * If transport_options::flight_path_type is equal to \ref AtomicSpacing or \ref Constant
-     * then the flight path \f$\ell\f$ is precalculated and equal to either the material's atomic radius
-     * \f$ R_{at} = \left(\frac{3}{4\pi}N\right)^{1/3} \f$ or
-     * to \ref parameters::flight_path_const, respectively.
+     * then the flight path \f$\ell\f$ is precalculated and equal to either the material's atomic
+     * radius \f$ R_{at} = \left(\frac{3}{4\pi}N\right)^{1/3} \f$ or to \ref
+     * parameters::flight_path_const, respectively.
      *
      * In both of these cases the impact parameter \f$p\f$ is calculated as
      * $$
@@ -132,8 +131,7 @@ public:
      *
      * @sa \ref flightpath
      */
-    bool operator()(random_vars& rng, float E,
-                    float &fp, float &sqrtfp, float &ip) const
+    bool operator()(random_vars &rng, float E, float &fp, float &sqrtfp, float &ip) const
     {
         bool doCollision = true;
         int ie;
@@ -142,46 +140,46 @@ public:
         case AtomicSpacing:
             fp = fp_;
             sqrtfp = 1;
-            ip = ip_*std::sqrt(rng.u01d_lopen());
+            ip = ip_ * std::sqrt(rng.u01d_lopen());
             break;
         case Constant:
             fp = fp_;
             sqrtfp = sqrtfp_;
-            ip = ip_*std::sqrt(rng.u01d_lopen());
+            ip = ip_ * std::sqrt(rng.u01d_lopen());
             break;
         case MendenhallWeller:
             ie = dedx_index(E);
             ip = ipmax_tbl[ie];
             fp = mfp_tbl[ie];
-            if (ip < ip_)
-            {
-                sqrtfp = std::sqrt(fp/fp_);
+            if (ip < ip_) {
+                sqrtfp = std::sqrt(fp / fp_);
                 ip *= std::sqrt(-std::log(rng.u01s_open()));
                 doCollision = (ip <= ipmax_tbl[ie]);
             } else { // atomic spacing
                 fp = fp_;
                 sqrtfp = 1;
-                ip = ip_*std::sqrt(rng.u01d_lopen());
+                ip = ip_ * std::sqrt(rng.u01d_lopen());
             }
             break;
         case IPP:
             ie = dedx_index(E);
-            fp = mfp_tbl[ie]*(-std::log(rng.u01s_open()));
+            fp = mfp_tbl[ie] * (-std::log(rng.u01s_open()));
             doCollision = fp <= fpmax_tbl[ie];
-            if (doCollision) ip = ipmax_tbl[ie]*std::sqrt(rng.u01d_lopen());
-            else fp = fpmax_tbl[ie];
-            sqrtfp = std::sqrt(fp/fp_);
+            if (doCollision)
+                ip = ipmax_tbl[ie] * std::sqrt(rng.u01d_lopen());
+            else
+                fp = fpmax_tbl[ie];
+            sqrtfp = std::sqrt(fp / fp_);
             break;
         default:
             assert(false); // never get here
         }
-        assert(fp>0);
+        assert(fp > 0);
         assert(finite(fp));
         return doCollision;
     }
 
 protected:
-
     flight_path_type_t type_;
 
     // helper variables for flight path calc
@@ -192,7 +190,6 @@ protected:
     // flight path selection par
     ArrayNDf mfp_, ipmax_, fp_max_, Tcutoff_;
 
-
     // Flight path [nm]
     float fp_;
     // Square root of ratio (flight path)/(atomic radius) (used for straggling)
@@ -200,11 +197,11 @@ protected:
     // Impact parameter [nm]
     float ip_;
     // Tabulated max impact parameter as a function of ion energy
-    const float* ipmax_tbl;
+    const float *ipmax_tbl;
     // Tabulated mean free path as a function of ion energy
-    const float* mfp_tbl;
+    const float *mfp_tbl;
     // Tabulated max flight path as a function of ion energy
-    const float* fpmax_tbl;
+    const float *fpmax_tbl;
 };
 
 #endif // FLIGHT_PATH_CALC_H

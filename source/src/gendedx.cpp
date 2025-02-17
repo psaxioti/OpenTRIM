@@ -17,10 +17,11 @@
  *
  * Example:
  *   ./gendedx "/home/george/.local/SRIM-2013/srmodule" \
- *             'WINEPREFIX=/home/george/.local/share/wineprefixes/Wine32 WINEARCH="win32" wine SRModule.exe' \
- *             dedx
+ *             'WINEPREFIX=/home/george/.local/share/wineprefixes/Wine32 WINEARCH="win32" wine
+ * SRModule.exe' \ dedx
  *
- * The contents of the output folder should be copied to opentrim/dedx/ in order to build the iondedx library
+ * The contents of the output folder should be copied to opentrim/dedx/ in order to build the
+ * iondedx library
  *
  *
  */
@@ -39,7 +40,8 @@
 #ifdef WIN32
 const char endline[] = "\n";
 #else
-// in Linux or mac, where SRModule is called using Wine, we must feed an input file containing return+linefeed
+// in Linux or mac, where SRModule is called using Wine, we must feed an input file containing
+// return+linefeed
 const char endline[] = "\r\n";
 #endif
 
@@ -48,15 +50,16 @@ using namespace std;
 
 double mostAbundantIsotopeMass(int Z)
 {
-    auto& e = periodic_table::at(Z);
+    auto &e = periodic_table::at(Z);
 
-    if (e.isotopes.empty()) return 0.0;
+    if (e.isotopes.empty())
+        return 0.0;
 
     double max_abnd = 0;
-    const periodic_table::isotope* i_max_abnd = nullptr;
+    const periodic_table::isotope *i_max_abnd = nullptr;
     double max_hl = 0;
-    const periodic_table::isotope*  i_max_hl = nullptr;
-    for (const periodic_table::isotope& i : e.isotopes) {
+    const periodic_table::isotope *i_max_hl = nullptr;
+    for (const periodic_table::isotope &i : e.isotopes) {
         if (i.abundance > max_abnd) {
             max_abnd = i.abundance;
             i_max_abnd = &i;
@@ -66,29 +69,32 @@ double mostAbundantIsotopeMass(int Z)
             i_max_hl = &i;
         }
     }
-    if (i_max_abnd!=nullptr) return i_max_abnd->mass;
-    else if (i_max_hl!=nullptr) return i_max_hl->mass;
-    else return 0.0;
+    if (i_max_abnd != nullptr)
+        return i_max_abnd->mass;
+    else if (i_max_hl != nullptr)
+        return i_max_hl->mass;
+    else
+        return 0.0;
 }
-
 
 string srmodule_folder;
 string srmodule_command;
 string out_folder;
 
-int parse(int argc, char* argv[]);
+int parse(int argc, char *argv[]);
 int doit();
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if (parse(argc,argv)<0) return -1;
+    if (parse(argc, argv) < 0)
+        return -1;
     return doit();
 }
 
-int parse(int argc, char* argv[])
+int parse(int argc, char *argv[])
 {
-    const char* usage = "Usage: gendedx srmodule_folder srmodule_cmd out_folder";
-    if (argc!=4) {
+    const char *usage = "Usage: gendedx srmodule_folder srmodule_cmd out_folder";
+    if (argc != 4) {
         cout << usage << endl;
         return -1;
     }
@@ -98,7 +104,7 @@ int parse(int argc, char* argv[])
     return 0;
 }
 
-int run_srim(int Z1, int Z2, vector<float>& data)
+int run_srim(int Z1, int Z2, vector<float> &data)
 {
     // store current folder and change to srim srmodule folder
     fs::path work_dir(fs::current_path());
@@ -108,22 +114,13 @@ int run_srim(int Z1, int Z2, vector<float>& data)
     {
         // write SRModule input file
         ofstream os("SR.IN");
-        os << endline << endline
-           << "SR_OUTPUT.txt"
-           << endline << endline
-           << Z1 << ' ' << mostAbundantIsotopeMass(Z1)
-           << endline << endline
-           << " 0 1 0"
-           << endline << endline
-           << "1"
-           << endline << endline
-           << Z2 << " \"X\" 1 1"
-           << endline << endline
-           << " 7"
-           << endline << endline
-           << " 0 0 " << endline;
+        os << endline << endline << "SR_OUTPUT.txt" << endline << endline << Z1 << ' '
+           << mostAbundantIsotopeMass(Z1) << endline << endline << " 0 1 0" << endline << endline
+           << "1" << endline << endline << Z2 << " \"X\" 1 1" << endline << endline << " 7"
+           << endline << endline << " 0 0 " << endline;
 
-        for(const float erg : dedx_index()) os << erg/1000 << endline;
+        for (const float erg : dedx_index())
+            os << erg / 1000 << endline;
 
         os << " 0 ";
     }
@@ -132,21 +129,19 @@ int run_srim(int Z1, int Z2, vector<float>& data)
     int ret = system(srmodule_command.c_str());
 
     // if ok read output
-    if (ret==0)
-    {
+    if (ret == 0) {
         ifstream is("SR_OUTPUT.txt");
         char buff[4096];
-        is.getline(buff,4096);
-        is.getline(buff,4096);
-        is.getline(buff,4096);
-        is.getline(buff,4096);
+        is.getline(buff, 4096);
+        is.getline(buff, 4096);
+        is.getline(buff, 4096);
+        is.getline(buff, 4096);
 
-        int i=0;
-        while(is.good() && i<data.size())
-        {
+        int i = 0;
+        while (is.good() && i < data.size()) {
             double d, dedxval;
             is >> d >> data[i];
-            is.getline(buff,4096);
+            is.getline(buff, 4096);
             i++;
         }
 
@@ -154,7 +149,6 @@ int run_srim(int Z1, int Z2, vector<float>& data)
             cerr << "Failed to read SR_OUTPUT.txt" << endl;
             ret = -1;
         }
-
     }
 
     // return to workdir
@@ -163,26 +157,24 @@ int run_srim(int Z1, int Z2, vector<float>& data)
 }
 
 // print out a 32bit float so that it is read back the same
-std::ostream& printfloat(std::ostream& os, float x)
+std::ostream &printfloat(std::ostream &os, float x)
 {
     char buff[32];
     // get number of digits for a float -> text -> float round-trip
     static constexpr auto d = std::numeric_limits<float>::max_digits10;
-    std::sprintf(buff,"%.*g", d, x);
+    std::sprintf(buff, "%.*g", d, x);
     os << buff;
     return os;
 }
 
-int print_cpp_matrix(ofstream& Z1cpp, int Z1, int Z2, const vector<float>& data)
+int print_cpp_matrix(ofstream &Z1cpp, int Z1, int Z2, const vector<float> &data)
 {
-    Z1cpp << "static const float "
-          << periodic_table::at(Z1).symbol
-          << "_on_"
-          << periodic_table::at(Z2).symbol
-          << "[] = {";
+    Z1cpp << "static const float " << periodic_table::at(Z1).symbol << "_on_"
+          << periodic_table::at(Z2).symbol << "[] = {";
     const int val_per_line = 10;
-    for(int i=0; i<data.size()-1; ++i) {
-        if (i % val_per_line == 0) Z1cpp << endl << "    ";
+    for (int i = 0; i < data.size() - 1; ++i) {
+        if (i % val_per_line == 0)
+            Z1cpp << endl << "    ";
         printfloat(Z1cpp, data[i]);
         Z1cpp << ", ";
     }
@@ -190,32 +182,31 @@ int print_cpp_matrix(ofstream& Z1cpp, int Z1, int Z2, const vector<float>& data)
     return 0;
 }
 
-int print_cpp_element_matrix(ofstream& Z1cpp, int Z1, int Z2max)
+int print_cpp_element_matrix(ofstream &Z1cpp, int Z1, int Z2max)
 {
-    Z1cpp << "const float* dedx"
-          << periodic_table::at(Z1).symbol
-          << "[] = { nullptr,";
+    Z1cpp << "const float* dedx" << periodic_table::at(Z1).symbol << "[] = { nullptr,";
     const int val_per_line = 5;
-    for(int Z2=1; Z2<=Z2max; Z2++) {
-        if (((Z2-1) % val_per_line) == 0) Z1cpp << endl << "    ";
-        Z1cpp << periodic_table::at(Z1).symbol
-              << "_on_"
-              << periodic_table::at(Z2).symbol;
-        if (Z2<Z2max) Z1cpp << ", ";
-        else Z1cpp << "};" << endl << endl;
+    for (int Z2 = 1; Z2 <= Z2max; Z2++) {
+        if (((Z2 - 1) % val_per_line) == 0)
+            Z1cpp << endl << "    ";
+        Z1cpp << periodic_table::at(Z1).symbol << "_on_" << periodic_table::at(Z2).symbol;
+        if (Z2 < Z2max)
+            Z1cpp << ", ";
+        else
+            Z1cpp << "};" << endl << endl;
     }
     return 0;
 }
 
 int doit()
 {
-    const char* preample = "// file generated by gendedx - do not edit\n\n";
+    const char *preample = "// file generated by gendedx - do not edit\n\n";
 
     vector<float> data(dedx_index::size);
 
     int Zmax = dedx_max_Z;
     cout << "Generating dedx data:" << endl;
-    for(int Z1=1; Z1<=Zmax; Z1++) {
+    for (int Z1 = 1; Z1 <= Zmax; Z1++) {
         cout << periodic_table::at(Z1).symbol << ' ';
         cout.flush();
         string fname(out_folder);
@@ -225,12 +216,14 @@ int doit()
         ofstream Z1cpp(fname);
         // Z1cpp << fixed << setprecision(4);
         Z1cpp << preample;
-        for(int Z2=1; Z2<=Zmax; Z2++) {
+        for (int Z2 = 1; Z2 <= Zmax; Z2++) {
             if (Z2 % 10 == 0) {
-                cout << '.'; cout.flush();
+                cout << '.';
+                cout.flush();
             }
-            if (run_srim(Z1,Z2,data)<0) return -1;
-            print_cpp_matrix(Z1cpp,Z1,Z2,data);
+            if (run_srim(Z1, Z2, data) < 0)
+                return -1;
+            print_cpp_matrix(Z1cpp, Z1, Z2, data);
         }
         print_cpp_element_matrix(Z1cpp, Z1, Zmax);
         cout << endl;
@@ -242,19 +235,21 @@ int doit()
         ofstream cpp(fname);
         cpp << preample;
 
-        for(int Z1=1; Z1<=Zmax; Z1++) {
-            cpp << "extern const float* dedx"
-                << periodic_table::at(Z1).symbol << "[];" << endl;
+        for (int Z1 = 1; Z1 <= Zmax; Z1++) {
+            cpp << "extern const float* dedx" << periodic_table::at(Z1).symbol << "[];" << endl;
         }
         cpp << endl;
 
         cpp << "const float** dedx_data[] = { nullptr, ";
         const int val_per_line = 5;
-        for(int Z1=1; Z1<=Zmax; Z1++) {
-            if (((Z1-1) % val_per_line) == 0) cpp << endl << "    ";
+        for (int Z1 = 1; Z1 <= Zmax; Z1++) {
+            if (((Z1 - 1) % val_per_line) == 0)
+                cpp << endl << "    ";
             cpp << "dedx" << periodic_table::at(Z1).symbol;
-            if (Z1<Zmax) cpp << ", ";
-            else cpp << "};" << endl << endl;
+            if (Z1 < Zmax)
+                cpp << ", ";
+            else
+                cpp << "};" << endl << endl;
         }
     }
 
@@ -264,16 +259,12 @@ int doit()
         cpp << preample;
 
         cpp << "static const double most_abundant_isotope_mass_[] = {\n    0";
-        for(int Z=1; Z<periodic_table::size(); Z++) {
+        for (int Z = 1; Z < periodic_table::size(); Z++) {
             cpp << ',' << endl << "    " << mostAbundantIsotopeMass(Z);
         }
         cpp << "\n};\n";
         cpp << "const double* most_abundant_isotope_mass = most_abundant_isotope_mass_;\n\n";
     }
 
-
     return 0;
 }
-
-
-

@@ -13,12 +13,11 @@ class QTimer;
 class McDriverObj;
 class MainUI;
 
-
 class SimControlWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SimControlWidget(MainUI* ui, QWidget *parent = nullptr);
+    explicit SimControlWidget(MainUI *ui, QWidget *parent = nullptr);
 
 signals:
 
@@ -32,19 +31,19 @@ private slots:
     void revert();
 
 private:
-    MainUI* mainui_;
-    McDriverObj* driver_;
-    QToolButton* btStart;
-    QToolButton* btReset;
-    QSpinBox* sbIons;
-    QSpinBox* sbNThreads;
-    QSpinBox* sbSeed;
-    QSpinBox* sbUpdInterval;
-    std::vector<QSpinBox*> simCtrls;
-    std::vector<QLineEdit*> simIndicators;
-    QProgressBar* progressBar;
-    QLabel* runIndicator;
-    QTimer* simTimer;
+    MainUI *mainui_;
+    McDriverObj *driver_;
+    QToolButton *btStart;
+    QToolButton *btReset;
+    QSpinBox *sbIons;
+    QSpinBox *sbNThreads;
+    QSpinBox *sbSeed;
+    QSpinBox *sbUpdInterval;
+    std::vector<QSpinBox *> simCtrls;
+    std::vector<QLineEdit *> simIndicators;
+    QProgressBar *progressBar;
+    QLabel *runIndicator;
+    QTimer *simTimer;
 };
 
 #endif // SIMCONTROLWIDGET_H

@@ -21,17 +21,17 @@ class MaterialsDefView : public QWidget
 {
     Q_OBJECT
 
-    MyComboBox* cbMaterialID;
-    QToolButton* btAddMaterial;
-    QToolButton* btDelMaterial;
-    QDoubleSpinBox* sbDensity;
-    MaterialCompositionView* materialsView;
-    OptionsModel* model_;
+    MyComboBox *cbMaterialID;
+    QToolButton *btAddMaterial;
+    QToolButton *btDelMaterial;
+    QDoubleSpinBox *sbDensity;
+    MaterialCompositionView *materialsView;
+    OptionsModel *model_;
 
     QPersistentModelIndex materialsIndex_;
 
 public:
-    MaterialsDefView(OptionsModel* m, QWidget *parent = nullptr);
+    MaterialsDefView(OptionsModel *m, QWidget *parent = nullptr);
 
 public slots:
     void addMaterial();
@@ -48,17 +48,13 @@ class MyComboBox : public QComboBox
     Q_OBJECT
 
 public:
-    MyComboBox() : QComboBox()
-    {}
+    MyComboBox() : QComboBox() { }
 
 signals:
     void doubleClicked();
 
 protected:
-    void mouseDoubleClickEvent(QMouseEvent *event) override
-    {
-        emit doubleClicked();
-    }
+    void mouseDoubleClickEvent(QMouseEvent *event) override { emit doubleClicked(); }
 };
 
 class OptionsModel;
@@ -68,43 +64,41 @@ class MaterialCompositionModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    MaterialCompositionModel(OptionsModel* m, QObject *parent = 0);
+    MaterialCompositionModel(OptionsModel *m, QObject *parent = 0);
 
     void setMaterialIdx(int i = -1);
     int materialIdx() const { return materialIdx_; }
 
-    const material::material_desc_t* getMaterial() const;
-    material::material_desc_t* getMaterial();
+    const material::material_desc_t *getMaterial() const;
+    material::material_desc_t *getMaterial();
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
 
     Qt::ItemFlags flags(const QModelIndex &index) const override;
-    bool setData(const QModelIndex &index, const QVariant &value,
-                 int role = Qt::EditRole) override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
-    bool insertRows(int position, int rows,
-                    const QModelIndex &parent = QModelIndex()) override;
-    bool removeRows(int position, int rows,
-                    const QModelIndex &parent = QModelIndex()) override;
+    bool insertRows(int position, int rows, const QModelIndex &parent = QModelIndex()) override;
+    bool removeRows(int position, int rows, const QModelIndex &parent = QModelIndex()) override;
 
 private:
-
-    void setMaterial(const material::material_desc_t& mat);
+    void setMaterial(const material::material_desc_t &mat);
     int materialIdx_;
-    OptionsModel* model_;
+    OptionsModel *model_;
     QPersistentModelIndex materialsIndex_;
-    QStringList col_labels_{"Element", "mass", "X", "Ed", "El", "Es", "Er", "Rc"};
-    QStringList col_tooltip_{"Element", "Atomic mass [u]",
-                            "Atomic fraction (unnormalized)",
-                            "Displacement energy [eV]",
-                            "Lattice energy [eV]",
-                            "Surface energy [eV]",
-                            "Replacement energy [eV]",
-                            "FP capture radius [nm]"};
+    QStringList col_labels_{ "Element", "mass", "X", "Ed", "El", "Es", "Er", "Rc" };
+    QStringList col_tooltip_{ "Element",
+                              "Atomic mass [u]",
+                              "Atomic fraction (unnormalized)",
+                              "Displacement energy [eV]",
+                              "Lattice energy [eV]",
+                              "Surface energy [eV]",
+                              "Replacement energy [eV]",
+                              "FP capture radius [nm]" };
 };
 
 class MaterialCompositionDelegate : public QStyledItemDelegate
@@ -129,14 +123,14 @@ class MaterialCompositionView : public QWidget
 {
     Q_OBJECT
 
-    MaterialCompositionModel* model_;
-    MaterialCompositionDelegate* delegate_;
-    QToolButton* btAdd;
-    QToolButton* btRemove;
-    QItemSelectionModel* selectionModel;
+    MaterialCompositionModel *model_;
+    MaterialCompositionDelegate *delegate_;
+    QToolButton *btAdd;
+    QToolButton *btRemove;
+    QItemSelectionModel *selectionModel;
 
 public:
-    MaterialCompositionView(OptionsModel* m, QObject *parent = nullptr);
+    MaterialCompositionView(OptionsModel *m, QObject *parent = nullptr);
 
     void setMaterialIdx(int i = -1);
 

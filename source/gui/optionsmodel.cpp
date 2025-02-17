@@ -14,22 +14,17 @@
 
 #include <QDebug>
 
-
-OptionsItem::OptionsItem(OptionsItem *parent)
-    : m_parentItem(parent)
+OptionsItem::OptionsItem(OptionsItem *parent) : m_parentItem(parent)
 {
-    if (parent) options_ = parent->options_;
-    else options_ = std::make_shared<mcdriver::options>();
+    if (parent)
+        options_ = parent->options_;
+    else
+        options_ = std::make_shared<mcdriver::options>();
 }
-OptionsItem::OptionsItem(const QString& key,
-                         OptionsItem *parent)
-    : OptionsItem(key, key, parent)
-{}
-OptionsItem::OptionsItem(const QString& key,
-                         const QString& name,
-                         OptionsItem *parent)
-    : m_parentItem(parent), key_(key), name_(name),
-    options_(parent->options_)
+OptionsItem::OptionsItem(const QString &key, OptionsItem *parent)
+    : OptionsItem(key, key, parent) { }
+OptionsItem::OptionsItem(const QString &key, const QString &name, OptionsItem *parent)
+    : m_parentItem(parent), key_(key), name_(name), options_(parent->options_)
 {
     if (!m_parentItem->isRoot())
         jpath_ = m_parentItem->jpath_;
@@ -42,8 +37,7 @@ OptionsItem::~OptionsItem()
 }
 OptionsItem *OptionsItem::child(int number)
 {
-    return (number >= 0 && number < childCount())
-               ? m_childItems.at(number) : nullptr;
+    return (number >= 0 && number < childCount()) ? m_childItems.at(number) : nullptr;
 }
 int OptionsItem::childCount() const
 {
@@ -53,10 +47,9 @@ int OptionsItem::row() const
 {
     if (!m_parentItem)
         return 0;
-    const auto it = std::find_if(m_parentItem->m_childItems.cbegin(), m_parentItem->m_childItems.cend(),
-                                 [this](const OptionsItem* treeItem) {
-                                     return treeItem == this;
-                                 });
+    const auto it =
+            std::find_if(m_parentItem->m_childItems.cbegin(), m_parentItem->m_childItems.cend(),
+                         [this](const OptionsItem *treeItem) { return treeItem == this; });
 
     if (it != m_parentItem->m_childItems.cend())
         return std::distance(m_parentItem->m_childItems.cbegin(), it);
@@ -66,19 +59,19 @@ int OptionsItem::row() const
 }
 QVariant OptionsItem::value() const
 {
-//    QString s;
-//    if (get_(s)) {
-//        return s;
-//    } else
+    //    QString s;
+    //    if (get_(s)) {
+    //        return s;
+    //    } else
     return QVariant();
 }
-bool OptionsItem::setValue(const QVariant& v)
+bool OptionsItem::setValue(const QVariant &v)
 {
-//    if (value() != v) {
-//        set_(v.toString());
-//        return true;
-//    }
-//    return false;
+    //    if (value() != v) {
+    //        set_(v.toString());
+    //        return true;
+    //    }
+    //    return false;
     return true;
 }
 
@@ -95,30 +88,39 @@ void OptionsItem::appendChild(OptionsItem *item)
 {
     m_childItems.push_back(item);
 }
-void OptionsItem::prepareWidget(QWidget* w) const
+void OptionsItem::prepareWidget(QWidget *w) const
 {
     w->setToolTip(toolTip_);
     w->setWhatsThis(whatsThis_);
-    //w->setObjectName(key_);
+    // w->setObjectName(key_);
     w->setObjectName(QString::fromStdString(jpath_));
 }
 OptionsItem::type_t OptionsItem::toType(const QString &typeName)
 {
-    if (typeName == "enum") return tEnum;
-    else if (typeName == "float") return tFloat;
-    else if (typeName == "int") return tInt;
-    else if (typeName == "bool") return tBool;
-    else if (typeName == "string") return tString;
-    else if (typeName == "vector3d") return tVector3D;
-    else if (typeName == "ivector3d") return tIntVector3D;
-    else if (typeName == "struct") return tStruct;
-    else return tInvalid;
+    if (typeName == "enum")
+        return tEnum;
+    else if (typeName == "float")
+        return tFloat;
+    else if (typeName == "int")
+        return tInt;
+    else if (typeName == "bool")
+        return tBool;
+    else if (typeName == "string")
+        return tString;
+    else if (typeName == "vector3d")
+        return tVector3D;
+    else if (typeName == "ivector3d")
+        return tIntVector3D;
+    else if (typeName == "struct")
+        return tStruct;
+    else
+        return tInvalid;
 }
-bool OptionsItem::get_(QString& qs) const
+bool OptionsItem::get_(QString &qs) const
 {
     std::string s;
     std::ostringstream os;
-    bool ret = options_->get(jpath_,s,&os);
+    bool ret = options_->get(jpath_, s, &os);
     if (!ret) {
         qDebug() << QString::fromStdString(os.str());
         return false;
@@ -126,39 +128,36 @@ bool OptionsItem::get_(QString& qs) const
     qs = QString::fromStdString(s);
     return true;
 }
-bool OptionsItem::set_(const QString& qs)
+bool OptionsItem::set_(const QString &qs)
 {
     std::string s = qs.toStdString();
     std::ostringstream os;
-    bool ret = options_->set(jpath_,s,&os);
+    bool ret = options_->set(jpath_, s, &os);
     if (!ret) {
         qDebug() << QString::fromStdString(os.str());
     }
     return ret;
 }
-EnumOptionsItem::EnumOptionsItem(const QStringList& values,
-                const QStringList& labels,
-                const QString& key,
-                const QString& name,
-                OptionsItem *parent) :
-    OptionsItem(key,name,parent),
-    enumValues_(values),
-    enumValueLabels_(labels)
-{}
+EnumOptionsItem::EnumOptionsItem(const QStringList &values, const QStringList &labels,
+                                 const QString &key, const QString &name, OptionsItem *parent)
+    : OptionsItem(key, name, parent), enumValues_(values), enumValueLabels_(labels)
+{
+}
 QVariant EnumOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
-        if (s.size()>2) { // This has double ", e.g. ""Off""
+        if (s.size() > 2) { // This has double ", e.g. ""Off""
             s.chop(1);
-            s.remove(0,1);
-        } else return QVariant();
+            s.remove(0, 1);
+        } else
+            return QVariant();
         return enumValues_.indexOf(s); // i=-1 means not found = invalid
     }
     return QVariant();
 }
-bool EnumOptionsItem::setValue(const QVariant& v)
-{   
+bool EnumOptionsItem::setValue(const QVariant &v)
+{
     if (value() != v) {
         QString s = QString("\"%1\"").arg(enumValues_.at(v.toInt()));
         set_(s);
@@ -166,7 +165,7 @@ bool EnumOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* EnumOptionsItem::createEditor(QWidget* parent) const
+QWidget *EnumOptionsItem::createEditor(QWidget *parent) const
 {
     QComboBox *w = new QComboBox(parent);
     w->addItems(enumValueLabels_);
@@ -175,32 +174,30 @@ QWidget* EnumOptionsItem::createEditor(QWidget* parent) const
 }
 void EnumOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((QComboBox*)editor)->setCurrentIndex(v.toInt());
+    ((QComboBox *)editor)->setCurrentIndex(v.toInt());
 }
 QVariant EnumOptionsItem::getEditorData(QWidget *editor)
 {
-    return ((QComboBox*)editor)->currentIndex();
+    return ((QComboBox *)editor)->currentIndex();
 }
-FloatOptionsItem::FloatOptionsItem(double fmin, double fmax, int digits,
-                                 const QString& key,
-                                 const QString& name,
-                                 OptionsItem *parent) :
-    OptionsItem(key,name,parent),
-    fmin_(fmin), fmax_(fmax),
-    digits_(digits)
-{}
+FloatOptionsItem::FloatOptionsItem(double fmin, double fmax, int digits, const QString &key,
+                                   const QString &name, OptionsItem *parent)
+    : OptionsItem(key, name, parent), fmin_(fmin), fmax_(fmax), digits_(digits)
+{
+}
 QVariant FloatOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
         return s.toFloat();
-    } else return QVariant();
+    } else
+        return QVariant();
 }
 QVariant FloatOptionsItem::displayValue() const
 {
-    return QString::number(value().toFloat(),'g',digits_);
+    return QString::number(value().toFloat(), 'g', digits_);
 }
-bool FloatOptionsItem::setValue(const QVariant& v)
+bool FloatOptionsItem::setValue(const QVariant &v)
 {
     float d = v.toFloat();
     float d0 = value().toFloat();
@@ -211,35 +208,34 @@ bool FloatOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* FloatOptionsItem::createEditor(QWidget* parent) const
+QWidget *FloatOptionsItem::createEditor(QWidget *parent) const
 {
-    QWidget* w = new FloatLineEdit(fmin_,fmax_,digits_,parent);
+    QWidget *w = new FloatLineEdit(fmin_, fmax_, digits_, parent);
     prepareWidget(w);
     return w;
 }
 void FloatOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((FloatLineEdit*)editor)->setValue(v.toDouble());
+    ((FloatLineEdit *)editor)->setValue(v.toDouble());
 }
 QVariant FloatOptionsItem::getEditorData(QWidget *editor)
 {
-    return ((FloatLineEdit*)editor)->value();
+    return ((FloatLineEdit *)editor)->value();
 }
-IntOptionsItem::IntOptionsItem(int imin, int imax,
-                                   const QString& key,
-                                   const QString& name,
-                                   OptionsItem *parent) :
-    OptionsItem(key,name,parent),
-    imin_(imin), imax_(imax)
-{}
+IntOptionsItem::IntOptionsItem(int imin, int imax, const QString &key, const QString &name,
+                               OptionsItem *parent)
+    : OptionsItem(key, name, parent), imin_(imin), imax_(imax)
+{
+}
 QVariant IntOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
         return s.toInt();
-    } else return QVariant();
+    } else
+        return QVariant();
 }
-bool IntOptionsItem::setValue(const QVariant& v)
+bool IntOptionsItem::setValue(const QVariant &v)
 {
     int d = v.toInt();
     if (value().toInt() != d) {
@@ -249,9 +245,9 @@ bool IntOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* IntOptionsItem::createEditor(QWidget* parent) const
+QWidget *IntOptionsItem::createEditor(QWidget *parent) const
 {
-    QSpinBox* sb = new QSpinBox(parent);
+    QSpinBox *sb = new QSpinBox(parent);
     sb->setMinimum(imin_);
     sb->setMaximum(imax_);
     prepareWidget(sb);
@@ -259,23 +255,24 @@ QWidget* IntOptionsItem::createEditor(QWidget* parent) const
 }
 void IntOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((QSpinBox*)editor)->setValue(v.toInt());
+    ((QSpinBox *)editor)->setValue(v.toInt());
 }
 QVariant IntOptionsItem::getEditorData(QWidget *editor)
 {
-    return ((QSpinBox*)editor)->value();
+    return ((QSpinBox *)editor)->value();
 }
-BoolOptionsItem::BoolOptionsItem(const QString& key,
-                               const QString& name,
-                               OptionsItem *parent) :
-    OptionsItem(key,name,parent)
-{}
+BoolOptionsItem::BoolOptionsItem(const QString &key, const QString &name, OptionsItem *parent)
+    : OptionsItem(key, name, parent)
+{
+}
 QVariant BoolOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
-        if (s == "true") return true;
-        if (s == "false") return false;
+        if (s == "true")
+            return true;
+        if (s == "false")
+            return false;
         bool ok = false;
         int i = s.toInt(&ok);
         if (ok) {
@@ -283,36 +280,40 @@ QVariant BoolOptionsItem::value() const
             return ret;
         }
         return QVariant();
-    } else return QVariant();
+    } else
+        return QVariant();
 }
-bool BoolOptionsItem::setValue(const QVariant& v)
+bool BoolOptionsItem::setValue(const QVariant &v)
 {
 
     QString s0;
     if (get_(s0)) {
         bool b = v.toBool();
-        if (s0=="true") {
+        if (s0 == "true") {
             bool b0 = true;
-            if (b!=b0) set_(b ? "true" : "false");
+            if (b != b0)
+                set_(b ? "true" : "false");
             return true;
         }
-        if (s0=="false") {
+        if (s0 == "false") {
             bool b0 = false;
-            if (b!=b0) set_(b ? "true" : "false");
+            if (b != b0)
+                set_(b ? "true" : "false");
             return true;
         }
         bool ok = false;
         int i = s0.toInt(&ok);
         if (ok) {
             bool b0 = i;
-            if (b!=b0) set_(b ? QString::number(1) : QString::number(0));
+            if (b != b0)
+                set_(b ? QString::number(1) : QString::number(0));
             return true;
         }
         return false;
     }
     return false;
 }
-QWidget* BoolOptionsItem::createEditor(QWidget* parent) const
+QWidget *BoolOptionsItem::createEditor(QWidget *parent) const
 {
     QComboBox *w = new QComboBox(parent);
     w->addItem("false");
@@ -322,30 +323,30 @@ QWidget* BoolOptionsItem::createEditor(QWidget* parent) const
 }
 void BoolOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((QComboBox*)editor)->setCurrentIndex(v.toInt());
+    ((QComboBox *)editor)->setCurrentIndex(v.toInt());
 }
 QVariant BoolOptionsItem::getEditorData(QWidget *editor)
 {
-    return ((QComboBox*)editor)->currentIndex();
+    return ((QComboBox *)editor)->currentIndex();
 }
-StringOptionsItem::StringOptionsItem(const QString& key,
-                                 const QString& name,
-                                 OptionsItem *parent) :
-    OptionsItem(key,name,parent)
-{}
+StringOptionsItem::StringOptionsItem(const QString &key, const QString &name, OptionsItem *parent)
+    : OptionsItem(key, name, parent)
+{
+}
 QVariant StringOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
-        if (s.size()>2) {
+        if (s.size() > 2) {
             s.chop(1);
-            s.remove(0,1);
+            s.remove(0, 1);
             return s;
         }
         return QString("");
-    } else return QVariant();
+    } else
+        return QVariant();
 }
-bool StringOptionsItem::setValue(const QVariant& v)
+bool StringOptionsItem::setValue(const QVariant &v)
 {
     QString s = v.toString();
     if (s != value().toString()) {
@@ -353,38 +354,38 @@ bool StringOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* StringOptionsItem::createEditor(QWidget* parent) const
+QWidget *StringOptionsItem::createEditor(QWidget *parent) const
 {
-    QWidget* w = new QLineEdit(parent);
+    QWidget *w = new QLineEdit(parent);
     prepareWidget(w);
     return w;
 }
 void StringOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((QLineEdit*)editor)->setText(v.toString());
+    ((QLineEdit *)editor)->setText(v.toString());
 }
 QVariant StringOptionsItem::getEditorData(QWidget *editor)
 {
-    return ((QLineEdit*)editor)->text();
+    return ((QLineEdit *)editor)->text();
 }
-Vector3dOptionsItem::Vector3dOptionsItem(double fmin, double fmax, int digits,
-                                   const QString& key,
-                                   const QString& name,
-                                   OptionsItem *parent) :
-    FloatOptionsItem(fmin,fmax,digits,key,name,parent)
-{}
+Vector3dOptionsItem::Vector3dOptionsItem(double fmin, double fmax, int digits, const QString &key,
+                                         const QString &name, OptionsItem *parent)
+    : FloatOptionsItem(fmin, fmax, digits, key, name, parent)
+{
+}
 QVariant Vector3dOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
         return QVariant::fromValue(qstring_serialize<vector3>::fromString(s));
-    } else return QVariant();
+    } else
+        return QVariant();
 }
 QVariant Vector3dOptionsItem::displayValue() const
 {
     return qstring_serialize<vector3>::toString(value().value<vector3>());
 }
-bool Vector3dOptionsItem::setValue(const QVariant& v)
+bool Vector3dOptionsItem::setValue(const QVariant &v)
 {
     vector3 v3d = v.value<vector3>();
     if (v3d != value().value<vector3>()) {
@@ -392,38 +393,38 @@ bool Vector3dOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* Vector3dOptionsItem::createEditor(QWidget* parent) const
+QWidget *Vector3dOptionsItem::createEditor(QWidget *parent) const
 {
-    QWidget* w = new Vector3dLineEdit(fmin_,fmax_,digits_,parent);
+    QWidget *w = new Vector3dLineEdit(fmin_, fmax_, digits_, parent);
     prepareWidget(w);
     return w;
 }
 void Vector3dOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((Vector3dLineEdit*)editor)->setValue(v.value<vector3>());
+    ((Vector3dLineEdit *)editor)->setValue(v.value<vector3>());
 }
 QVariant Vector3dOptionsItem::getEditorData(QWidget *editor)
 {
-    return QVariant::fromValue(((Vector3dLineEdit*)editor)->value());
+    return QVariant::fromValue(((Vector3dLineEdit *)editor)->value());
 }
-IVector3dOptionsItem::IVector3dOptionsItem(int fmin, int fmax,
-                                         const QString& key,
-                                         const QString& name,
-                                         OptionsItem *parent) :
-    IntOptionsItem(fmin,fmax,key,name,parent)
-{}
+IVector3dOptionsItem::IVector3dOptionsItem(int fmin, int fmax, const QString &key,
+                                           const QString &name, OptionsItem *parent)
+    : IntOptionsItem(fmin, fmax, key, name, parent)
+{
+}
 QVariant IVector3dOptionsItem::value() const
 {
     QString s;
     if (get_(s)) {
         return QVariant::fromValue(qstring_serialize<ivector3>::fromString(s));
-    } else return QVariant();
+    } else
+        return QVariant();
 }
 QVariant IVector3dOptionsItem::displayValue() const
 {
     return qstring_serialize<ivector3>::toString(value().value<ivector3>());
 }
-bool IVector3dOptionsItem::setValue(const QVariant& v)
+bool IVector3dOptionsItem::setValue(const QVariant &v)
 {
     ivector3 i3d = v.value<ivector3>();
     if (i3d != value().value<ivector3>()) {
@@ -431,146 +432,113 @@ bool IVector3dOptionsItem::setValue(const QVariant& v)
     }
     return false;
 }
-QWidget* IVector3dOptionsItem::createEditor(QWidget* parent) const
+QWidget *IVector3dOptionsItem::createEditor(QWidget *parent) const
 {
-    QWidget* w = new IntVector3dLineEdit(imin_,imax_,parent);
+    QWidget *w = new IntVector3dLineEdit(imin_, imax_, parent);
     prepareWidget(w);
     return w;
 }
 void IVector3dOptionsItem::setEditorData(QWidget *editor, const QVariant &v) const
 {
-    ((IntVector3dLineEdit*)editor)->setValue(v.value<ivector3>());
+    ((IntVector3dLineEdit *)editor)->setValue(v.value<ivector3>());
 }
 QVariant IVector3dOptionsItem::getEditorData(QWidget *editor)
 {
-    return QVariant::fromValue(((IntVector3dLineEdit*)editor)->value());
+    return QVariant::fromValue(((IntVector3dLineEdit *)editor)->value());
 }
 /*********************************************************/
-OptionsItemDelegate::OptionsItemDelegate(QObject *parent)
-    : QStyledItemDelegate(parent)
-{
-}
+OptionsItemDelegate::OptionsItemDelegate(QObject *parent) : QStyledItemDelegate(parent) { }
 QWidget *OptionsItemDelegate::createEditor(QWidget *parent,
-                                           const QStyleOptionViewItem &/* option */,
+                                           const QStyleOptionViewItem & /* option */,
                                            const QModelIndex &index) const
 {
-    OptionsItem* i = static_cast<OptionsItem*>(index.internalPointer());
+    OptionsItem *i = static_cast<OptionsItem *>(index.internalPointer());
     return i->createEditor(parent);
 }
-void OptionsItemDelegate::setEditorData(QWidget *editor,
-                                                const QModelIndex &index) const
+void OptionsItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
-    if (!index.isValid()) return;
-    OptionsItem* i = static_cast<OptionsItem*>(index.internalPointer());
+    if (!index.isValid())
+        return;
+    OptionsItem *i = static_cast<OptionsItem *>(index.internalPointer());
     return i->setEditorData(editor, i->value());
 }
 void OptionsItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
-                                               const QModelIndex &index) const
+                                       const QModelIndex &index) const
 {
-    if (!index.isValid()) return;
+    if (!index.isValid())
+        return;
 
-    OptionsItem* i = static_cast<OptionsItem*>(index.internalPointer());
+    OptionsItem *i = static_cast<OptionsItem *>(index.internalPointer());
     model->setData(index, i->getEditorData(editor), Qt::EditRole);
 }
-void OptionsItemDelegate::updateEditorGeometry(QWidget *editor,
-                                                       const QStyleOptionViewItem &option,
-                                                       const QModelIndex &/* index */) const
+void OptionsItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+                                               const QModelIndex & /* index */) const
 {
     editor->setGeometry(option.rect);
 }
 QSize OptionsItemDelegate::sizeHint(const QStyleOptionViewItem &option,
-                                         const QModelIndex &index) const
+                                    const QModelIndex &index) const
 {
     return QStyledItemDelegate::sizeHint(option, index) + QSize(3, 4);
 }
 /****/
-QString toString(const ojson& j) {
+QString toString(const ojson &j)
+{
     return QString::fromStdString(j.template get<std::string>());
 }
-QStringList toStringList(const ojson& j) {
+QStringList toStringList(const ojson &j)
+{
     std::vector<std::string> s;
     QStringList S;
     j.get_to(s);
-    for(auto& i : s) S << QString::fromStdString(i);
+    for (auto &i : s)
+        S << QString::fromStdString(i);
     return S;
 }
-template<>
-OptionsItem* OptionsItem::jsonHelper(OptionsItem::type_t type, const ojson &j, OptionsItem* parentItem)
+template <>
+OptionsItem *OptionsItem::jsonHelper(OptionsItem::type_t type, const ojson &j,
+                                     OptionsItem *parentItem)
 {
-    OptionsItem* item;
+    OptionsItem *item;
     switch (type) {
     case tStruct:
-        item = parentItem ?
-                   new OptionsItem(toString(j["name"]),toString(j["label"]),parentItem) :
-                   new OptionsItem;
-        for(auto it = j["fields"].begin(); it!=j["fields"].end(); ++it) {
-            const ojson& obj = *it;
+        item = parentItem ? new OptionsItem(toString(j["name"]), toString(j["label"]), parentItem)
+                          : new OptionsItem;
+        for (auto it = j["fields"].begin(); it != j["fields"].end(); ++it) {
+            const ojson &obj = *it;
             QString typeName = toString(obj["type"]);
-            jsonHelper(OptionsItem::toType(typeName),
-                       obj,
-                       item);
+            jsonHelper(OptionsItem::toType(typeName), obj, item);
         }
         break;
     case tEnum:
-        item = new EnumOptionsItem(
-            toStringList(j["values"]),
-            toStringList(j["valueLabels"]),
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new EnumOptionsItem(toStringList(j["values"]), toStringList(j["valueLabels"]),
+                                   toString(j["name"]), toString(j["label"]), parentItem);
         break;
     case tFloat:
-        item = new FloatOptionsItem(
-            j["min"].template get<double>(),
-            j["max"].template get<double>(),
-            j["digits"].template get<int>(),
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new FloatOptionsItem(j["min"].template get<double>(),
+                                    j["max"].template get<double>(),
+                                    j["digits"].template get<int>(), toString(j["name"]),
+                                    toString(j["label"]), parentItem);
         break;
     case tVector3D:
-        item = new Vector3dOptionsItem(
-            j["min"].template get<double>(),
-            j["max"].template get<double>(),
-            j["digits"].template get<int>(),
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new Vector3dOptionsItem(j["min"].template get<double>(),
+                                       j["max"].template get<double>(),
+                                       j["digits"].template get<int>(), toString(j["name"]),
+                                       toString(j["label"]), parentItem);
         break;
     case tIntVector3D:
-        item = new IVector3dOptionsItem(
-            j["min"].template get<int>(),
-            j["max"].template get<int>(),
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new IVector3dOptionsItem(j["min"].template get<int>(), j["max"].template get<int>(),
+                                        toString(j["name"]), toString(j["label"]), parentItem);
         break;
     case tInt:
-        item = new IntOptionsItem(
-            j["min"].template get<int>(),
-            j["max"].template get<int>(),
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new IntOptionsItem(j["min"].template get<int>(), j["max"].template get<int>(),
+                                  toString(j["name"]), toString(j["label"]), parentItem);
         break;
     case tBool:
-        item = new BoolOptionsItem(
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new BoolOptionsItem(toString(j["name"]), toString(j["label"]), parentItem);
         break;
     case tString:
-        item = new StringOptionsItem(
-            toString(j["name"]),
-            toString(j["label"]),
-            parentItem
-            );
+        item = new StringOptionsItem(toString(j["name"]), toString(j["label"]), parentItem);
         break;
     default:
         assert(0);
@@ -583,7 +551,8 @@ OptionsItem* OptionsItem::jsonHelper(OptionsItem::type_t type, const ojson &j, O
         item->toolTip_ = txt;
     }
     if (j.contains("whatsThis")) {
-        if (!txt.isEmpty()) txt += "\n\n";
+        if (!txt.isEmpty())
+            txt += "\n\n";
         if (j["whatsThis"].is_array())
             txt += toStringList(j["whatsThis"]).join('\n');
         else
@@ -591,46 +560,45 @@ OptionsItem* OptionsItem::jsonHelper(OptionsItem::type_t type, const ojson &j, O
     }
     item->whatsThis_ = txt;
 
-    if (parentItem) parentItem->appendChild(item);
+    if (parentItem)
+        parentItem->appendChild(item);
 
     return item;
 }
 /*********************************************************/
 OptionsModel::OptionsModel(QObject *parent)
-    : QAbstractItemModel{parent}, rootItem(new OptionsItem)
+    : QAbstractItemModel{ parent }, rootItem(new OptionsItem)
 {
     QFile loadFile(QStringLiteral(":/option_def/options.json"));
     loadFile.open(QIODevice::ReadOnly);
     QByteArray ba = loadFile.readAll();
     std::istringstream is(ba.constData());
     try {
-        ojson opt_spec = ojson::parse(is,nullptr,true,true);
+        ojson opt_spec = ojson::parse(is, nullptr, true, true);
         rootItem = OptionsItem::jsonHelper(OptionsItem::tStruct, opt_spec, nullptr);
-    }
-    catch (const ojson::exception& e) {
+    } catch (const ojson::exception &e) {
         qDebug() << "Error reading json input:";
         qDebug() << e.what();
         assert(0);
     }
 
     QModelIndex i = index("Target");
-    OptionsItem* target = static_cast<OptionsItem *>(i.internalPointer());
-    target->appendChild(new OptionsItem("materials",target));
-    target->appendChild(new OptionsItem("regions",target));
-
+    OptionsItem *target = static_cast<OptionsItem *>(i.internalPointer());
+    target->appendChild(new OptionsItem("materials", target));
+    target->appendChild(new OptionsItem("regions", target));
 }
 OptionsModel::~OptionsModel()
 {
     delete rootItem;
 }
 
-void OptionsModel::setOptions(const mcdriver::options& opt)
+void OptionsModel::setOptions(const mcdriver::options &opt)
 {
-    //beginResetModel();
+    // beginResetModel();
     *(rootItem->options_) = opt;
-    //endResetModel();
+    // endResetModel();
 }
-const mcdriver::options* OptionsModel::options() const
+const mcdriver::options *OptionsModel::options() const
 {
     return rootItem->options_.get();
 }
@@ -640,7 +608,8 @@ mcdriver::options *OptionsModel::options()
     return rootItem->options_.get();
 }
 
-QVariant OptionsModel::data(const QModelIndex &index, int role) const {
+QVariant OptionsModel::data(const QModelIndex &index, int role) const
+{
     if (!index.isValid())
         return {};
 
@@ -660,33 +629,31 @@ QVariant OptionsModel::data(const QModelIndex &index, int role) const {
 
     return {};
 }
-bool OptionsModel::setData(const QModelIndex &index, const QVariant &value,
-                         int role) {
+bool OptionsModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
     // int col = index.column();
     if (Qt::EditRole == role) {
-        //if (col == 1) {
-        OptionsItem *item =
-            static_cast<OptionsItem *>(index.internalPointer());
+        // if (col == 1) {
+        OptionsItem *item = static_cast<OptionsItem *>(index.internalPointer());
         if (item->setValue(value))
-            emit dataChanged(index, index, {Qt::EditRole});
-            return true;
+            emit dataChanged(index, index, { Qt::EditRole });
+        return true;
         //}
     }
     return false;
 }
-QVariant OptionsModel::headerData(int section, Qt::Orientation orientation,
-                                int role) const {
+QVariant OptionsModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
     if (role != Qt::DisplayRole)
         return {};
 
-    if (orientation == Qt::Horizontal && (section==0 || section==1)) {
-        const char* hdr_lbl[] = { "Property", "Value" };
+    if (orientation == Qt::Horizontal && (section == 0 || section == 1)) {
+        const char *hdr_lbl[] = { "Property", "Value" };
         return hdr_lbl[section];
     } else
         return {};
 }
-QModelIndex OptionsModel::index(int row, int column,
-                              const QModelIndex &parent) const
+QModelIndex OptionsModel::index(int row, int column, const QModelIndex &parent) const
 {
     if (!hasIndex(row, column, parent))
         return {};
@@ -705,8 +672,7 @@ QModelIndex OptionsModel::index(int row, int column,
         return {};
 }
 
-QModelIndex OptionsModel::index(const QString& key, int column,
-                  const QModelIndex &parent) const
+QModelIndex OptionsModel::index(const QString &key, int column, const QModelIndex &parent) const
 {
     OptionsItem *parentItem;
 
@@ -717,7 +683,7 @@ QModelIndex OptionsModel::index(const QString& key, int column,
 
     OptionsItem *childItem = nullptr;
     int row = 0;
-    for(; row<parentItem->m_childItems.size(); ++row) {
+    for (; row < parentItem->m_childItems.size(); ++row) {
         auto i = parentItem->m_childItems[row];
         if (i->key() == key) {
             childItem = i;
@@ -731,12 +697,12 @@ QModelIndex OptionsModel::index(const QString& key, int column,
         return {};
 }
 
-QModelIndex OptionsModel::parent(const QModelIndex &index) const {
+QModelIndex OptionsModel::parent(const QModelIndex &index) const
+{
     if (!index.isValid())
         return {};
 
-    OptionsItem *childItem =
-        static_cast<OptionsItem *>(index.internalPointer());
+    OptionsItem *childItem = static_cast<OptionsItem *>(index.internalPointer());
     OptionsItem *parentItem = childItem->parent();
 
     if (parentItem == rootItem)
@@ -745,7 +711,8 @@ QModelIndex OptionsModel::parent(const QModelIndex &index) const {
     return createIndex(parentItem->row(), 0, parentItem);
 }
 
-int OptionsModel::rowCount(const QModelIndex &parent) const {
+int OptionsModel::rowCount(const QModelIndex &parent) const
+{
     OptionsItem *parentItem;
     if (parent.column() > 0)
         return 0;
@@ -758,19 +725,21 @@ int OptionsModel::rowCount(const QModelIndex &parent) const {
     return parentItem->childCount();
 }
 
-int OptionsModel::columnCount(const QModelIndex &parent) const {
+int OptionsModel::columnCount(const QModelIndex &parent) const
+{
     Q_UNUSED(parent)
     return 2;
 }
 
-Qt::ItemFlags OptionsModel::flags(const QModelIndex &index) const {
+Qt::ItemFlags OptionsModel::flags(const QModelIndex &index) const
+{
     if (index.column() == 1)
         return Qt::ItemIsEditable | QAbstractItemModel::flags(index);
     else
         return QAbstractItemModel::flags(index);
 }
 
-OptionsItem* OptionsModel::getItem(const QModelIndex &index) const
+OptionsItem *OptionsModel::getItem(const QModelIndex &index) const
 {
     if (!index.isValid())
         return nullptr;

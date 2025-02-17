@@ -14,7 +14,8 @@ class mccore;
  * @brief The dedx_calc class is used for electronic energy loss and straggling calculations
  *
  * The class stores pre-computed interpolation tables for all ion/material combinations
- * present in a given simulation. These tables are generated initially with a call to init(const mccore& s).
+ * present in a given simulation. These tables are generated initially with a call to init(const
+ * mccore& s).
  *
  * During the simulation, init(const ion* i, const material* m) should be
  * called each time a new ion/material combination arises, to preload the
@@ -30,26 +31,25 @@ class mccore;
 class dedx_calc
 {
 public:
-
     /**
      * @brief Determines electronic energy loss calculation mode
      */
     enum eloss_calculation_t {
         EnergyLossOff = 0, /**< Electronic energy loss disabled */
-        EnergyLoss = 1,  /**< Only electronic energy loss is calculated */
+        EnergyLoss = 1, /**< Only electronic energy loss is calculated */
         EnergyLossAndStraggling = 2, /**< Both energy loss & straggling are calculated */
         InvalidEnergyLoss = -1
     };
 
     dedx_calc();
-    dedx_calc(const dedx_calc& other);
+    dedx_calc(const dedx_calc &other);
     ~dedx_calc();
 
     eloss_calculation_t type() const { return type_; }
 
     // dedx interpolators
-    ArrayND<dedx_interp*> dedx() const { return dedx_; }
-    ArrayND<straggling_interp*> de_strag() const { return de_strag_; }
+    ArrayND<dedx_interp *> dedx() const { return dedx_; }
+    ArrayND<straggling_interp *> de_strag() const { return de_strag_; }
 
     /**
      * @brief Initialize the object for a given simulation \a s
@@ -64,7 +64,7 @@ public:
      * @param s a reference to an \ref mccore object
      * @return 0 if succesfull
      */
-    int init(const mccore& s);
+    int init(const mccore &s);
 
     /**
      * @brief Preload interpolation tables for a given ion/material combination
@@ -77,7 +77,7 @@ public:
      * @param m pointer to a \ref material object
      * @return 0 if succesfull
      */
-    int init(const ion* i, const material* m);
+    int init(const ion *i, const material *m);
 
     /**
      * @brief Calculate electronic energy loss and straggling of the moving ion
@@ -111,14 +111,14 @@ public:
      * @param rng random number generator (used for straggling)
      * @return  the total energy loss [eV]
      */
-    void operator()(ion* i, float fp, float sqrtfp, random_vars &rng) const
+    void operator()(ion *i, float fp, float sqrtfp, random_vars &rng) const
     {
-        if (type_ == EnergyLossOff) return;
+        if (type_ == EnergyLossOff)
+            return;
         float E = i->erg();
         float de_stopping = fp * (*stopping_interp_)(E);
 
-        if (type_ == EnergyLossAndStraggling)
-        {
+        if (type_ == EnergyLossAndStraggling) {
             dedx_index ie(E);
             float de_straggling = straggling_interp_->data()[ie] * rng.normal() * sqrtfp;
 
@@ -157,14 +157,15 @@ public:
          * E - stopping ~ 0
          */
         if (de_stopping > E)
-            de_stopping = 0.99*E;
+            de_stopping = 0.99 * E;
 
         i->de_ioniz(de_stopping);
     }
 
-    void operator()(ion* i, float fp) const
+    void operator()(ion *i, float fp) const
     {
-        if (type_ == EnergyLossOff) return;
+        if (type_ == EnergyLossOff)
+            return;
         float E = i->erg();
         float de_stopping = fp * (*stopping_interp_)(E);
 
@@ -186,7 +187,7 @@ public:
          * E - stopping ~ 0
          */
         if (de_stopping > E)
-            de_stopping = 0.99*E;
+            de_stopping = 0.99 * E;
 
         i->de_ioniz(de_stopping);
     }
@@ -195,11 +196,11 @@ protected:
     eloss_calculation_t type_;
 
     // Electronic Stopping & Straggling Tables
-    ArrayND< dedx_interp* > dedx_; // stopping data (atoms x materials)
-    ArrayND< straggling_interp* > de_strag_; // straggling data (atoms x materials)
+    ArrayND<dedx_interp *> dedx_; // stopping data (atoms x materials)
+    ArrayND<straggling_interp *> de_strag_; // straggling data (atoms x materials)
 
-    const dedx_interp* stopping_interp_;
-    const straggling_interp* straggling_interp_;
+    const dedx_interp *stopping_interp_;
+    const straggling_interp *straggling_interp_;
 };
 
 #endif // DEDX_CALC_H

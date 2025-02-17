@@ -55,9 +55,9 @@ namespace corteo {
  *   D &=& 2^N\left(E_{max} - E_{min}\right)
  * \f}
  *
- * The form of \f$ X_I \f$ is very similar to the IEEE754 representation with \f$ N \f$ mantissa bits.
- * Thus, \f$ I \f$ can be converted
- * to \f$ X_I \f$ and vice-versa by fast bit manipulation operations.
+ * The form of \f$ X_I \f$ is very similar to the IEEE754 representation with \f$ N \f$ mantissa
+ * bits. Thus, \f$ I \f$ can be converted to \f$ X_I \f$ and vice-versa by fast bit manipulation
+ * operations.
  *
  * An example with \f$ N=2 \f$, \f$ E_{min}=0 \f$, \f$ E_{max}=2 \f$ is shown in the table:
  *
@@ -68,34 +68,34 @@ namespace corteo {
  * | \f$ X_I \f$ | 1   | 1.25 | 1.5 | 1.75 | 2 | 2.5 | 3 | 3.5 | 4 |
  *
  *
- * Thus, it is evident that this type of indexing can be used for fast lookup of logarithmic tables, e.g., in interpolation schemes, without the need
- * to call the log() function.
+ * Thus, it is evident that this type of indexing can be used for fast lookup of logarithmic tables,
+ * e.g., in interpolation schemes, without the need to call the log() function.
  *
- * Tabulating a scattering cross-section over a wide range of particle energies spanning several orders of magnitude
- * is such an application.
+ * Tabulating a scattering cross-section over a wide range of particle energies spanning several
+ * orders of magnitude is such an application.
  *
  * @}
  *
  */
 
 // get templated function for the # of mantissa digits
-template<class T> struct num_detail;
-template<>
+template <class T>
+struct num_detail;
+template <>
 struct num_detail<float>
 {
     constexpr static int mantissa_digits() { return FLT_MANT_DIG; }
 };
-template<>
+template <>
 struct num_detail<double>
 {
     constexpr static int mantissa_digits() { return DBL_MANT_DIG; }
 };
-template<>
+template <>
 struct num_detail<long double>
 {
     constexpr static int mantissa_digits() { return LDBL_MANT_DIG; }
 };
-
 
 /**
  * @brief The corteo::index structure template implements \ref CorteoIdx in C++
@@ -152,11 +152,7 @@ struct num_detail<long double>
  *
  * @ingroup CorteoIdx
  */
-template<class _RealType,
-         class _IntType,
-         _IntType _Nb,
-         _IntType _minExp,
-         _IntType _maxExp>
+template <class _RealType, class _IntType, _IntType _Nb, _IntType _minExp, _IntType _maxExp>
 struct index
 {
     typedef _RealType RealType;
@@ -165,10 +161,8 @@ struct index
     // compile-time checks
     static_assert(std::numeric_limits<RealType>::is_iec559,
                   "floating-point type is not IEC559/IEEE754 conformant");
-    static_assert(_maxExp > _minExp,
-                  "_maxExp must be larger than _minExp");
-    static_assert(sizeof(RealType) == sizeof(IntType),
-                  "real & int types must have the same size");
+    static_assert(_maxExp > _minExp, "_maxExp must be larger than _minExp");
+    static_assert(sizeof(RealType) == sizeof(IntType), "real & int types must have the same size");
 
     // these constants are computed at compile time
     // this is ensured by the constexpr
@@ -176,53 +170,58 @@ struct index
     /// @brief Number of mantissa bits
     constexpr static const IntType Nbits = _Nb;
     /// @brief Minimum real value in the range =  2^minExp
-    constexpr static const RealType minVal =
-        (_minExp >= IntType(0)) ? IntType(1) << _minExp : RealType(1)/(IntType(1) << -_minExp);
+    constexpr static const RealType minVal = (_minExp >= IntType(0))
+            ? IntType(1) << _minExp
+            : RealType(1) / (IntType(1) << -_minExp);
     /// @brief Maximum real value in the range = 2^maxExp
-    constexpr static const RealType maxVal =
-        (_maxExp>=IntType(0)) ? IntType(1) << _maxExp : RealType(1)/(IntType(1) << -_maxExp);
+    constexpr static const RealType maxVal = (_maxExp >= IntType(0))
+            ? IntType(1) << _maxExp
+            : RealType(1) / (IntType(1) << -_maxExp);
     /// @brief Size of indexing range
-    constexpr static const IntType size = (_maxExp - _minExp)*(IntType(1) << _Nb) + IntType(1);
-
+    constexpr static const IntType size = (_maxExp - _minExp) * (IntType(1) << _Nb) + IntType(1);
 
 private:
     /// @brief Exponent bias
     constexpr static const IntType bias =
-        (IntType(std::numeric_limits<RealType>::max_exponent - 1) + _minExp)*(IntType(1) << _Nb);
+            (IntType(std::numeric_limits<RealType>::max_exponent - 1) + _minExp)
+            * (IntType(1) << _Nb);
     /// @brief Exponent shift
     constexpr static const IntType shift =
-        (IntType( num_detail<RealType>::mantissa_digits() - 1 ) - _Nb);
+            (IntType(num_detail<RealType>::mantissa_digits() - 1) - _Nb);
     /// @brief Size of indexing range
-    constexpr static const IntType dim = (_maxExp - _minExp)*(IntType(1) << _Nb);
-
+    constexpr static const IntType dim = (_maxExp - _minExp) * (IntType(1) << _Nb);
 
     /**
      * @brief Convert float value to index
-     * 
+     *
      * The returned value is truncated to within the corteo range
-     * 
+     *
      * @param val a floating point value
      * @return unsigned int the corresponding index
      */
-    static IntType val2idx(RealType val) {
-        if (val <= minVal) return IntType(0);
-        if (val >= maxVal) return dim;
-        IntType ll = *reinterpret_cast<IntType*>(&val);
-        ll = (ll >> shift)-bias;
+    static IntType val2idx(RealType val)
+    {
+        if (val <= minVal)
+            return IntType(0);
+        if (val >= maxVal)
+            return dim;
+        IntType ll = *reinterpret_cast<IntType *>(&val);
+        ll = (ll >> shift) - bias;
         return ll;
     }
 
     /**
      * @brief Convert an index to a floating point value
-     * 
-     * @param index 
-     * @return float 
+     *
+     * @param index
+     * @return float
      */
-    static RealType idx2val(IntType index) {
+    static RealType idx2val(IntType index)
+    {
 
         assert(index >= 0 && index <= dim);
-        IntType ll = (index+bias) << shift;
-        return *reinterpret_cast<RealType*>(&ll);
+        IntType ll = (index + bias) << shift;
+        return *reinterpret_cast<RealType *>(&ll);
     }
 
 public:
@@ -230,7 +229,7 @@ public:
      * @brief Constructor with index initializer.
      * @param i The initial value of the index, defaults to 0
      */
-    index(IntType i = IntType(0)) : i_(i) {}
+    index(IntType i = IntType(0)) : i_(i) { }
 
     /**
      * @brief Constructs an index that corresponds to float v
@@ -239,7 +238,7 @@ public:
      *
      * @param v The floating point number
      */
-    explicit index(const RealType& v) : i_(val2idx(v)) {}
+    explicit index(const RealType &v) : i_(val2idx(v)) { }
 
     /**
      * @brief Helper function to convert a real number to index
@@ -262,31 +261,40 @@ public:
      * @brief Advance the index by one
      * @return A reference to the index
      */
-    index& operator++() { i_++; return *this; }
-    index operator++(int) { index retval = *this; ++(*this); return retval; }
+    index &operator++()
+    {
+        i_++;
+        return *this;
+    }
+    index operator++(int)
+    {
+        index retval = *this;
+        ++(*this);
+        return retval;
+    }
 
     /**
      * @brief Returns an index to the start of the range, i.e. 0
      * @return A corteo_index pointing to 0
      */
-    constexpr index begin() const { return index(IntType(0));   }
+    constexpr index begin() const { return index(IntType(0)); }
 
     /**
      * @brief Returns an index to one past the last point of the range, i.e. corteo_index::size
      * @return A corteo_index pointing to one past the end of the range
      */
-    constexpr index end()   const { return index(IntType(size)); }
+    constexpr index end() const { return index(IntType(size)); }
 
     /**
      * @brief Returns an index to the last point of the range, i.e. corteo_index::size-1
      * @return A corteo_index pointing to the last point
      */
-    constexpr index rbegin() const { return index(IntType(dim));   }
+    constexpr index rbegin() const { return index(IntType(dim)); }
 
     /**
      * @brief Returns an index to the position before the first point, i.e. -1
      */
-    constexpr index rend()   const { return index(IntType(-1)); }
+    constexpr index rend() const { return index(IntType(-1)); }
 
     /**
      * @brief The dereference operator * returns the corresponding real value
@@ -308,7 +316,7 @@ public:
     /**
      * @brief Returns the index as an IntType
      */
-    IntType toInt() const {return i_; }
+    IntType toInt() const { return i_; }
 
 private:
     IntType i_;
@@ -316,13 +324,14 @@ private:
 
 /**
  * @brief A linear interpolator for a corteo range
- * 
+ *
  * @tparam idx_t the type of corteo::index
- * 
+ *
  * @ingroup CorteoIdx
  */
-template<class idx_t>
-class lin_interp {
+template <class idx_t>
+class lin_interp
+{
 
 public:
     typedef typename idx_t::RealType RealType;
@@ -332,69 +341,74 @@ public:
 
     /**
      * @brief Construct a new lin_interp object to interpolate between the data given by y
-     * 
+     *
      * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
      * the data elements must be convertible to float.
-     * 
+     *
      * The size of y must be equal or larger than that of the corteo index \ref idx_t.
-     * 
+     *
      * y is copied to an internal buffer.
-     * 
+     *
      * @tparam Cont a container type
      * @param y the data to interpolate
      */
-    template<class Cont>
-    explicit lin_interp(const Cont& y)
-    { set(y); }
+    template <class Cont>
+    explicit lin_interp(const Cont &y)
+    {
+        set(y);
+    }
 
     /**
      * @brief Call this function to set new interpolator data
-     * 
+     *
      * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
      * the data elements must be convertible to float.
-     * 
+     *
      * The size of y must be equal or larger than that of the corteo index \ref idx_t.
-     * 
+     *
      * y is copied to an internal buffer.
-     * 
+     *
      * @tparam Cont a container type
      * @param y the data to interpolate
      */
-    template<class Cont>
-    void set(const Cont& y) {
-        for(idx_t i,j(1); i<i.end()-1; i++,j++) {
+    template <class Cont>
+    void set(const Cont &y)
+    {
+        for (idx_t i, j(1); i < i.end() - 1; i++, j++) {
             y_[i] = y[i];
             dydx_[i] = (y[j] - y[i]) / (*j - *i);
         }
-        y_[idx_t::size-1] = y[idx_t::size-1];
+        y_[idx_t::size - 1] = y[idx_t::size - 1];
     }
 
     /// @brief Returns the linearly interpolated value y(x)
-    RealType operator()(const RealType& x) const
+    RealType operator()(const RealType &x) const
     {
-        if (x <= idx_t::minVal) return y_.front();
-        if (x >= idx_t::maxVal) return y_.back();
+        if (x <= idx_t::minVal)
+            return y_.front();
+        if (x >= idx_t::maxVal)
+            return y_.back();
         idx_t i(x);
-        return y_[i] + dydx_[i]*(x-*i);
+        return y_[i] + dydx_[i] * (x - *i);
     }
 
     /// @brief Returns a pointer to the internal data table
-    const RealType* data() const { return &y_[0]; }
+    const RealType *data() const { return &y_[0]; }
 
 private:
     std::array<RealType, idx_t::size> y_, dydx_;
-
 };
 
 /**
  * @brief A log-log interpolator for a corteo range
- * 
+ *
  * @tparam idx_t is the type of corteo::index
- * 
+ *
  * @ingroup CorteoIdx
  */
-template<class idx_t>
-class log_interp {
+template <class idx_t>
+class log_interp
+{
 
 public:
     typedef typename idx_t::RealType RealType;
@@ -403,61 +417,64 @@ public:
     log_interp() = default;
 
     /**
-     * @brief Construct a new log_interp object to perform log-log interpolation with the data given by y
-     * 
+     * @brief Construct a new log_interp object to perform log-log interpolation with the data given
+     * by y
+     *
      * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
-     * the data elements must be convertible to float. log(y[i]) must be finite for all i in the range
-     * of \ref idx_t.
-     * 
+     * the data elements must be convertible to float. log(y[i]) must be finite for all i in the
+     * range of \ref idx_t.
+     *
      * The size of y must be equal or larger than that of the corteo index \ref idx_t.
-     * 
+     *
      * y is copied to an internal buffer.
-     * 
+     *
      * @tparam Cont a container type
      * @param y the data to interpolate
      */
-    template<class Cont>
-    explicit log_interp(const Cont& y)
+    template <class Cont>
+    explicit log_interp(const Cont &y)
     {
         set(y);
     }
 
     /**
      * @brief Call this function to set new interpolator data
-     * 
+     *
      * y is a numeric sequence which supports C-style (y[i]) 0-based indexing. The type of
-     * the data elements must be convertible to float. 
-     * 
+     * the data elements must be convertible to float.
+     *
      * log(y[i]) must be finite for all i in the range
-     * 
+     *
      * The size of y must be equal or larger than that of the corteo index \ref idx_t.
-     * 
+     *
      * y is copied to an internal buffer.
-     * 
+     *
      * @tparam Cont a container type
      * @param y the data to interpolate
      */
-    template<class Cont>
-    void set(const Cont& y) {
-        for(idx_t i,j(1); i<i.end()-1; i++,j++) {
-            d_[i] = (std::log2(y[j]) - std::log2(y[i])) /
-                    (std::log2(*j) - std::log2(*i));
+    template <class Cont>
+    void set(const Cont &y)
+    {
+        for (idx_t i, j(1); i < i.end() - 1; i++, j++) {
+            d_[i] = (std::log2(y[j]) - std::log2(y[i])) / (std::log2(*j) - std::log2(*i));
             y_[i] = y[i];
         }
-        y_[idx_t::size-1] = y[idx_t::size-1];
+        y_[idx_t::size - 1] = y[idx_t::size - 1];
     }
 
     /// @brief Returns the log-log interpolated value y(x)
-    RealType operator()(const RealType& x) const
+    RealType operator()(const RealType &x) const
     {
-        if (x <= idx_t::minVal) return y_.front();
-        if (x >= idx_t::maxVal) return y_.back();
+        if (x <= idx_t::minVal)
+            return y_.front();
+        if (x >= idx_t::maxVal)
+            return y_.back();
         idx_t i(x);
-        return y_[i]*std::exp2(d_[i]*std::log2(x/(*i)));
+        return y_[i] * std::exp2(d_[i] * std::log2(x / (*i)));
     }
 
     /// @brief Returns a pointer to the internal data table
-    const RealType* data() const { return &y_[0]; }
+    const RealType *data() const { return &y_[0]; }
 
 private:
     std::array<RealType, idx_t::size> y_, d_;

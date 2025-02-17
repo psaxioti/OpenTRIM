@@ -30,7 +30,6 @@
  * @}
  */
 
-
 /**
  * @brief The class vector3 represents a 3D vector.
  *
@@ -91,7 +90,8 @@ typedef Eigen::AlignedBox3f box3D;
  * @ingroup Geometry
  *
  */
-class grid1D : public std::vector<float> {
+class grid1D : public std::vector<float>
+{
 
     typedef std::vector<float> vec_t;
 
@@ -101,15 +101,12 @@ class grid1D : public std::vector<float> {
 
 public:
     /// Default constructor creates an empty grid
-    grid1D() : vec_t(), w_(0), dx_(0),
-        equispaced_(false), periodic_(false)
-    {}
+    grid1D() : vec_t(), w_(0), dx_(0), equispaced_(false), periodic_(false) { }
     /// Copy constructor
-    grid1D(const grid1D& g) : vec_t(g),
-        w_(g.w_), dx_(g.dx_),
-        equispaced_(g.equispaced_),
-        periodic_(g.periodic_)
-    {}
+    grid1D(const grid1D &g)
+        : vec_t(g), w_(g.w_), dx_(g.dx_), equispaced_(g.equispaced_), periodic_(g.periodic_)
+    {
+    }
 
     /// Returns the total width \f$ x_{N-1}-x_0 \f$
     float w() const { return w_; }
@@ -123,31 +120,33 @@ public:
     void setPeriodic(bool b) { periodic_ = b; }
 
     /// Set the grid to the values of the array x
-    void set(const vec_t& x) {
-        vec_t::assign(x.begin(),x.end());
+    void set(const vec_t &x)
+    {
+        vec_t::assign(x.begin(), x.end());
         w_ = back() - front();
         dx_ = 0;
         float x0 = front();
         front() = 0.f;
-        for(int i=1; i<size(); i++) at(i) += x0;
+        for (int i = 1; i < size(); i++)
+            at(i) += x0;
         back() = w_;
         equispaced_ = false;
     }
     /// Create an equidistant grid from x0 to x1 divided in n cells
-    void set(float w, int n) {
-        resize(n+1);
+    void set(float w, int n)
+    {
+        resize(n + 1);
         front() = 0.f;
         w_ = w;
-        dx_ = w/n;
-        for(int i=1; i<=n; i++) at(i) = i*dx_;
+        dx_ = w / n;
+        for (int i = 1; i <= n; i++)
+            at(i) = i * dx_;
         back() = w;
         equispaced_ = true;
     }
 
     /// Returns true if x is within the grid region
-    bool contains(const float& x) const {
-        return (x>=0.f) && (x<w_);
-    }
+    bool contains(const float &x) const { return (x >= 0.f) && (x < w_); }
 
     /**
      * @brief Returns true if x is within the grid region, anticipating periodic boundary conditions
@@ -160,50 +159,64 @@ public:
      * @param x is the posistion to check
      * @return true if x is within the grid
      */
-    bool contains_with_bc(float& x) const {
-        if (x<0.f) {
+    bool contains_with_bc(float &x) const
+    {
+        if (x < 0.f) {
             if (periodic_) {
-                do x += w_; while (x<0.f);
+                do
+                    x += w_;
+                while (x < 0.f);
                 if (x == w_)
                     x = std::nextafter(w_, std::numeric_limits<float>::lowest());
-                assert(x<w_);
+                assert(x < w_);
                 return true;
-            } else return false;
-        } else if (x>=w_) {
+            } else
+                return false;
+        } else if (x >= w_) {
             if (periodic_) {
-                do x -= w_; while (x>=w_);
-                assert(x>=0.f);
+                do
+                    x -= w_;
+                while (x >= w_);
+                assert(x >= 0.f);
                 return true;
-            } else return false;
-        } else return true;
+            } else
+                return false;
+        } else
+            return true;
     }
-    void apply_bc(float& x) const {
+    void apply_bc(float &x) const
+    {
         if (periodic_) {
-            if (x<0.f) {
-                do x += w_; while (x<0.f);
+            if (x < 0.f) {
+                do
+                    x += w_;
+                while (x < 0.f);
                 if (x == w_)
                     x = std::nextafter(w_, std::numeric_limits<float>::lowest());
-                assert(x<w_);
-            } else if (x>=w_) {
-                do x -= w_; while (x>=w_);
-                assert(x>=0.f);
+                assert(x < w_);
+            } else if (x >= w_) {
+                do
+                    x -= w_;
+                while (x >= w_);
+                assert(x >= 0.f);
             }
         }
     }
 
     /// Returns true if x is inside the i-th cell, \f$ x_i \leq x < x_{i+1} \f$
-    bool contains(int i, const float& x) const {
-        return (x>=at(i)) && (x<at(i+1));
-    }
+    bool contains(int i, const float &x) const { return (x >= at(i)) && (x < at(i + 1)); }
 
     /// Returns the cell index i for which \f$ x_i \leq x < x_{i+1} \f$.
     /// Should be called only if grid1D::contains(x) returns true
-    int pos2cell(const float& x) const {
+    int pos2cell(const float &x) const
+    {
         assert(contains(x));
-        if (size()==2) return 0;
+        if (size() == 2)
+            return 0;
         if (equispaced_) {
-            int i = std::floor(x/dx_);
-            if (x<i*dx_) i--;
+            int i = std::floor(x / dx_);
+            if (x < i * dx_)
+                i--;
             /*
              * Rounding problem here:
              *
@@ -217,11 +230,10 @@ public:
              * Check also:
              * std::remainder, std::remquo, std::fmod
              */
-            assert(i>=0 && i<size()-1);
-            assert(x>=at(i) && x<at(i+1));
+            assert(i >= 0 && i < size() - 1);
+            assert(x >= at(i) && x < at(i + 1));
             return i;
-        }
-        else
+        } else
             return std::upper_bound(begin(), end(), x) - begin() - 1;
     }
 
@@ -235,48 +247,52 @@ public:
      * @param b the range as a box1D
      * @return the range of cells as an ibox1D
      */
-    ibox1D range(const box1D& b) const
+    ibox1D range(const box1D &b) const
     {
-        int i1(0), i2(size()-2);
-        float x1 = 0.5*(at(i1)+at(i1+1));
-        float x2 = 0.5*(at(i2)+at(i2+1));
-        while (i1<i2 && !b.contains(box1D::VectorType(x1))) {
-            i1++; x1 = 0.5*(at(i1)+at(i1+1));
+        int i1(0), i2(size() - 2);
+        float x1 = 0.5 * (at(i1) + at(i1 + 1));
+        float x2 = 0.5 * (at(i2) + at(i2 + 1));
+        while (i1 < i2 && !b.contains(box1D::VectorType(x1))) {
+            i1++;
+            x1 = 0.5 * (at(i1) + at(i1 + 1));
         }
-        while (i2>i1 && !b.contains(box1D::VectorType(x2))) {
-            i2--; x2 = 0.5*(at(i2)+at(i2+1));
+        while (i2 > i1 && !b.contains(box1D::VectorType(x2))) {
+            i2--;
+            x2 = 0.5 * (at(i2) + at(i2 + 1));
         }
-        return ibox1D(i1,i2);
+        return ibox1D(i1, i2);
     }
 
     float distance2boundary(int i, float x, float dir) const
     {
-        if (dir>0.f) return (at(i+1) - x)/dir;
-        else if (dir<0.f) return (at(i) - x)/dir;
-        else return std::numeric_limits<float>::infinity();
+        if (dir > 0.f)
+            return (at(i + 1) - x) / dir;
+        else if (dir < 0.f)
+            return (at(i) - x) / dir;
+        else
+            return std::numeric_limits<float>::infinity();
     }
 
     float boundary(int i, float dir) const
     {
-        return (dir>0.f) ?
-                   std::nextafter(at(i+1), std::numeric_limits<float>::max()) :
-                   std::nextafter(at(i), std::numeric_limits<float>::lowest());
+        return (dir > 0.f) ? std::nextafter(at(i + 1), std::numeric_limits<float>::max())
+                           : std::nextafter(at(i), std::numeric_limits<float>::lowest());
     }
 
     float distance(float x1, float x2) const
     {
-        float d = std::abs(x1-x2);
-        if (periodic_ && d<w_/2) {
-            float d1 = std::abs(x1-w_-x2);
-            if (d1<d) return d1;
-            d1 = std::abs(x1+w_-x2);
-            if (d1<d) return d1;
+        float d = std::abs(x1 - x2);
+        if (periodic_ && d < w_ / 2) {
+            float d1 = std::abs(x1 - w_ - x2);
+            if (d1 < d)
+                return d1;
+            d1 = std::abs(x1 + w_ - x2);
+            if (d1 < d)
+                return d1;
         }
         return d;
     }
-
 };
-
 
 /**
  * @brief The grid3D class represents a 3D rectangular grid.
@@ -294,75 +310,78 @@ class grid3D
 
     void calcBox()
     {
-        box_.min() = box3D::VectorType(0.f,0.f,0.f);
-        box_.max() = box3D::VectorType(x_.w(),y_.w(),z_.w());
+        box_.min() = box3D::VectorType(0.f, 0.f, 0.f);
+        box_.max() = box3D::VectorType(x_.w(), y_.w(), z_.w());
     }
 
 public:
-
-
-    typedef enum {
-        X=0,
-        Y=1,
-        Z=2
-    } Axis;
+    typedef enum { X = 0, Y = 1, Z = 2 } Axis;
 
     /// Default constructor creates empty grid
     grid3D()
     {
-        x_.set(1.f,2);
-        y_.set(1.f,2);
-        z_.set(1.f,2);
+        x_.set(1.f, 2);
+        y_.set(1.f, 2);
+        z_.set(1.f, 2);
         calcBox();
     }
     /// Copy constructor
-    grid3D(const grid3D& g) :
-        x_(g.x_), y_(g.y_), z_(g.z_), box_(g.box_)
-    {}
+    grid3D(const grid3D &g) : x_(g.x_), y_(g.y_), z_(g.z_), box_(g.box_) { }
 
     /// Set the x-axis grid to an equidistant partition of n cells
     void setX(float w, int n, bool periodic)
-    { x_.set(w,n); calcBox(); x_.setPeriodic(periodic); }
+    {
+        x_.set(w, n);
+        calcBox();
+        x_.setPeriodic(periodic);
+    }
     /// Set the y-axis grid to an equidistant partition of n cells
     void setY(float w, int n, bool periodic)
-    { y_.set(w,n); calcBox(); y_.setPeriodic(periodic); }
+    {
+        y_.set(w, n);
+        calcBox();
+        y_.setPeriodic(periodic);
+    }
     /// Set the z-axis grid to an equidistant partition of n cells
     void setZ(float w, int n, bool periodic)
-    { z_.set(w,n); calcBox(); z_.setPeriodic(periodic); }
+    {
+        z_.set(w, n);
+        calcBox();
+        z_.setPeriodic(periodic);
+    }
 
     /// Return the x-axis grid
-    const grid1D& x() const { return x_; }
+    const grid1D &x() const { return x_; }
     /// Return the y-axis grid
-    const grid1D& y() const { return y_; }
+    const grid1D &y() const { return y_; }
     /// Return the z-axis grid
-    const grid1D& z() const { return z_; }
+    const grid1D &z() const { return z_; }
     /// Return the rectangular box containing the whole 3D grid
-    const box3D& box() const { return box_; }
+    const box3D &box() const { return box_; }
 
     /// Return the i-th cell rectangular box
-    box3D box(const ivector3& i) const {
-        vector3 X0(x_[i.x()],y_[i.y()],z_[i.z()]);
-        vector3 X1(x_[i.x()+1],y_[i.y()+1],z_[i.z()+1]);
+    box3D box(const ivector3 &i) const
+    {
+        vector3 X0(x_[i.x()], y_[i.y()], z_[i.z()]);
+        vector3 X1(x_[i.x() + 1], y_[i.y() + 1], z_[i.z() + 1]);
         return box3D(X0, X1);
     }
 
     /// Return true if v is within the grid
-    bool contains(const vector3& v) const {
-        return x_.contains(v.x()) &&
-               y_.contains(v.y()) &&
-               z_.contains(v.z());
+    bool contains(const vector3 &v) const
+    {
+        return x_.contains(v.x()) && y_.contains(v.y()) && z_.contains(v.z());
     }
     /// Return true if v is within the grid, adjusting v for periodic boundaries
-    bool contains_with_bc(vector3& v) const {
-        return x_.contains_with_bc(v.x()) &&
-               y_.contains_with_bc(v.y()) &&
-               z_.contains_with_bc(v.z());
+    bool contains_with_bc(vector3 &v) const
+    {
+        return x_.contains_with_bc(v.x()) && y_.contains_with_bc(v.y())
+                && z_.contains_with_bc(v.z());
     }
     /// Return true if v is within the cell with indexes i
-    bool contains(const ivector3& i, const vector3& v) const {
-        return x_.contains(i.x(),v.x()) &&
-            y_.contains(i.y(),v.y()) &&
-            z_.contains(i.z(),v.z());
+    bool contains(const ivector3 &i, const vector3 &v) const
+    {
+        return x_.contains(i.x(), v.x()) && y_.contains(i.y(), v.y()) && z_.contains(i.z(), v.z());
     }
 
     /**
@@ -393,28 +412,34 @@ public:
      * @param i   cell index vector
      * @param pos particle position
      * @param dir particle direction
-     * @param idx_max if not null, the function returns here the axis along which the boundary is hit
+     * @param idx_max if not null, the function returns here the axis along which the boundary is
+     * hit
      * @return float distance to the boundary
      *
      */
-    float distance2boundary(const ivector3& i,
-                            const vector3& pos,
-                            const vector3& dir,
-                            int* idx = nullptr) const
+    float distance2boundary(const ivector3 &i, const vector3 &pos, const vector3 &dir,
+                            int *idx = nullptr) const
     {
-        assert(contains(i,pos));
+        assert(contains(i, pos));
 
-        float d = x_.distance2boundary(i.x(),pos.x(),dir.x());
+        float d = x_.distance2boundary(i.x(), pos.x(), dir.x());
         int imin = 0;
         if (dir.y() != 0.0f) {
-            float d1 = y_.distance2boundary(i.y(),pos.y(),dir.y());
-            if (d1 < d) { d = d1; imin = 1; }
+            float d1 = y_.distance2boundary(i.y(), pos.y(), dir.y());
+            if (d1 < d) {
+                d = d1;
+                imin = 1;
+            }
         }
         if (dir.z() != 0.0f) {
-            float d1 = z_.distance2boundary(i.z(),pos.z(),dir.z());
-            if (d1 < d) { d = d1; imin = 2; }
+            float d1 = z_.distance2boundary(i.z(), pos.z(), dir.z());
+            if (d1 < d) {
+                d = d1;
+                imin = 2;
+            }
         }
-        if (idx) *idx = imin;
+        if (idx)
+            *idx = imin;
         return d;
     }
 
@@ -455,28 +480,28 @@ public:
      * @return float distance travelled to the cell boundary
      *
      */
-    float bring2boundary(const ivector3& i, vector3& pos, const vector3& dir) const
+    float bring2boundary(const ivector3 &i, vector3 &pos, const vector3 &dir) const
     {
-        assert(contains(i,pos));
+        assert(contains(i, pos));
 
         int idx;
-        float d = distance2boundary(i,pos,dir,&idx);
+        float d = distance2boundary(i, pos, dir, &idx);
 
         switch (idx) {
         case 0:
-            pos.x() = x_.boundary(i.x(),dir.x());
-            pos.y() += dir.y()*d;
-            pos.z() += dir.z()*d;
+            pos.x() = x_.boundary(i.x(), dir.x());
+            pos.y() += dir.y() * d;
+            pos.z() += dir.z() * d;
             break;
         case 1:
-            pos.y() = y_.boundary(i.y(),dir.y());
-            pos.x() += dir.x()*d;
-            pos.z() += dir.z()*d;
+            pos.y() = y_.boundary(i.y(), dir.y());
+            pos.x() += dir.x() * d;
+            pos.z() += dir.z() * d;
             break;
         case 2:
-            pos.z() = z_.boundary(i.z(),dir.z());
-            pos.y() += dir.y()*d;
-            pos.x() += dir.x()*d;
+            pos.z() = z_.boundary(i.z(), dir.z());
+            pos.y() += dir.y() * d;
+            pos.x() += dir.x() * d;
             break;
         default:
             assert(0);
@@ -486,14 +511,12 @@ public:
     }
 
     /// Return the cell index for v; call only if contains()==true
-    ivector3 pos2cell(const vector3& v) const
+    ivector3 pos2cell(const vector3 &v) const
     {
         assert(contains(v));
-        return ivector3(x_.pos2cell(v.x()),
-                        y_.pos2cell(v.y()),
-                        z_.pos2cell(v.z()));
+        return ivector3(x_.pos2cell(v.x()), y_.pos2cell(v.y()), z_.pos2cell(v.z()));
     }
-    void apply_bc(vector3& v) const
+    void apply_bc(vector3 &v) const
     {
         x_.apply_bc(v.x());
         y_.apply_bc(v.y());
@@ -501,69 +524,59 @@ public:
     }
 
     /// Return the id of the i-th cell
-    int cellid(const ivector3& i) const {
-        return (i.x()*(y_.size()-1) + i.y())*(z_.size()-1) + i.z();
-    }
-
-    static bool isNull(const ivector3& i)  {
-        return (i.x()<0) || (i.y()<0) || (i.z()<0);
-    }
-
-    static ivector3 nullcell() {
-        return ivector3(-1,-1,-1);
-    }
-    /// Returns the total number of cells
-    int ncells() const {
-        return (x_.size()-1)*
-               (y_.size()-1)*
-               (z_.size()-1);
-    }
-    /// Returns the total volume
-    float volume() const {
-        return x_.w() * y_.w() * z_.w();
-    }
-
-    float distance(const vector3& x1, const vector3& x2) const
+    int cellid(const ivector3 &i) const
     {
-        vector3 r{x_.distance(x1.x(),x2.x()),
-                  y_.distance(x1.y(),x2.y()),
-                  z_.distance(x1.z(),x2.z())};
+        return (i.x() * (y_.size() - 1) + i.y()) * (z_.size() - 1) + i.z();
+    }
+
+    static bool isNull(const ivector3 &i) { return (i.x() < 0) || (i.y() < 0) || (i.z() < 0); }
+
+    static ivector3 nullcell() { return ivector3(-1, -1, -1); }
+    /// Returns the total number of cells
+    int ncells() const { return (x_.size() - 1) * (y_.size() - 1) * (z_.size() - 1); }
+    /// Returns the total volume
+    float volume() const { return x_.w() * y_.w() * z_.w(); }
+
+    float distance(const vector3 &x1, const vector3 &x2) const
+    {
+        vector3 r{ x_.distance(x1.x(), x2.x()), y_.distance(x1.y(), x2.y()),
+                   z_.distance(x1.z(), x2.z()) };
         return r.norm();
     }
 };
 
 /**
- * @brief Rotates the direction vector of a particle according to the scattering angles \f$ (\theta,\phi) \f$
- * 
+ * @brief Rotates the direction vector of a particle according to the scattering angles \f$
+ * (\theta,\phi) \f$
+ *
  * The 1st argument represents the particle's direction vector \f$ \mathbf{m} \f$.
- * 
+ *
  * The 2nd argument is a vector
  * \f[
  * \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta)
  * \f]
  * where \f$ (\theta,\phi) \f$ are the polar and azimuthal scattering
  * angles.
- * 
+ *
  * The new direction after scattering is obtained by the well-known result
  * \f{eqnarray*}{
  * m'_x &=& m_x\, n_z + \frac{m_x\, m_z\, n_x - m_y\, n_y}{\sqrt{1-m_z^2}} \\
  * m'_y &=& m_y\, n_z + \frac{m_y\, m_z\, n_x - m_x\, n_y}{\sqrt{1-m_z^2}}  \\
  * m'_z &=& m_z\, n_z - n_x\, \sqrt{1-m_z^2}
  * \f}
- * 
+ *
  * \f$\mathbf{m'}\f$ is again normalized to minimize round-off errors.
- * 
+ *
  * @param m direction vector
  * @param n deflection vector
- * 
+ *
  * @ingroup Geometry
  */
-inline
-void deflect_vector(vector3 &m, const vector3 &n)
+inline void deflect_vector(vector3 &m, const vector3 &n)
 {
     // if the ion moves parallel to the z-axis
     // then the new direction is n
-    float smz = 1-m.z()*m.z();
+    float smz = 1 - m.z() * m.z();
     if (smz <= 0.f) {
         m = n;
         return;
@@ -571,13 +584,12 @@ void deflect_vector(vector3 &m, const vector3 &n)
 
     vector3 m1 = m;
     smz = std::sqrt(smz);
-    m.x() = m1.x()*n.z() + (m1.x()*m1.z()*n.x() - m1.y()*n.y())/smz;
-    m.y() = m1.y()*n.z() + (m1.y()*m1.z()*n.x() + m1.x()*n.y())/smz;
-    m.z() = m1.z()*n.z() - n.x()*smz;
+    m.x() = m1.x() * n.z() + (m1.x() * m1.z() * n.x() - m1.y() * n.y()) / smz;
+    m.y() = m1.y() * n.z() + (m1.y() * m1.z() * n.x() + m1.x() * n.y()) / smz;
+    m.z() = m1.z() * n.z() - n.x() * smz;
 
     // normalize
     m.normalize();
-
 }
 
 #endif // GEOMETRY_H

@@ -23,29 +23,30 @@ class SimulationOptionsView : public QWidget
     Q_PROPERTY(bool modified READ modified WRITE setModified NOTIFY modifiedChanged FINAL)
 
 public:
-
-    QAction* whatsThisAction;
-    QPushButton* helpButton;
-    QPushButton* btSelectIon;
-    QLabel* ionLabel;
-    JSEdit* jsonView;
-    QTabWidget* tabWidget;
-    QLineEdit* simTitle;
-    MyDataWidgetMapper* mapper;
-    MaterialsDefView* materialsView;
-    RegionsView* regionsView;
+    QAction *whatsThisAction;
+    QPushButton *helpButton;
+    QPushButton *btSelectIon;
+    QLabel *ionLabel;
+    JSEdit *jsonView;
+    QTabWidget *tabWidget;
+    QLineEdit *simTitle;
+    MyDataWidgetMapper *mapper;
+    MaterialsDefView *materialsView;
+    RegionsView *regionsView;
 
     SimulationOptionsView(MainUI *iui, QWidget *parent = nullptr);
 
     bool modified() const { return modified_; }
 
 public slots:
-    void setModified(bool b = true) {
+    void setModified(bool b = true)
+    {
         modified_ = b;
         applyRules();
         emit modifiedChanged(b);
     }
-    void setModified2(const QModelIndex&, const QModelIndex&, const QVector<int>&) {
+    void setModified2(const QModelIndex &, const QModelIndex &, const QVector<int> &)
+    {
         setModified();
     }
 
@@ -62,16 +63,15 @@ public slots:
     void onDriverStatusChanged();
 
 private:
-    bool modified_{false};
+    bool modified_{ false };
     void applyRules();
 
-    QWidget* createIonBeamTab(const QModelIndex& idx);
-    QWidget* createTargetTab(const QModelIndex& idx);
-    QWidget *createTab(const QModelIndex& idx);
-    QFormLayout *createForm(const QModelIndex& idx, QWidget *widgetParent = nullptr);
+    QWidget *createIonBeamTab(const QModelIndex &idx);
+    QWidget *createTargetTab(const QModelIndex &idx);
+    QWidget *createTab(const QModelIndex &idx);
+    QFormLayout *createForm(const QModelIndex &idx, QWidget *widgetParent = nullptr);
 
-
-    MainUI* ionsui;
+    MainUI *ionsui;
 };
 
 #endif // SIMULATIONOPTIONSVIEW_H

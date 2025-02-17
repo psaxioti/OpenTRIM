@@ -19,8 +19,7 @@ class WelcomeView : public QWidget
     Q_OBJECT
 
 public:
-
-    WelcomeView(MainUI* iui, QWidget *parent = nullptr);
+    WelcomeView(MainUI *iui, QWidget *parent = nullptr);
 
 signals:
 
@@ -41,40 +40,39 @@ private slots:
     void onFileNameChanged();
 
 private:
-    QPushButton* createButton(const QString& txt, int w, int h, int ch = 0);
-    void pushCenterWidget(const QString& title, QWidget * page);
+    QPushButton *createButton(const QString &txt, int w, int h, int ch = 0);
+    void pushCenterWidget(const QString &title, QWidget *page);
 
     bool userDiscardCurrentSim(const QString &title);
 
     void updateRecentFiles();
 
-    void openJson(const QString& path);
-    void openH5(const QString& path);
+    void openJson(const QString &path);
+    void openH5(const QString &path);
 
-    MainUI* ionsui;
-    QStackedWidget * stackedWidget;
-    QListWidget * exampleList;
-    QTreeWidget * recentFilesTree;
-    JSEdit* jsonView;
-    QButtonGroup* buttonGrp;
-    QToolButton* btOpen;
-    QPushButton* btNew;
-    QToolButton* btSave;
-    QToolButton* btSaveAs;
-    QPushButton* btRecent;
-    QPushButton* btOpenRecent;
-    QPushButton* btExamples;
-    QPushButton* btOpenExample;
-    QPushButton* btGettingStarted;
-    QPushButton* btAbout;
+    MainUI *ionsui;
+    QStackedWidget *stackedWidget;
+    QListWidget *exampleList;
+    QTreeWidget *recentFilesTree;
+    JSEdit *jsonView;
+    QButtonGroup *buttonGrp;
+    QToolButton *btOpen;
+    QPushButton *btNew;
+    QToolButton *btSave;
+    QToolButton *btSaveAs;
+    QPushButton *btRecent;
+    QPushButton *btOpenRecent;
+    QPushButton *btExamples;
+    QPushButton *btOpenExample;
+    QPushButton *btGettingStarted;
+    QPushButton *btAbout;
 
-    QAction* actSaveJson;
-    QAction* actSaveJsonAs;
-    QAction* actSaveH5;
-    QAction* actSaveH5As;
+    QAction *actSaveJson;
+    QAction *actSaveJsonAs;
+    QAction *actSaveH5;
+    QAction *actSaveH5As;
 
     const int MAX_RECENT_FILES = 50;
-
 };
 
 #endif // WELCOMEVIEW_H

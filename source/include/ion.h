@@ -13,13 +13,14 @@ class atom;
 /**
  * @brief An basic atomic element definition struct
  */
-struct element_t {
+struct element_t
+{
     /// Atomic element symbol, H(Z=1) to U(Z=92)
     std::string symbol;
     /// Atomic number, 1<=Z<=92
-    int atomic_number{0};
+    int atomic_number{ 0 };
     /// Atomic mass
-    float atomic_mass{0.f};
+    float atomic_mass{ 0.f };
 };
 
 /**
@@ -37,17 +38,17 @@ struct element_t {
  *
  */
 
-
 /**
  * @brief Enum characterizing the type of boundary crossing for an ion
- * 
+ *
  * @ingroup Ions
  */
 enum class BoundaryCrossing {
-    None,       /**< No boundary crossing occured. */
-    Internal,   /**< The ion crossed an internal cell boundary. The ion changes cell */
-    External,    /**< The ion crossed an external boundary of the simulation volume. The ion exits the simulation */
-    InternalPBC   /**< Special case: internal boundary crossing due to periodic boundary conditions */
+    None, /**< No boundary crossing occured. */
+    Internal, /**< The ion crossed an internal cell boundary. The ion changes cell */
+    External, /**< The ion crossed an external boundary of the simulation volume. The ion exits the
+                 simulation */
+    InternalPBC /**< Special case: internal boundary crossing due to periodic boundary conditions */
 };
 
 /**
@@ -76,63 +77,72 @@ class ion
     double s_erg_to_t_;
     ivector3 icell_;
     int cellid_, // current cell id
-        prev_cellid_, // previous cell id
-        cellid0_; // initial cell id (start of track)
+            prev_cellid_, // previous cell id
+            cellid0_; // initial cell id (start of track)
     size_t ion_id_; // ion history id
     int recoil_id_; // recoil id (generation), 0=ion, 1=PKA, ...
     size_t uid_; // unique recoil id
-    const atom* atom_;
-    const grid3D* grid_;
+    const atom *atom_;
+    const grid3D *grid_;
 
     // counters
     // they are reset when ion changes cell, stops or exits
     size_t ncoll_; // # of collisions
     double path_, // total path length
-        ioniz_, // total E loss to ionization
-        phonon_, // total E loss to phonons
-        recoil_; // total E loss to recoils
+            ioniz_, // total E loss to ionization
+            phonon_, // total E loss to phonons
+            recoil_; // total E loss to recoils
 
     friend class ion_queue;
 
 public:
-
     /// Default constructor
-    ion() :
-        pos_(0.f,0.f,0.f),
-        pos0_(0.f,0.f,0.f),
-        dir_(0.f,0.f,1.f),
-        erg_(1.0), erg0_(1.0),
-        t_(0.0), t0_(0.0),
-        icell_(), cellid_(-1), prev_cellid_(-1),
-        ion_id_(0), recoil_id_(0),
-        atom_(nullptr), grid_(nullptr),
-        ncoll_(0),
-        path_(0),ioniz_(0),phonon_(0), recoil_(0)
-    {}
+    ion()
+        : pos_(0.f, 0.f, 0.f),
+          pos0_(0.f, 0.f, 0.f),
+          dir_(0.f, 0.f, 1.f),
+          erg_(1.0),
+          erg0_(1.0),
+          t_(0.0),
+          t0_(0.0),
+          icell_(),
+          cellid_(-1),
+          prev_cellid_(-1),
+          ion_id_(0),
+          recoil_id_(0),
+          atom_(nullptr),
+          grid_(nullptr),
+          ncoll_(0),
+          path_(0),
+          ioniz_(0),
+          phonon_(0),
+          recoil_(0)
+    {
+    }
 
     /// Returns the ion's position vector [nm]
-    const vector3& pos() const { return pos_; }
+    const vector3 &pos() const { return pos_; }
 
     /// Returns the ion's position vector [nm]
-    const vector3& pos0() const { return pos0_; }
+    const vector3 &pos0() const { return pos0_; }
 
     /// Returns the vector of the ion's direction cosines
-    const vector3& dir() const { return dir_; }
+    const vector3 &dir() const { return dir_; }
 
     /// Returns the ion's kinetic energy
-    const double& erg() const { return erg_; }
+    const double &erg() const { return erg_; }
 
     /// Returns the ion's initial kinetic energy
-    const double& erg0() const { return erg0_; }
+    const double &erg0() const { return erg0_; }
 
     /// Returns the ion's current time
-    const double& t() const { return t_; }
+    const double &t() const { return t_; }
 
     /// Returns the ion's start time
-    const double& t0() const { return t0_; }
+    const double &t0() const { return t0_; }
 
     /// Returns the index vector of the cell the ion is currently in
-    const ivector3& icell() const { return icell_; }
+    const ivector3 &icell() const { return icell_; }
 
     /// Returns the id of the cell the ion is currently in
     int cellid() const { return cellid_; }
@@ -159,57 +169,62 @@ public:
     void setUid(size_t id) { uid_ = id; }
 
     /// Returns a pointer to the \ref atom class describing the atomic species of the current ion
-    const atom* myAtom() const { return atom_; }
+    const atom *myAtom() const { return atom_; }
 
 #define E_MIN -1.0e-6
 
-    void de_phonon(double de) {
+    void de_phonon(double de)
+    {
         erg_ -= de;
         phonon_ += de;
-        assert(erg_>=E_MIN);
+        assert(erg_ >= E_MIN);
         assert(finite(erg_));
     }
-    void de_ioniz(double de) {
+    void de_ioniz(double de)
+    {
         erg_ -= de;
         ioniz_ += de;
-        assert(erg_>E_MIN);
+        assert(erg_ > E_MIN);
         assert(finite(erg_));
     }
-    void de_recoil(double T) {
+    void de_recoil(double T)
+    {
         erg_ -= T;
         recoil_ += T;
         // This is needed because recoil T is calculated in single precision
         // and it can happen that T > erg by a small amount, e.g. 1e-6
-//        if (T >= erg_) {
-//            recoil_ += erg_;
-//            erg_ = 0;
-//        } else {
-//            erg_ -= T;
-//            recoil_ += T;
-//        }
-        assert(erg_>=E_MIN);
+        //        if (T >= erg_) {
+        //            recoil_ += erg_;
+        //            erg_ = 0;
+        //        } else {
+        //            erg_ -= T;
+        //            recoil_ += T;
+        //        }
+        assert(erg_ >= E_MIN);
         assert(finite(erg_));
     }
-    const double& phonon() const { return phonon_; }
-    const double& ioniz() const { return ioniz_; }
-    const double& recoil() const { return recoil_; }
-    const double& path() const { return path_; }
+    const double &phonon() const { return phonon_; }
+    const double &ioniz() const { return ioniz_; }
+    const double &recoil() const { return recoil_; }
+    const double &path() const { return path_; }
     size_t ncoll() const { return ncoll_; }
 
     void add_coll() { ncoll_++; }
 
-//#pragma GCC push_options
-//#pragma GCC optimize("O0")
+    // #pragma GCC push_options
+    // #pragma GCC optimize("O0")
 
     /// Set the ion's direction. \a d is assumed to be normalized.
-    void setNormalizedDir(const vector3& d) {
+    void setNormalizedDir(const vector3 &d)
+    {
         assert(d.allFinite());
-        assert(std::abs(d.norm()-1.0f) <= 2*std::numeric_limits<float>::epsilon());
+        assert(std::abs(d.norm() - 1.0f) <= 2 * std::numeric_limits<float>::epsilon());
         dir_ = d;
     }
 
     /// Set the ion's direction parallel to a vector \a d.
-    void setDirParallelTo(const vector3& d) {
+    void setDirParallelTo(const vector3 &d)
+    {
         assert(d.allFinite());
         dir_ = d;
         dir_.normalize();
@@ -220,63 +235,55 @@ public:
      *
      * Changes the direction after scattering at angles \f$ (\theta,\phi) \f$.
      *
-     * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta) \f$
+     * @param n the vector \f$ \mathbf{n} = (\cos\phi\,\sin\theta, \sin\phi\,\sin\theta,\cos\theta)
+     * \f$
      * @see  \ref deflect_vector()
      */
-    void deflect(const vector3& n)
-    {
-        deflect_vector(dir_,n);
-    }
+    void deflect(const vector3 &n) { deflect_vector(dir_, n); }
 
-//#pragma GCC pop_options
+    // #pragma GCC pop_options
 
     /// Set initial position
-    int setPos(const vector3& x);
+    int setPos(const vector3 &x);
 
     /// Set the atomic species of the ion
-    void setAtom(const atom* a);
+    void setAtom(const atom *a);
 
     /// Set the initial energy of the ion
-    void setErg(double e) {
+    void setErg(double e)
+    {
         erg_ = erg0_ = e;
         assert(finite(erg_));
-        assert(erg_>0);
+        assert(erg_ > 0);
     }
 
     /// Set the initial energy of the ion
-    void setTime(double t) {
+    void setTime(double t)
+    {
         t_ = t0_ = t;
         assert(finite(t_));
-        assert(t_>=0.0);
+        assert(t_ >= 0.0);
     }
 
     /// increase recoil id
-    void incRecoilId() {
-        recoil_id_++;
-    }
+    void incRecoilId() { recoil_id_++; }
     /// set history id
-    void setId(size_t id) {
-        ion_id_ = id;
-    }
+    void setId(size_t id) { ion_id_ = id; }
     /// reset recoil id to 0
-    void setRecoilId(int id) {
-        recoil_id_ = id;
-    }
+    void setRecoilId(int id) { recoil_id_ = id; }
     /// set a grid3D for the ion
-    void setGrid(const grid3D* g) {
-        grid_ = g;
-    }
+    void setGrid(const grid3D *g) { grid_ = g; }
 
-    void init_recoil(const atom* a, double T);
+    void init_recoil(const atom *a, double T);
 
     /// reset all accumulators (path, energy etc)
     void reset_counters()
     {
-        ncoll_=0;
-        path_=ioniz_=phonon_=recoil_=0.0;
+        ncoll_ = 0;
+        path_ = ioniz_ = phonon_ = recoil_ = 0.0;
     }
 
-    BoundaryCrossing propagate(float& s, float &sqrtfp);
+    BoundaryCrossing propagate(float &s, float &sqrtfp);
 
     float move(float s);
 };
@@ -305,20 +312,22 @@ public:
  *
  * @ingroup Ions
  */
-class ion_queue {
+class ion_queue
+{
 
     // FIFO ion buffer
-    typedef std::queue< ion* > ion_queue_t;
+    typedef std::queue<ion *> ion_queue_t;
 
     ion_queue_t ion_buffer_; // buffer of allocated ion objects
     ion_queue_t recoil_queue_; // queue of generated recoils
     ion_queue_t pka_queue_; // queue of generated PKAs
 
     // pop an ion from the respective queue
-    static ion* pop_one_(ion_queue_t& Q)
+    static ion *pop_one_(ion_queue_t &Q)
     {
-        if (Q.empty()) return nullptr;
-        ion* i = Q.front();
+        if (Q.empty())
+            return nullptr;
+        ion *i = Q.front();
         Q.pop();
         return i;
     }
@@ -327,54 +336,47 @@ class ion_queue {
     size_t uctr_;
 
 public:
-    explicit ion_queue() : sz_(0), uctr_(0) {}
+    explicit ion_queue() : sz_(0), uctr_(0) { }
 
     /// Returns a new ion object, initialized with data copied from non-null p
-    ion* new_ion(const ion* p = nullptr) {
-        ion* i;
+    ion *new_ion(const ion *p = nullptr)
+    {
+        ion *i;
         if (ion_buffer_.empty()) {
             i = p ? new ion(*p) : new ion;
             sz_++;
         } else {
             i = ion_buffer_.front();
             ion_buffer_.pop();
-            if (p) *i = *p;
+            if (p)
+                *i = *p;
         }
         i->uid_ = uctr_++;
         return i;
     }
 
     /// Push an ion object to the PKA queue
-    void push_pka(ion* i) {
-        pka_queue_.push(i);
-    }
+    void push_pka(ion *i) { pka_queue_.push(i); }
     /// Push an ion object to the recoil queue
-    void push_recoil(ion* i) {
-        recoil_queue_.push(i);
-    }
+    void push_recoil(ion *i) { recoil_queue_.push(i); }
     /// Pop a PKA ion object from the queue. If the queue is empty, a nullptr is returned.
-    ion* pop_pka() {
-        return pop_one_(pka_queue_);
-    }
+    ion *pop_pka() { return pop_one_(pka_queue_); }
     /// Pop a recoil ion object from the queue. If the queue is empty, a nullptr is returned.
-    ion* pop_recoil() {
-        return pop_one_(recoil_queue_);
-    }
+    ion *pop_recoil() { return pop_one_(recoil_queue_); }
 
     /// Release a used ion object
-    void free_ion(ion* i) {
-        ion_buffer_.push(i);
-    }
+    void free_ion(ion *i) { ion_buffer_.push(i); }
 
     /// Clear all allocated ion objects from memory
-    void clear() {
+    void clear()
+    {
         while (!ion_buffer_.empty()) {
-            ion* i = ion_buffer_.front();
+            ion *i = ion_buffer_.front();
             ion_buffer_.pop();
             delete i;
             sz_--;
         }
-        assert(sz_==0);
+        assert(sz_ == 0);
     }
 
     size_t size() const { return sz_; }

@@ -32,7 +32,7 @@
 
 #include <QtGui>
 
-class JSBlockData: public QTextBlockUserData
+class JSBlockData : public QTextBlockUserData
 {
 public:
     QList<int> bracketPositions;
@@ -65,19 +65,18 @@ private:
 };
 
 JSHighlighter::JSHighlighter(QTextDocument *parent)
-    : QSyntaxHighlighter(parent)
-    , m_markCaseSensitivity(Qt::CaseInsensitive)
+    : QSyntaxHighlighter(parent), m_markCaseSensitivity(Qt::CaseInsensitive)
 {
     // default color scheme
-    m_colors[JSEdit::Normal]     = QColor("#000000");
-    m_colors[JSEdit::Comment]    = QColor("#808080");
-    m_colors[JSEdit::Number]     = QColor("#008000");
-    m_colors[JSEdit::String]     = QColor("#800000");
-    m_colors[JSEdit::Operator]   = QColor("#808000");
+    m_colors[JSEdit::Normal] = QColor("#000000");
+    m_colors[JSEdit::Comment] = QColor("#808080");
+    m_colors[JSEdit::Number] = QColor("#008000");
+    m_colors[JSEdit::String] = QColor("#800000");
+    m_colors[JSEdit::Operator] = QColor("#808000");
     m_colors[JSEdit::Identifier] = QColor("#000020");
-    m_colors[JSEdit::Keyword]    = QColor("#000080");
-    m_colors[JSEdit::BuiltIn]    = QColor("#008080");
-    m_colors[JSEdit::Marker]     = QColor("#ffff00");
+    m_colors[JSEdit::Keyword] = QColor("#000080");
+    m_colors[JSEdit::BuiltIn] = QColor("#008080");
+    m_colors[JSEdit::Marker] = QColor("#ffff00");
 
     // https://developer.mozilla.org/en/JavaScript/Reference/Reserved_Words
     m_keywords << "break";
@@ -264,14 +263,7 @@ void JSHighlighter::setColor(JSEdit::ColorComponent component, const QColor &col
 void JSHighlighter::highlightBlock(const QString &text)
 {
     // parsing state
-    enum {
-        Start = 0,
-        Number = 1,
-        Identifier = 2,
-        String = 3,
-        Comment = 4,
-        Regex = 5
-    };
+    enum { Start = 0, Number = 1, Identifier = 2, String = 3, Comment = 4, Regex = 5 };
 
     QList<int> bracketPositions;
 
@@ -317,7 +309,7 @@ void JSHighlighter::highlightBlock(const QString &text)
             } else {
                 if (!QString("(){}[]").contains(ch))
                     setFormat(start, 1, m_colors[JSEdit::Operator]);
-                if (ch =='{' || ch == '}') {
+                if (ch == '{' || ch == '}') {
                     bracketPositions += i;
                     if (ch == '{')
                         bracketLevel++;
@@ -419,7 +411,7 @@ void JSHighlighter::highlightBlock(const QString &text)
     }
 
     if (!bracketPositions.isEmpty()) {
-        JSBlockData *blockData = reinterpret_cast<JSBlockData*>(currentBlock().userData());
+        JSBlockData *blockData = reinterpret_cast<JSBlockData *>(currentBlock().userData());
         if (!blockData) {
             blockData = new JSBlockData;
             currentBlock().setUserData(blockData);
@@ -445,7 +437,8 @@ QStringList JSHighlighter::keywords() const
 
 void JSHighlighter::setKeywords(const QStringList &keywords)
 {
-    m_keywords = QSet<QString>(keywords.begin(),keywords.end()); //QSet<QString>::fromList(keywords);
+    m_keywords =
+            QSet<QString>(keywords.begin(), keywords.end()); // QSet<QString>::fromList(keywords);
     rehighlight();
 }
 
@@ -456,7 +449,7 @@ QStringList JSHighlighter::extraIDs() const
 
 void JSHighlighter::addExtraIDs(const QStringList &ids)
 {
-    m_extraIds.unite(QSet<QString>(ids.begin(),ids.end()));
+    m_extraIds.unite(QSet<QString>(ids.begin(), ids.end()));
     rehighlight();
 }
 
@@ -466,10 +459,11 @@ void JSHighlighter::clearExtraIDs()
     rehighlight();
 }
 
-struct BlockInfo {
+struct BlockInfo
+{
     int position;
     int number;
-    bool foldable: 1;
+    bool foldable : 1;
     bool folded : 1;
 };
 
@@ -488,14 +482,13 @@ public:
     int foldIndicatorWidth;
     QPixmap rightArrowIcon;
     QPixmap downArrowIcon;
+
 protected:
     void mousePressEvent(QMouseEvent *event);
     void paintEvent(QPaintEvent *event);
 };
 
-SidebarWidget::SidebarWidget(JSEdit *editor)
-    : QWidget(editor)
-    , foldIndicatorWidth(0)
+SidebarWidget::SidebarWidget(JSEdit *editor) : QWidget(editor), foldIndicatorWidth(0)
 {
     backgroundColor = Qt::lightGray;
     lineNumberColor = Qt::black;
@@ -519,7 +512,7 @@ void SidebarWidget::mousePressEvent(QMouseEvent *event)
                 }
         }
         if (lineNo >= 0) {
-            JSEdit *editor = qobject_cast<JSEdit*>(parent());
+            JSEdit *editor = qobject_cast<JSEdit *>(parent());
             if (editor)
                 editor->toggleFold(lineNo);
         }
@@ -534,7 +527,8 @@ void SidebarWidget::paintEvent(QPaintEvent *event)
     p.setFont(font);
     int fh = QFontMetrics(font).height();
     foreach (BlockInfo ln, lineNumbers)
-        p.drawText(0, ln.position, width() - 4 - foldIndicatorWidth, fh, Qt::AlignRight, QString::number(ln.number));
+        p.drawText(0, ln.position, width() - 4 - foldIndicatorWidth, fh, Qt::AlignRight,
+                   QString::number(ln.number));
 
     if (foldIndicatorWidth > 0) {
         int xofs = width() - foldIndicatorWidth;
@@ -585,11 +579,11 @@ void SidebarWidget::paintEvent(QPaintEvent *event)
 static int findClosingMatch(const QTextDocument *doc, int cursorPosition)
 {
     QTextBlock block = doc->findBlock(cursorPosition);
-    JSBlockData *blockData = reinterpret_cast<JSBlockData*>(block.userData());
+    JSBlockData *blockData = reinterpret_cast<JSBlockData *>(block.userData());
     if (!blockData->bracketPositions.isEmpty()) {
         int depth = 1;
         while (block.isValid()) {
-            blockData = reinterpret_cast<JSBlockData*>(block.userData());
+            blockData = reinterpret_cast<JSBlockData *>(block.userData());
             if (blockData && !blockData->bracketPositions.isEmpty()) {
                 for (int c = 0; c < blockData->bracketPositions.count(); ++c) {
                     int absPos = block.position() + blockData->bracketPositions.at(c);
@@ -612,11 +606,11 @@ static int findClosingMatch(const QTextDocument *doc, int cursorPosition)
 static int findOpeningMatch(const QTextDocument *doc, int cursorPosition)
 {
     QTextBlock block = doc->findBlock(cursorPosition);
-    JSBlockData *blockData = reinterpret_cast<JSBlockData*>(block.userData());
+    JSBlockData *blockData = reinterpret_cast<JSBlockData *>(block.userData());
     if (!blockData->bracketPositions.isEmpty()) {
         int depth = 1;
         while (block.isValid()) {
-            blockData = reinterpret_cast<JSBlockData*>(block.userData());
+            blockData = reinterpret_cast<JSBlockData *>(block.userData());
             if (blockData && !blockData->bracketPositions.isEmpty()) {
                 for (int c = blockData->bracketPositions.count() - 1; c >= 0; --c) {
                     int absPos = block.position() + blockData->bracketPositions.at(c);
@@ -636,17 +630,14 @@ static int findOpeningMatch(const QTextDocument *doc, int cursorPosition)
     return -1;
 }
 
-class JSDocLayout: public QPlainTextDocumentLayout
+class JSDocLayout : public QPlainTextDocumentLayout
 {
 public:
     JSDocLayout(QTextDocument *doc);
     void forceUpdate();
 };
 
-JSDocLayout::JSDocLayout(QTextDocument *doc)
-    : QPlainTextDocumentLayout(doc)
-{
-}
+JSDocLayout::JSDocLayout(QTextDocument *doc) : QPlainTextDocumentLayout(doc) { }
 
 void JSDocLayout::forceUpdate()
 {
@@ -671,9 +662,7 @@ public:
     bool codeFolding : 1;
 };
 
-JSEdit::JSEdit(QWidget *parent)
-    : QPlainTextEdit(parent)
-    , d_ptr(new JSEditPrivate)
+JSEdit::JSEdit(QWidget *parent) : QPlainTextEdit(parent), d_ptr(new JSEditPrivate)
 {
     d_ptr->editor = this;
     d_ptr->layout = new JSDocLayout(document());
@@ -821,7 +810,7 @@ static int findClosingConstruct(const QTextBlock &block)
 {
     if (!block.isValid())
         return -1;
-    JSBlockData *blockData = reinterpret_cast<JSBlockData*>(block.userData());
+    JSBlockData *blockData = reinterpret_cast<JSBlockData *>(block.userData());
     if (!blockData)
         return -1;
     if (blockData->bracketPositions.isEmpty())
@@ -880,7 +869,7 @@ void JSEdit::fold(int line)
     updateSidebar();
     update();
 
-    JSDocLayout *layout = reinterpret_cast<JSDocLayout*>(document()->documentLayout());
+    JSDocLayout *layout = reinterpret_cast<JSDocLayout *>(document()->documentLayout());
     layout->forceUpdate();
 }
 
@@ -901,7 +890,7 @@ void JSEdit::unfold(int line)
     updateSidebar();
     update();
 
-    JSDocLayout *layout = reinterpret_cast<JSDocLayout*>(document()->documentLayout());
+    JSDocLayout *layout = reinterpret_cast<JSDocLayout *>(document()->documentLayout());
     layout->forceUpdate();
 }
 
@@ -935,7 +924,6 @@ void JSEdit::wheelEvent(QWheelEvent *e)
     }
     QPlainTextEdit::wheelEvent(e);
 }
-
 
 void JSEdit::updateCursor()
 {
@@ -1057,8 +1045,10 @@ void JSEdit::updateSidebar()
                     d->sidebar->lineNumbers.resize(index + 1);
                 d->sidebar->lineNumbers[index].position = rect.top();
                 d->sidebar->lineNumbers[index].number = block.blockNumber() + 1;
-                d->sidebar->lineNumbers[index].foldable = d->codeFolding ? isFoldable(block.blockNumber() + 1) : false;
-                d->sidebar->lineNumbers[index].folded = d->codeFolding ? isFolded(block.blockNumber() + 1) : false;
+                d->sidebar->lineNumbers[index].foldable =
+                        d->codeFolding ? isFoldable(block.blockNumber() + 1) : false;
+                d->sidebar->lineNumbers[index].folded =
+                        d->codeFolding ? isFolded(block.blockNumber() + 1) : false;
                 ++index;
             }
             if (rect.top() > sidebarRect.bottom())

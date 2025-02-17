@@ -10,20 +10,19 @@ class OptionsModel;
 class QModelIndex;
 class QDataWidgetMapperPrivate;
 
-class MyDataWidgetMapper: public QObject
+class MyDataWidgetMapper : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit MyDataWidgetMapper(OptionsModel* m,
-                                QObject *parent = nullptr);
+    explicit MyDataWidgetMapper(OptionsModel *m, QObject *parent = nullptr);
 
-    void addMapping(QWidget *widget, const QModelIndex& idx, const char* signal = nullptr);
-    void removeMapping(const QString& key);
+    void addMapping(QWidget *widget, const QModelIndex &idx, const char *signal = nullptr);
+    void removeMapping(const QString &key);
 
-    OptionsModel* model() const { return model_; }
+    OptionsModel *model() const { return model_; }
 
-    QWidget* findWidget(const QString& key) const;
+    QWidget *findWidget(const QString &key) const;
 
 public slots:
     void revert();
@@ -38,11 +37,11 @@ private slots:
     void closeEditor(QWidget *, int);
 
 private:
-
-    struct mapItem {
+    struct mapItem
+    {
         QPointer<QWidget> widget;
         QPersistentModelIndex idx;
-        const char* signal;
+        const char *signal;
     };
     std::vector<mapItem> widgetMap;
     void removeMapping(QWidget *widget);

@@ -25,7 +25,7 @@
  * Adopted from the original by David Blackman and Sebastiano Vigna (vigna@acm.org) 2018
  *
  * License: http://creativecommons.org/publicdomain/zero/1.0/
- * 
+ *
  * Original implementation: http://prng.di.unimi.it/xoshiro256plus.c
  *
  * From the authors:
@@ -36,13 +36,13 @@
  * > which might fail linearity tests (and just those), so if low linear
  * > complexity is not considered an issue (as it is usually the case) it
  * > can be used to generate 64-bit outputs, too.
- * > 
+ * >
  * > We suggest to use a sign test to extract a random Boolean value, and
  * > right shifts to extract subsets of bits.
- * > 
+ * >
  * > The state must be seeded so that it is not everywhere zero. If you have
  * > a 64-bit seed, we suggest to seed a splitmix64 generator and use its
- * > output to fill s. 
+ * > output to fill s.
  *
  *  The C++ implementation here  qualifies as a std::uniform_random_bit_generator
  *  and can be used with std lib funtions.
@@ -52,7 +52,7 @@
  *   - Period: 2^256 - 1
  *   - Footprint: 32 bytes
  *   - Version: 1.0
- * 
+ *
  *   @ingroup RNG
  */
 
@@ -75,16 +75,16 @@ class Xoshiro256Plus
      *
      * @return the result of hashing z
      */
-    static constexpr std::uint64_t mixStafford13(std::uint64_t z) {
+    static constexpr std::uint64_t mixStafford13(std::uint64_t z)
+    {
         z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
         z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
         return z ^ (z >> 31);
     }
 
 public:
-
-    using state_type	= std::array<std::uint64_t, 4>;
-    using result_type	= std::uint64_t;
+    using state_type = std::array<std::uint64_t, 4>;
+    using result_type = std::uint64_t;
 
     /**
      * @brief Xoshiro256Plus default constructor
@@ -99,15 +99,11 @@ public:
      *
      * @param a_seed the seed used to initialize the state
      */
-    explicit Xoshiro256Plus(std::uint64_t a_seed = DefaultSeed) noexcept
-    { seed(a_seed); }
+    explicit Xoshiro256Plus(std::uint64_t a_seed = DefaultSeed) noexcept { seed(a_seed); }
 
-    explicit constexpr Xoshiro256Plus(state_type state) noexcept
-        : m_state(state) {}
+    explicit constexpr Xoshiro256Plus(state_type state) noexcept : m_state(state) { }
 
-    Xoshiro256Plus(const Xoshiro256Plus& other) noexcept
-        : m_state(other.m_state)
-    {}
+    Xoshiro256Plus(const Xoshiro256Plus &other) noexcept : m_state(other.m_state) { }
 
     /**
      * @brief Set the internal state by a seed s
@@ -121,8 +117,7 @@ public:
     {
         std::mt19937_64 mt(s);
 
-        for (auto& state : m_state)
-        {
+        for (auto &state : m_state) {
             state = static_cast<std::uint64_t>(mt());
         }
     }
@@ -173,24 +168,17 @@ public:
      */
     constexpr void jump() noexcept
     {
-        constexpr std::uint64_t JUMP[] = {
-            0x180ec6d33cfd0aba,
-            0xd5a61266f0c9392c,
-            0xa9582618e03fc9aa,
-            0x39abdc4529b1661c
-        };
+        constexpr std::uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
+                                           0xa9582618e03fc9aa, 0x39abdc4529b1661c };
 
         std::uint64_t s0 = 0;
         std::uint64_t s1 = 0;
         std::uint64_t s2 = 0;
         std::uint64_t s3 = 0;
 
-        for (std::uint64_t jump : JUMP)
-        {
-            for (int b = 0; b < 64; ++b)
-            {
-                if (jump & UINT64_C(1) << b)
-                {
+        for (std::uint64_t jump : JUMP) {
+            for (int b = 0; b < 64; ++b) {
+                if (jump & UINT64_C(1) << b) {
                     s0 ^= m_state[0];
                     s1 ^= m_state[1];
                     s2 ^= m_state[2];
@@ -215,24 +203,17 @@ public:
      */
     constexpr void longJump() noexcept
     {
-        constexpr std::uint64_t LONG_JUMP[] = {
-            0x76e15d3efefdcbbf,
-            0xc5004e441c522fb3,
-            0x77710069854ee241,
-            0x39109bb02acbe635
-        };
+        constexpr std::uint64_t LONG_JUMP[] = { 0x76e15d3efefdcbbf, 0xc5004e441c522fb3,
+                                                0x77710069854ee241, 0x39109bb02acbe635 };
 
         std::uint64_t s0 = 0;
         std::uint64_t s1 = 0;
         std::uint64_t s2 = 0;
         std::uint64_t s3 = 0;
 
-        for (std::uint64_t jump : LONG_JUMP)
-        {
-            for (int b = 0; b < 64; ++b)
-            {
-                if (jump & UINT64_C(1) << b)
-                {
+        for (std::uint64_t jump : LONG_JUMP) {
+            for (int b = 0; b < 64; ++b) {
+                if (jump & UINT64_C(1) << b) {
                     s0 ^= m_state[0];
                     s1 ^= m_state[1];
                     s2 ^= m_state[2];
@@ -249,42 +230,33 @@ public:
     }
 
     /// Smallest output value (0)
-    [[nodiscard]]
-    static constexpr result_type min() noexcept
+    [[nodiscard]] static constexpr result_type min() noexcept
     {
         return std::numeric_limits<result_type>::lowest();
     }
 
     /// Smallest output value (2^64 - 1)
-    [[nodiscard]]
-    static constexpr result_type max() noexcept
+    [[nodiscard]] static constexpr result_type max() noexcept
     {
         return std::numeric_limits<result_type>::max();
     }
 
     /// @brief Returns the internal state
-    [[nodiscard]]
-    constexpr state_type state() const noexcept
-    {
-        return m_state;
-    }
+    [[nodiscard]] constexpr state_type state() const noexcept { return m_state; }
 
     /// @brief  Set the internal state to a new value
-    constexpr void state(const state_type state) noexcept
-    {
-        m_state = state;
-    }
+    constexpr void state(const state_type state) noexcept { m_state = state; }
 
     /// Returns true if the two objects have equal states
-    [[nodiscard]]
-    friend bool operator ==(const Xoshiro256Plus& lhs, const Xoshiro256Plus& rhs) noexcept
+    [[nodiscard]] friend bool operator==(const Xoshiro256Plus &lhs,
+                                         const Xoshiro256Plus &rhs) noexcept
     {
         return (lhs.m_state == rhs.m_state);
     }
 
     /// Return true if the two objects have unequal states
-    [[nodiscard]]
-    friend bool operator !=(const Xoshiro256Plus& lhs, const Xoshiro256Plus& rhs) noexcept
+    [[nodiscard]] friend bool operator!=(const Xoshiro256Plus &lhs,
+                                         const Xoshiro256Plus &rhs) noexcept
     {
         return (lhs.m_state != rhs.m_state);
     }
@@ -339,15 +311,11 @@ class random_vars : public Xoshiro256Plus
 
 public:
     /// default constructor
-    random_vars() : rng_engine()
-    {}
+    random_vars() : rng_engine() { }
     /// Quasi copy constructor, using an already defined engine
-    explicit random_vars(rng_engine& e) : rng_engine(e.state())
-    {}
+    explicit random_vars(rng_engine &e) : rng_engine(e.state()) { }
     /// copy constructor
-    random_vars(const random_vars& other)
-        : Xoshiro256Plus(other)
-    {}
+    random_vars(const random_vars &other) : Xoshiro256Plus(other) { }
 
     /// Single precision uniform random values in [0, 1)
 
@@ -363,19 +331,18 @@ public:
      * is 1.f - std::limits<float>::epsilon()/2
      *
      */
-    float u01s_ropen() {
-        return toFloat((*this)());
-    }
+    float u01s_ropen() { return toFloat((*this)()); }
     /// Same as u01ropen()
     float u01s() { return u01s_ropen(); }
     /// Return random value in (0, 1]
-    float u01s_lopen() {
-        return 1.f - u01s_ropen();
-    }
+    float u01s_lopen() { return 1.f - u01s_ropen(); }
     /// Return random value in (0, 1)
-    float u01s_open() {
+    float u01s_open()
+    {
         float u;
-        do u = u01s_ropen(); while(u==0.f);
+        do
+            u = u01s_ropen();
+        while (u == 0.f);
         return u;
     }
 
@@ -393,27 +360,23 @@ public:
      * is 1.f - std::limits<double>::epsilon()/2
      *
      */
-    double u01d_ropen() {
-        return toDouble((*this)());
-    }
+    double u01d_ropen() { return toDouble((*this)()); }
     /// Same as u01d_ropen()
     double u01d() { return u01d_ropen(); }
     /// Return double precision random value in (0, 1]
-    double u01d_lopen() {
-        return 1.0 - u01d_ropen();
-    }
+    double u01d_lopen() { return 1.0 - u01d_ropen(); }
     /// Return random value in (0, 1)
-    double u01d_open() {
+    double u01d_open()
+    {
         double u;
-        do u = u01d_ropen(); while(u==0.0);
+        do
+            u = u01d_ropen();
+        while (u == 0.0);
         return u;
     }
 
     /// Return a random value distributed as N(0,1)
-    float normal()
-    {
-        return N_(*this);
-    }
+    float normal() { return N_(*this); }
 
     /**
      * @brief Generate a random azimuthal direction
@@ -429,19 +392,18 @@ public:
      * @param nx sin(phi)
      * @param ny cos(phi)
      */
-    void random_azimuth_dir(float& nx, float& ny)
+    void random_azimuth_dir(float &nx, float &ny)
     {
-        float s1,s2,r2;
-        do
-        {
-            nx = 2.f*u01s() - 1.f;
+        float s1, s2, r2;
+        do {
+            nx = 2.f * u01s() - 1.f;
             ny = u01s();
-            s1 = nx*nx;
-            s2 = ny*ny;
+            s1 = nx * nx;
+            s2 = ny * ny;
             r2 = s1 + s2;
-        } while (r2>1.f || r2==0.f);
-        ny = 2*nx*ny/r2;
-        nx = (s1-s2)/r2;
+        } while (r2 > 1.f || r2 == 0.f);
+        ny = 2 * nx * ny / r2;
+        nx = (s1 - s2) / r2;
     }
 };
 

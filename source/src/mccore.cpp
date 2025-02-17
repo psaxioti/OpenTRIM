@@ -8,43 +8,45 @@
 #include <iostream>
 #include <type_traits>
 
-mccore::mccore() :
-    source_(new ion_beam),
-    target_(new target),
-    ref_count_(new int(0)),
-    ion_counter_(new std::atomic_size_t(0)),
-    thread_ion_counter_(0),
-    abort_flag_(new std::atomic_bool()),
-    tally_mutex_(new std::mutex)
+mccore::mccore()
+    : source_(new ion_beam),
+      target_(new target),
+      ref_count_(new int(0)),
+      ion_counter_(new std::atomic_size_t(0)),
+      thread_ion_counter_(0),
+      abort_flag_(new std::atomic_bool()),
+      tally_mutex_(new std::mutex)
 {
 }
 
-mccore::mccore(const parameters &p, const transport_options& t) :
-    par_(p), tr_opt_(t),
-    source_(new ion_beam),
-    target_(new target),
-    ref_count_(new int(0)),
-    ion_counter_(new std::atomic_size_t(0)),
-    thread_ion_counter_(0),
-    abort_flag_(new std::atomic_bool()),
-    tally_mutex_(new std::mutex)
+mccore::mccore(const parameters &p, const transport_options &t)
+    : par_(p),
+      tr_opt_(t),
+      source_(new ion_beam),
+      target_(new target),
+      ref_count_(new int(0)),
+      ion_counter_(new std::atomic_size_t(0)),
+      thread_ion_counter_(0),
+      abort_flag_(new std::atomic_bool()),
+      tally_mutex_(new std::mutex)
 {
 }
 
-mccore::mccore(const mccore &s) :
-    par_(s.par_), tr_opt_(s.tr_opt_),
-    source_(s.source_),
-    target_(s.target_),
-    ref_count_(s.ref_count_),
-    ion_counter_(s.ion_counter_),
-    thread_ion_counter_(0),
-    abort_flag_(s.abort_flag_),
-    tally_mutex_(s.tally_mutex_),
-    dedx_calc_(s.dedx_calc_),
-    flight_path_calc_(s.flight_path_calc_),
-    scattering_matrix_(s.scattering_matrix_),
-    rng(s.rng),
-    pka(s.pka)
+mccore::mccore(const mccore &s)
+    : par_(s.par_),
+      tr_opt_(s.tr_opt_),
+      source_(s.source_),
+      target_(s.target_),
+      ref_count_(s.ref_count_),
+      ion_counter_(s.ion_counter_),
+      thread_ion_counter_(0),
+      abort_flag_(s.abort_flag_),
+      tally_mutex_(s.tally_mutex_),
+      dedx_calc_(s.dedx_calc_),
+      flight_path_calc_(s.flight_path_calc_),
+      scattering_matrix_(s.scattering_matrix_),
+      rng(s.rng),
+      pka(s.pka)
 {
     tally_.copy(s.tally_);
     dtally_.copy(s.dtally_);
@@ -61,9 +63,10 @@ mccore::~mccore()
         delete source_;
         delete target_;
         if (!scattering_matrix_.isNull()) {
-            abstract_xs_lab** xs = scattering_matrix_.data();
-            for (int i=0; i<scattering_matrix_.size(); i++)
-                if (xs[i]) delete xs[i];
+            abstract_xs_lab **xs = scattering_matrix_.data();
+            for (int i = 0; i < scattering_matrix_.size(); i++)
+                if (xs[i])
+                    delete xs[i];
         }
     }
 }
@@ -86,41 +89,39 @@ int mccore::init()
     int nmat = materials.size();
     auto atoms = target_->atoms();
     int natoms = atoms.size();
-    scattering_matrix_ = ArrayND<abstract_xs_lab*>(natoms, natoms);
-    for(int z1 = 0; z1<natoms; z1++)
-    {
-        for(int z2 = 1; z2<natoms; z2++)
-        {
+    scattering_matrix_ = ArrayND<abstract_xs_lab *>(natoms, natoms);
+    for (int z1 = 0; z1 < natoms; z1++) {
+        for (int z2 = 1; z2 < natoms; z2++) {
             switch (par_.scattering_calculation) {
             case Corteo4bitTable:
                 switch (par_.screening_type) {
                 case Screening::ZBL:
-                    scattering_matrix_(z1,z2) = new xs_lab_zbl;
+                    scattering_matrix_(z1, z2) = new xs_lab_zbl;
                     break;
                 case Screening::LenzJensen:
-                    scattering_matrix_(z1,z2) = new xs_lab_lj;
+                    scattering_matrix_(z1, z2) = new xs_lab_lj;
                     break;
                 case Screening::KrC:
-                    scattering_matrix_(z1,z2) = new xs_lab_krc;
+                    scattering_matrix_(z1, z2) = new xs_lab_krc;
                     break;
                 case Screening::Moliere:
-                    scattering_matrix_(z1,z2) = new xs_lab_moliere;
+                    scattering_matrix_(z1, z2) = new xs_lab_moliere;
                     break;
                 default:
-                    scattering_matrix_(z1,z2) = new xs_lab_zbl;
+                    scattering_matrix_(z1, z2) = new xs_lab_zbl;
                     break;
                 }
                 break;
             case ZBL_MAGICK:
-                scattering_matrix_(z1,z2) = new xs_lab_zbl_magic;
+                scattering_matrix_(z1, z2) = new xs_lab_zbl_magic;
                 break;
             default:
-                scattering_matrix_(z1,z2) = new xs_lab_zbl;
+                scattering_matrix_(z1, z2) = new xs_lab_zbl;
                 break;
             }
 
-            scattering_matrix_(z1,z2)->init(atoms[z1]->Z(), atoms[z1]->M(),
-                                            atoms[z2]->Z(), atoms[z2]->M());
+            scattering_matrix_(z1, z2)->init(atoms[z1]->Z(), atoms[z1]->M(), atoms[z2]->Z(),
+                                             atoms[z2]->M());
         }
     }
 
@@ -138,7 +139,7 @@ int mccore::init()
     // prepare event buffers
     std::vector<std::string> atom_labels = target_->atom_labels();
     atom_labels.erase(atom_labels.begin());
-    pka.setNatoms(natoms-1,atom_labels);
+    pka.setNatoms(natoms - 1, atom_labels);
 
     return 0;
 }
@@ -151,14 +152,13 @@ int mccore::reset()
 
 int mccore::run()
 {
-    cascade_queue* cq = par_.intra_cascade_recombination ?
-                            new cascade_queue(par_.correlated_recombination, par_.i_rc_boost) :
-                            nullptr;
+    cascade_queue *cq = par_.intra_cascade_recombination
+            ? new cascade_queue(par_.correlated_recombination, par_.i_rc_boost)
+            : nullptr;
 
     bool cascadesOnly = par_.simulation_type == CascadesOnly;
 
-    while( !(*abort_flag_) )
-    {
+    while (!(*abort_flag_)) {
         // get the next ion id
         size_t ion_id = ion_counter_->fetch_add(1) + 1;
         if (ion_id > max_no_ions_) {
@@ -167,37 +167,37 @@ int mccore::run()
         }
 
         // generate ion
-        ion* i = q_.new_ion();
+        ion *i = q_.new_ion();
         i->setId(ion_id);
         i->setRecoilId(cascadesOnly ? 1 : 0);
         i->reset_counters();
         source_->source_ion(rng, *target_, *i);
-        tion_(Event::NewSourceIon,*i);
+        tion_(Event::NewSourceIon, *i);
 
         /*
          * If it is a cascades-only simulation put the ion in the pka queue
          * else transport it
          */
         if (cascadesOnly) {
-            if (i->erg() >= i->myAtom()->Ed())
-            {
+            if (i->erg() >= i->myAtom()->Ed()) {
                 i->setErg(i->erg() - i->myAtom()->El());
                 if (par_.move_recoil) {
                     i->move(i->myAtom()->Rc());
-                    dedx_calc_.init(i,target_->cell(i->cellid()));
+                    dedx_calc_.init(i, target_->cell(i->cellid()));
                     dedx_calc_(i, i->myAtom()->Rc());
                 }
                 q_.push_pka(i);
-            } else q_.free_ion(i);
+            } else
+                q_.free_ion(i);
         } else {
-            transport(i,tion_);
+            transport(i, tion_);
             // free the ion buffer
             q_.free_ion(i);
         }
 
         // transport all PKAs
         pka.mark(tion_);
-        while (ion* j = q_.pop_pka()) {
+        while (ion *j = q_.pop_pka()) {
             // transport PKA
             pka.init(j);
             ion j1(*j); // keep a clone ion to have initial position
@@ -207,32 +207,32 @@ int mccore::run()
 
                 pka.cascade_start(*j);
 
-                if (cq) cq->init(j);
+                if (cq)
+                    cq->init(j);
 
-                transport(j,tion_,cq);
+                transport(j, tion_, cq);
 
                 // transport all secondary recoils
-                while (ion* k = q_.pop_recoil()) {
-                    transport(k,tion_,cq);
+                while (ion *k = q_.pop_recoil()) {
+                    transport(k, tion_, cq);
                     // free the ion buffer
                     q_.free_ion(k);
                 }
 
-                if (cq) cq->intra_cascade_recombination(target_->grid(), tion_);
+                if (cq)
+                    cq->intra_cascade_recombination(target_->grid(), tion_);
 
                 pka.mark(tion_);
-                pka.cascade_end(*j,cq);
-
+                pka.cascade_end(*j, cq);
             }
 
             // free the ion buffer
             q_.free_ion(j);
 
             // register NRT values (using j1 - at initial pos!)
-            pka.cascade_complete(j1,tion_,
-                    par_.nrt_calculation == NRT_average ?
-                        target_->cell(j1.cellid()) :
-                        nullptr);
+            pka.cascade_complete(j1, tion_,
+                                 par_.nrt_calculation == NRT_average ? target_->cell(j1.cellid())
+                                                                     : nullptr);
 
             // send pka to the stream
             pka_stream_.write(&pka);
@@ -245,7 +245,7 @@ int mccore::run()
         // add this ion's tally to total score
         // lock the tally_mutex to allow merge operations
         {
-            std::lock_guard< std::mutex > lock(*tally_mutex_);
+            std::lock_guard<std::mutex> lock(*tally_mutex_);
             tally_ += tion_;
             dtally_.addSquared(tion_);
         }
@@ -253,23 +253,22 @@ int mccore::run()
         // clear the tally scores
         tion_.clear();
 
-
-
         // update thread counter
         thread_ion_counter_++;
 
     } // ion loop
 
-    if (cq) delete cq;
+    if (cq)
+        delete cq;
 
     return 0;
 }
 
-int mccore::transport(ion* i, tally &t, cascade_queue *q)
+int mccore::transport(ion *i, tally &t, cascade_queue *q)
 {
     // pointers to dEdx & straggling tables
-    const dedx_interp* de_stopping_tbl = nullptr;
-    const straggling_interp* de_straggling_tbl = nullptr;
+    const dedx_interp *de_stopping_tbl = nullptr;
+    const straggling_interp *de_straggling_tbl = nullptr;
 
     // collision flag
     bool doCollision;
@@ -277,7 +276,7 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
     float fp, sqrtfp, ip;
 
     // get the material at the ion's position
-    const material* mat = target_->cell(i->cellid());
+    const material *mat = target_->cell(i->cellid());
     // init dEdx and fp data for ion/material combination
     if (mat) {
         dedx_calc_.init(i, mat);
@@ -288,15 +287,15 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
     while (1) {
 
         // Check if ion has enough energy to continue
-        if(i->erg() < tr_opt_.min_energy) { 
+        if (i->erg() < tr_opt_.min_energy) {
             /* projectile has to stop. Store as implanted/interstitial atom*/
-            t(Event::IonStop,*i);
-            if (q) //q->push(Event::IonStop,*i);
+            t(Event::IonStop, *i);
+            if (q) // q->push(Event::IonStop,*i);
                 q->push_i(i);
             return 0; // history ends
-        } 
+        }
 
-        if (!mat) {  // Vacuum.
+        if (!mat) { // Vacuum.
             // set flight path to ~inf
             // to intentionally hit a boundary
             // Then the boundary crossing algorithm
@@ -304,13 +303,13 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             fp = 1e30f;
             sqrtfp = 1e15f;
             BoundaryCrossing crossing = i->propagate(fp, sqrtfp);
-            switch(crossing) {
+            switch (crossing) {
             case BoundaryCrossing::None:
             case BoundaryCrossing::InternalPBC:
                 break;
             case BoundaryCrossing::Internal:
                 // register event
-                t(Event::BoundaryCrossing,*i);
+                t(Event::BoundaryCrossing, *i);
                 i->reset_counters();
                 // get new material and dEdx, mfp tables
                 mat = target_->cell(i->cellid());
@@ -321,7 +320,7 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
                 break;
             case BoundaryCrossing::External:
                 // register ion exit event
-                t(Event::IonExit,*i);
+                t(Event::IonExit, *i);
                 if (exit_stream_.is_open()) {
                     exit_ev.set(i);
                     exit_stream_.write(&exit_ev);
@@ -332,19 +331,19 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
         }
 
         // select flight path & impact param.
-        doCollision = flight_path_calc_(rng,i->erg(),fp,sqrtfp,ip);
+        doCollision = flight_path_calc_(rng, i->erg(), fp, sqrtfp, ip);
 
         // propagate ion, checking also for boundary crossing
         BoundaryCrossing crossing = i->propagate(fp, sqrtfp);
 
         // subtract ionization & straggling
-        dedx_calc_(i,fp,sqrtfp,rng);
+        dedx_calc_(i, fp, sqrtfp, rng);
 
         // handle boundary
-        switch(crossing) {
+        switch (crossing) {
         case BoundaryCrossing::Internal:
             // register event
-            t(Event::BoundaryCrossing,*i);
+            t(Event::BoundaryCrossing, *i);
             i->reset_counters();
             // get new material and dEdx, mfp tables
             mat = target_->cell(i->cellid());
@@ -361,7 +360,7 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             break;
         case BoundaryCrossing::External:
             // register ion exit event
-            t(Event::IonExit,*i);
+            t(Event::IonExit, *i);
             if (exit_stream_.is_open()) {
                 exit_ev.set(i);
                 exit_stream_.write(&exit_ev);
@@ -375,15 +374,16 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
         // no collision =
         // either BoundaryCrossing::Internal OR
         // rejected by flight path algorithm
-        if (!doCollision) continue;
+        if (!doCollision)
+            continue;
 
         // Now comes the COLLISSION PART
 
         // select collision partner
-        const atom* z2 = mat->selectAtom(rng);
+        const atom *z2 = mat->selectAtom(rng);
 
         // get the cross-section and calculate scattering
-        auto xs = scattering_matrix_(i->myAtom()->id(),z2->id());
+        auto xs = scattering_matrix_(i->myAtom()->id(), z2->id());
         float T; // recoil energy
         float sintheta, costheta; // Lab sys scattering angle sin & cos
         xs->scatter(i->erg(), ip, T, sintheta, costheta);
@@ -391,14 +391,14 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
 
         // get random azimuthal dir
         float nx, ny; // nx = cos(phi), ny = sin(phi), phi: az. angle
-        rng.random_azimuth_dir(nx,ny);
+        rng.random_azimuth_dir(nx, ny);
 
         // register scattering event (before changing ion data)
         // t(Event::Scattering,*i);
 
         // apply new ion direction & energy
         vector3 dir0 = i->dir(); // store initial dir
-        i->deflect(vector3(nx*sintheta, ny*sintheta, costheta));
+        i->deflect(vector3(nx * sintheta, ny * sintheta, costheta));
         i->add_coll();
 
         /// @TODO: special treatment of surface effects (sputtering etc.)
@@ -410,8 +410,8 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             i->de_recoil(T);
 
             // calc recoil dir from momentum conservation
-            float b = i->erg()/T;
-            vector3 nt = dir0 - i->dir()*std::sqrt(b/(1.f+b)); // un-normalized
+            float b = i->erg() / T;
+            vector3 nt = dir0 - i->dir() * std::sqrt(b / (1.f + b)); // un-normalized
             nt.normalize();
 
             // TODO
@@ -419,7 +419,7 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
             // we could just add the interstitial here
 
             // create recoil (it is stored in the ion queue)
-            ion* j = new_recoil(i,z2,T,nt);
+            ion *j = new_recoil(i, z2, T, nt);
             ion j1(*j); // keep a copy
 
             // move recoil to the edge of recomb. area
@@ -439,13 +439,14 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
              */
             if ((i->myAtom()->Z() == z2->Z()) && (i->erg() < z2->Er())) {
                 // Replacement event, ion energy goes to Phonons
-                t(Event::Replacement,*i,z2);
+                t(Event::Replacement, *i, z2);
                 j->setUid(i->uid());
-                //if (q) q->push(Event::Replacement,*i);
+                // if (q) q->push(Event::Replacement,*i);
                 return 0; // end of ion history
             }
 
-            if (q) q->push_v(&j1);
+            if (q)
+                q->push_v(&j1);
 
         } else { // T<E_d, recoil cannot be displaced
             // energy goes to phonons
@@ -457,16 +458,16 @@ int mccore::transport(ion* i, tally &t, cascade_queue *q)
     return 0;
 }
 
-void mccore::mergeTallies(mccore& other)
+void mccore::mergeTallies(mccore &other)
 {
-    std::lock_guard< std::mutex > lock(*tally_mutex_);
+    std::lock_guard<std::mutex> lock(*tally_mutex_);
     tally_ += other.tally_;
     other.tally_.clear();
     dtally_ += other.dtally_;
     other.dtally_.clear();
 }
 
-void mccore::mergeEvents(mccore& other)
+void mccore::mergeEvents(mccore &other)
 {
     pka_stream_.merge(other.pka_stream_);
     other.pka_stream_.clear();
@@ -476,27 +477,29 @@ void mccore::mergeEvents(mccore& other)
 
 ArrayNDd mccore::getTallyTable(int i) const
 {
-    if (i<0 || i>=tally::tEnd) return ArrayNDd();
-    std::lock_guard< std::mutex > lock(*tally_mutex_);
+    if (i < 0 || i >= tally::tEnd)
+        return ArrayNDd();
+    std::lock_guard<std::mutex> lock(*tally_mutex_);
     return tally_.at(i).copy();
 }
 ArrayNDd mccore::getTallyTableVar(int i) const
 {
-    if (i<0 || i>=tally::tEnd) return ArrayNDd();
-    std::lock_guard< std::mutex > lock(*tally_mutex_);
+    if (i < 0 || i >= tally::tEnd)
+        return ArrayNDd();
+    std::lock_guard<std::mutex> lock(*tally_mutex_);
     return dtally_.at(i).copy();
 }
-void mccore::copyTallyTable(int i, ArrayNDd& A) const
+void mccore::copyTallyTable(int i, ArrayNDd &A) const
 {
-    if (i<0 || i>=tally::tEnd) return;
-    std::lock_guard< std::mutex > lock(*tally_mutex_);
+    if (i < 0 || i >= tally::tEnd)
+        return;
+    std::lock_guard<std::mutex> lock(*tally_mutex_);
     tally_.at(i).copyTo(A);
 }
-void mccore::copyTallyTableVar(int i, ArrayNDd& dA) const
+void mccore::copyTallyTableVar(int i, ArrayNDd &dA) const
 {
-    if (i<0 || i>=tally::tEnd) return;
-    std::lock_guard< std::mutex > lock(*tally_mutex_);
+    if (i < 0 || i >= tally::tEnd)
+        return;
+    std::lock_guard<std::mutex> lock(*tally_mutex_);
     dtally_.at(i).copyTo(dA);
 }
-
-

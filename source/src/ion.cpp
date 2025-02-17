@@ -1,7 +1,6 @@
 #include "ion.h"
 #include "target.h"
 
-
 int ion::setPos(const vector3 &x)
 {
     pos_ = pos0_ = x;
@@ -15,15 +14,15 @@ int ion::setPos(const vector3 &x)
 }
 
 /// Set the atomic species of the ion
-void ion::setAtom(const atom* a)
+void ion::setAtom(const atom *a)
 {
     atom_ = a;
-    s_erg_to_t_ = S_ERG_TO_TIME_CONST*std::sqrt(atom_->M());
+    s_erg_to_t_ = S_ERG_TO_TIME_CONST * std::sqrt(atom_->M());
 }
 
 // assuming the object was cloned from
 // the projectile
-void ion::init_recoil(const atom* a, double T)
+void ion::init_recoil(const atom *a, double T)
 {
     // mark current pos and cell
     // as initial for this track
@@ -52,7 +51,7 @@ void ion::init_recoil(const atom* a, double T)
  *
  * If the ion remains inside the simulation volume, the function checks
  * if it is in the same cell.
- * 
+ *
  * If not, then the ion is propagated to just beyond its cell boundary,
  * the new cell is found
  * and the index vector and cell id are updated.
@@ -62,26 +61,28 @@ void ion::init_recoil(const atom* a, double T)
  *
  * @param fp the distance to propagate the ion [nm]
  * @param sqrtfp the sqrt of the distance
- * @return the type of boundary crossing (none, internal (cell change), external (ion left simulation))
+ * @return the type of boundary crossing (none, internal (cell change), external (ion left
+ * simulation))
  */
 
 // #pragma GCC push_options
 // #pragma GCC optimize("O0")
 
-BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
+BoundaryCrossing ion::propagate(float &fp, float &sqrtfp)
 {
     float fp0(fp);
-    vector3 x = pos_ + fp*dir_;  // calc new ion position
+    vector3 x = pos_ + fp * dir_; // calc new ion position
     if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
-        if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
+        if (!grid_->contains(icell_, x)) { // does the ion exit the cell ?
             // propagate to the boundary
             x = pos_;
             fp = grid_->bring2boundary(icell_, x, dir_);
             assert(finite(fp));
-            grid_->apply_bc(x); 
+            grid_->apply_bc(x);
             ivector3 ix = grid_->pos2cell(x);
-            path_ += fp; t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
-            sqrtfp *= std::sqrt(fp/fp0);
+            path_ += fp;
+            t_ += fp / std::sqrt(erg_) * s_erg_to_t_;
+            sqrtfp *= std::sqrt(fp / fp0);
             pos_ = x;
             if (ix != icell_) {
                 icell_ = ix;
@@ -99,16 +100,16 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
                  *   C) There is only 1 cell along the i-th direction at this point, thus
                  *      the particel does not change cell
                  *
-                 * Thus, the call to grid_->contains_with_bc(x) returns true, due to the periodic BCs,
-                 * BUT the call to grid_->contains(icell_,x) returns false because the ion is exactly at
-                 * the boundary and this is considered "outside the cell" (condition= "x0 <= x < x1").
-                 * Note that contains(icell_,x) does not check for periodic BCs.
+                 * Thus, the call to grid_->contains_with_bc(x) returns true, due to the periodic
+                 * BCs, BUT the call to grid_->contains(icell_,x) returns false because the ion is
+                 * exactly at the boundary and this is considered "outside the cell" (condition= "x0
+                 * <= x < x1"). Note that contains(icell_,x) does not check for periodic BCs.
                  */
                 return BoundaryCrossing::InternalPBC;
             }
         } else { // we remain in the cell
             path_ += fp;
-            t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
+            t_ += fp / std::sqrt(erg_) * s_erg_to_t_;
             pos_ = x;
             return BoundaryCrossing::None;
         }
@@ -116,15 +117,15 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
         // 1. Reduce s to just cross the boundary
         // @ToDo more debugging needed here
         x = pos_;
-        fp = grid_->bring2boundary(icell_,x,dir_);
+        fp = grid_->bring2boundary(icell_, x, dir_);
         assert(finite(fp));
         path_ += fp;
-        t_ += fp/std::sqrt(erg_)*s_erg_to_t_;
-        sqrtfp *= std::sqrt(fp/fp0);
+        t_ += fp / std::sqrt(erg_) * s_erg_to_t_;
+        sqrtfp *= std::sqrt(fp / fp0);
         grid_->apply_bc(x);
         // 2. still exiting ?
         if (!grid_->contains_with_bc(x)) {
-            pos_ = x;            
+            pos_ = x;
             prev_cellid_ = cellid_;
             cellid_ = -1;
             return BoundaryCrossing::External;
@@ -142,9 +143,9 @@ BoundaryCrossing ion::propagate(float& fp, float& sqrtfp)
 float ion::move(float s)
 {
     float fp(s);
-    vector3 x = pos_ + fp*dir_;  // calc new ion position
+    vector3 x = pos_ + fp * dir_; // calc new ion position
     if (grid_->contains_with_bc(x)) { // is the ion still inside the target ?
-        if (!grid_->contains(icell_,x)) { // does the ion exit the cell ?
+        if (!grid_->contains(icell_, x)) { // does the ion exit the cell ?
             // propagate to the boundary
             x = pos_;
             fp = grid_->bring2boundary(icell_, x, dir_);
@@ -168,9 +169,3 @@ float ion::move(float s)
 }
 
 // #pragma GCC pop_options
-
-
-
-
-
-

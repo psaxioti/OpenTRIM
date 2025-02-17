@@ -6,14 +6,15 @@
 #include <fstream>
 #include <iomanip>
 
+using std::cerr;
 using std::cin;
 using std::cout;
-using std::cerr;
 using std::endl;
 
 // helper class for getting real-time info
 // for the running simulation
-class running_sim_info {
+class running_sim_info
+{
 
     // timing
     typedef std::chrono::high_resolution_clock hr_clock_t;
@@ -31,9 +32,9 @@ class running_sim_info {
 
 public:
     // init : called before simulation starts
-    void init(const mcdriver& D);
+    void init(const mcdriver &D);
     // update : called during simulation run
-    void update(const mcdriver& D);
+    void update(const mcdriver &D);
     // print cli progress bar
     void print();
     // getters
@@ -46,36 +47,34 @@ public:
 
 running_sim_info info;
 
-void progress_callback(const mcdriver& d, void* )
+void progress_callback(const mcdriver &d, void *)
 {
     info.update(d);
     info.print();
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     std::string program_name(PROJECT_NAME);
     std::transform(program_name.begin(), program_name.end(), program_name.begin(),
-                   [](unsigned char c)
-                   { return std::tolower(c); });
+                   [](unsigned char c) { return std::tolower(c); });
     cxxopts::Options cli_options(program_name, PROJECT_DESCRIPTION);
 
-    cli_options.add_options()
-        ("n","Number of histories to run (overrides config input)", cxxopts::value<int>())
-        ("j","Number of threads (overrides config input)", cxxopts::value<int>())
-        ("s,seed","random generator seed (overrides config input)",cxxopts::value<int>())
-        ("i,input","input HDF5 file name",cxxopts::value<std::string>())
-        ("f","JSON config file",cxxopts::value<std::string>())
-        ("o,output","output HDF5 file name (overrides config input)",cxxopts::value<std::string>())
-        ("t,template","print a template JSON config to stdout")
-        ("v,version","Display version information")
-        ("h,help","Display short help message");
+    cli_options.add_options()("n", "Number of histories to run (overrides config input)",
+                              cxxopts::value<int>())(
+            "j", "Number of threads (overrides config input)", cxxopts::value<int>())(
+            "s,seed", "random generator seed (overrides config input)", cxxopts::value<int>())(
+            "i,input", "input HDF5 file name",
+            cxxopts::value<std::string>())("f", "JSON config file", cxxopts::value<std::string>())(
+            "o,output", "output HDF5 file name (overrides config input)",
+            cxxopts::value<std::string>())("t,template", "print a template JSON config to stdout")(
+            "v,version", "Display version information")("h,help", "Display short help message");
 
     int n(-1), j(-1), s(-1);
     std::string input_config_file, input_file, output_file;
 
     try {
-        auto result = cli_options.parse(argc,argv);
+        auto result = cli_options.parse(argc, argv);
 
         if (result.count("help")) {
             cout << cli_options.help() << endl;
@@ -84,7 +83,8 @@ int main(int argc, char* argv[])
         if (result.count("version")) {
             cout << PROJECT_NAME << " version " << PROJECT_VERSION << endl;
             cout << "Build time: " << BUILD_TIME << endl;
-            cout << "Compiler: " << COMPILER_ID << " v" << COMPILER_VERSION << " on " SYSTEM_ID << endl;
+            cout << "Compiler: " << COMPILER_ID << " v" << COMPILER_VERSION << " on " SYSTEM_ID
+                 << endl;
             return 0;
         }
         if (result.count("template")) {
@@ -92,15 +92,19 @@ int main(int argc, char* argv[])
             opt.printJSON(cout);
             return 0;
         }
-        if (result.count("n")) n = result["n"].as<int>();
-        if (result.count("j")) j = result["j"].as<int>();
-        if (result.count("s")) s = result["s"].as<int>();
-        if (result.count("f")) input_config_file = result["f"].as<std::string>();
-        if (result.count("i")) input_file = result["i"].as<std::string>();
-        if (result.count("o")) output_file = result["o"].as<std::string>();
-    }
-    catch(const cxxopts::exceptions::exception& e)
-    {
+        if (result.count("n"))
+            n = result["n"].as<int>();
+        if (result.count("j"))
+            j = result["j"].as<int>();
+        if (result.count("s"))
+            s = result["s"].as<int>();
+        if (result.count("f"))
+            input_config_file = result["f"].as<std::string>();
+        if (result.count("i"))
+            input_file = result["i"].as<std::string>();
+        if (result.count("o"))
+            output_file = result["o"].as<std::string>();
+    } catch (const cxxopts::exceptions::exception &e) {
         cerr << "Error parsing command line: " << e.what() << endl;
         return -1;
     }
@@ -123,13 +127,18 @@ int main(int argc, char* argv[])
 
         std::ifstream is(input_config_file);
         mcdriver::options opt;
-        if (opt.parseJSON(is,true,&cerr)!=0) return -1;
+        if (opt.parseJSON(is, true, &cerr) != 0)
+            return -1;
 
         // cli overrides
-        if (n>0) opt.Driver.max_no_ions = n;
-        if (j>0) opt.Driver.threads = j;
-        if (s>0) opt.Driver.seed = s;
-        if (!output_file.empty()) opt.Output.outfilename = output_file;
+        if (n > 0)
+            opt.Driver.max_no_ions = n;
+        if (j > 0)
+            opt.Driver.threads = j;
+        if (s > 0)
+            opt.Driver.seed = s;
+        if (!output_file.empty())
+            opt.Output.outfilename = output_file;
 
         D.init(opt);
 
@@ -137,12 +146,15 @@ int main(int argc, char* argv[])
 
         cout << "Loading simulation from " << input_file << endl;
 
-        if (D.load(input_file, &cerr)!=0) return -1;
+        if (D.load(input_file, &cerr) != 0)
+            return -1;
 
         // cli overrides
         mcdriver::parameters par = D.driverOptions();
-        if (n>0) par.max_no_ions = n;
-        if (j>0) par.threads = j;
+        if (n > 0)
+            par.max_no_ions = n;
+        if (j > 0)
+            par.threads = j;
         D.setDriverOptions(par);
 
         mcdriver::output_options opts = D.outputOptions();
@@ -157,45 +169,44 @@ int main(int argc, char* argv[])
     info.init(D);
     info.print();
 
-    D.exec(progress_callback,500);
-    
-    const mcdriver::run_data& rd = D.run_history().back();
-    cout << endl << endl
-         << "Completed " << rd.total_ion_count << " ion histories." << endl;
+    D.exec(progress_callback, 500);
+
+    const mcdriver::run_data &rd = D.run_history().back();
+    cout << endl << endl << "Completed " << rd.total_ion_count << " ion histories." << endl;
     cout << "Cpu time (s) = " << rd.cpu_time << endl;
     cout << "Ions/cpu-s = " << rd.ips << endl;
     cout << "Real time (s) = " << info.elapsed() << endl;
     cout << "Ions/real-s = " << info.ips() << endl;
     cout << "Storing results in " << D.outFileName() << " ...";
     cout.flush();
-    D.save(D.outFileName(),&cerr);
+    D.save(D.outFileName(), &cerr);
     cout << " OK." << endl;
 
     return 0;
 }
 
-void running_sim_info::init(const mcdriver& d)
+void running_sim_info::init(const mcdriver &d)
 {
     tstart_ = hr_clock_t::now();
     nstart_ = d.getSim()->ion_count();
     ncurr_ = nstart_;
     ntarget_ = d.driverOptions().max_no_ions;
-    progress_ = int(100.0*ncurr_/ntarget_);
+    progress_ = int(100.0 * ncurr_ / ntarget_);
     elapsed_ = 0.;
     etc_ = 0;
     ips_ = 0.;
 }
 
-void running_sim_info::update(const mcdriver& d)
+void running_sim_info::update(const mcdriver &d)
 {
     time_point t = hr_clock_t::now();
     ncurr_ = d.getSim()->ion_count();
     // floating-point duration: no duration_cast needed
     const std::chrono::duration<double> fp_sec = t - tstart_;
     elapsed_ = fp_sec.count();
-    ips_ = (ncurr_ - nstart_)/elapsed_;
-    etc_ = ips_ > 0 ? (ntarget_ - ncurr_)/ips_ : 0;
-    progress_ = int(100.0*ncurr_/ntarget_);
+    ips_ = (ncurr_ - nstart_) / elapsed_;
+    etc_ = ips_ > 0 ? (ntarget_ - ncurr_) / ips_ : 0;
+    progress_ = int(100.0 * ncurr_ / ntarget_);
 }
 
 void running_sim_info::print()
@@ -206,22 +217,19 @@ void running_sim_info::print()
     int n = progress_ >> 1; // bar steps at 2%/step
 
     // add n #
-    for (int j = 0; j < n; ++j) cout << '#';
+    for (int j = 0; j < n; ++j)
+        cout << '#';
 
     // add spaces
-    for (int j = 0; j < 50-n; ++j) cout << ' ';
+    for (int j = 0; j < 50 - n; ++j)
+        cout << ' ';
 
     // add closing bracket & trailing percentage characters
     cout << ']';
 
     char buff[8];
-    sprintf(buff,"%3d%%",progress_);
+    sprintf(buff, "%3d%%", progress_);
     cout << buff;
 
     cout.flush();
 }
-
-
-
-
-

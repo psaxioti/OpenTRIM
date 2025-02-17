@@ -26,8 +26,7 @@
 
 #include <sstream>
 
-MainUI::MainUI(QWidget *parent)
-    : QWidget(parent)
+MainUI::MainUI(QWidget *parent) : QWidget(parent)
 {
     /* runner thread */
     driverObj_ = new McDriverObj;
@@ -41,34 +40,24 @@ MainUI::MainUI(QWidget *parent)
 
     // Load our style sheet style
     QFile styleFile(":/styles/default.qss");
-    styleFile.open( QFile::ReadOnly );
-    QString style( styleFile.readAll() );
+    styleFile.open(QFile::ReadOnly);
+    QString style(styleFile.readAll());
 
     /* Create the sidebar */
-    QWidget * sidebar = new QWidget(this);
-    QVBoxLayout * sidebarLayout = new QVBoxLayout();
+    QWidget *sidebar = new QWidget(this);
+    QVBoxLayout *sidebarLayout = new QVBoxLayout();
 
     pageButtonGrp = new QButtonGroup(this);
     QString iconFolder = ":/icons/assets/unknown/";
-    QStringList icons{
-        "small-circles-forming-a-circle.svg",
-        "settings.svg",
-        "play.svg",
-        "presentation.svg"
-    };
-    QStringList titles{
-        "Welcome",
-        "Config",
-        "Run",
-        "Results"
-    };
-    for(int i=0; i<titles.count(); ++i) {
-        pageButtonGrp->addButton(
-            createSidebarButton(iconFolder + icons.at(i),
-                                titles.at(i)),i);
+    QStringList icons{ "small-circles-forming-a-circle.svg", "settings.svg", "play.svg",
+                       "presentation.svg" };
+    QStringList titles{ "Welcome", "Config", "Run", "Results" };
+    for (int i = 0; i < titles.count(); ++i) {
+        pageButtonGrp->addButton(createSidebarButton(iconFolder + icons.at(i), titles.at(i)), i);
         sidebarLayout->addWidget(pageButtonGrp->button(i));
     }
-    sidebarLayout->addSpacerItem(new QSpacerItem(0,0,QSizePolicy::Minimum, QSizePolicy::MinimumExpanding));
+    sidebarLayout->addSpacerItem(
+            new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding));
     sidebarLayout->setSpacing(0);
     sidebarLayout->setMargin(0);
     /* Add the sidebar layout to the sidebar widget container */
@@ -80,66 +69,62 @@ MainUI::MainUI(QWidget *parent)
     /* Create the stacked widget + statusbar*/
     _stackedWidget = new QStackedWidget;
 
-//    statusBar = new QStatusBar;
-//    statusLabel = new QLabel;
-//    QRect rect = fontMetrics().boundingRect("RunningOOO");
-//    statusLabel->setMinimumWidth(rect.width());
-//    statusLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-//    progressBar = new QProgressBar;
-//    progressBar->setFormat("%p%");
-//    progressBar->setMinimum(0);
-//    progressBar->setMaximum(1000);
-//    statusBar->addWidget(statusLabel,1);
-//    statusBar->addWidget(progressBar,10);
+    //    statusBar = new QStatusBar;
+    //    statusLabel = new QLabel;
+    //    QRect rect = fontMetrics().boundingRect("RunningOOO");
+    //    statusLabel->setMinimumWidth(rect.width());
+    //    statusLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    //    progressBar = new QProgressBar;
+    //    progressBar->setFormat("%p%");
+    //    progressBar->setMinimum(0);
+    //    progressBar->setMaximum(1000);
+    //    statusBar->addWidget(statusLabel,1);
+    //    statusBar->addWidget(progressBar,10);
 
     ctrlWidget = new SimControlWidget(this);
 
     /* Create the layout */
-    QVBoxLayout * vbox = new QVBoxLayout;
+    QVBoxLayout *vbox = new QVBoxLayout;
     vbox->addWidget(_stackedWidget);
     vbox->addWidget(ctrlWidget);
 
-    QHBoxLayout* layout = new QHBoxLayout;
+    QHBoxLayout *layout = new QHBoxLayout;
     layout->addWidget(sidebar);
     layout->addLayout(vbox);
     setLayout(layout);
     layout->setSpacing(0);
-    layout->setContentsMargins(0,0,0,0);
+    layout->setContentsMargins(0, 0, 0, 0);
 
     setWindowTitle(tr(PROJECT_NAME));
     QPoint x0 = geometry().center();
-    QScreen* scr = QGuiApplication::screenAt(x0);
+    QScreen *scr = QGuiApplication::screenAt(x0);
     resize(1024, 768);
-    move(scr->geometry().center()-geometry().center());
-    //setGeometry(0,0, 1024, 768);
+    move(scr->geometry().center() - geometry().center());
+    // setGeometry(0,0, 1024, 768);
 
     /* Create pages */
     welcomeView = new WelcomeView(this);
-    push(tr("Welcome"),welcomeView);
+    push(tr("Welcome"), welcomeView);
 
     optionsView = new SimulationOptionsView(this);
-    push(tr("Configuration"),optionsView);
+    push(tr("Configuration"), optionsView);
 
     runView = new RunView(this);
-    push(tr("Run"),runView);
+    push(tr("Run"), runView);
 
     resultsView = new ResultsView(this);
-    push(tr("Results"),resultsView);
+    push(tr("Results"), resultsView);
 
     optionsView->revert();
 
     pageButtonGrp->button(0)->setChecked(true);
     _stackedWidget->setCurrentIndex(0);
 
-    connect(pageButtonGrp, &QButtonGroup::idClicked,
-            this, &MainUI::changePage);
-    connect(driverObj_, &McDriverObj::fileNameChanged,
-            this, &MainUI::updateWindowTitle);
-    connect(driverObj_, &McDriverObj::modificationChanged,
-            this, &MainUI::updateWindowTitle);
+    connect(pageButtonGrp, &QButtonGroup::idClicked, this, &MainUI::changePage);
+    connect(driverObj_, &McDriverObj::fileNameChanged, this, &MainUI::updateWindowTitle);
+    connect(driverObj_, &McDriverObj::modificationChanged, this, &MainUI::updateWindowTitle);
 
     driverObj_->loadJsonTemplate();
-
 }
 
 MainUI::~MainUI()
@@ -158,7 +143,8 @@ void MainUI::changePage(int idx)
 void MainUI::updateWindowTitle()
 {
     QString title(driverObj_->fileName());
-    if (driverObj_->isModified()) title += '*';
+    if (driverObj_->isModified())
+        title += '*';
     title += " - ";
     title += PROJECT_NAME;
     setWindowTitle(title);
@@ -171,11 +157,10 @@ void MainUI::closeEvent(QCloseEvent *event)
         event->accept();
         return;
     }
-    QString msg = st == McDriverObj::mcRunning ?
-        "Stop the running simulation, discard data & quit program?" :
-                      "Discard simulation data & quit program?";
-    int ret = QMessageBox::warning(this,
-                                   QString("Close %1").arg(PROJECT_NAME),msg,
+    QString msg = st == McDriverObj::mcRunning
+            ? "Stop the running simulation, discard data & quit program?"
+            : "Discard simulation data & quit program?";
+    int ret = QMessageBox::warning(this, QString("Close %1").arg(PROJECT_NAME), msg,
                                    QMessageBox::Ok | QMessageBox::Cancel);
     if (ret == QMessageBox::Ok) {
         event->accept();
@@ -186,9 +171,9 @@ void MainUI::closeEvent(QCloseEvent *event)
 
 void MainUI::push(const QString &title, QWidget *page)
 {
-    QWidget* w = new QWidget;
-    QVBoxLayout* vbox = new QVBoxLayout;
-    QLabel* lbl = new QLabel(title);
+    QWidget *w = new QWidget;
+    QVBoxLayout *vbox = new QVBoxLayout;
+    QLabel *lbl = new QLabel(title);
     lbl->setStyleSheet("font-size : 20pt; font-weight : bold;");
     vbox->addWidget(lbl);
     vbox->addWidget(page);
@@ -198,16 +183,16 @@ void MainUI::push(const QString &title, QWidget *page)
 
 void MainUI::pop()
 {
-    QWidget * currentWidget = _stackedWidget->currentWidget();
+    QWidget *currentWidget = _stackedWidget->currentWidget();
     _stackedWidget->removeWidget(currentWidget);
 
     // delete currentWidget; currentWidget = nullptr;
 }
 
-QToolButton * MainUI::createSidebarButton(const QString& iconPath, const QString& title)
+QToolButton *MainUI::createSidebarButton(const QString &iconPath, const QString &title)
 {
     QIcon icon(iconPath);
-    QToolButton * btn = new QToolButton;
+    QToolButton *btn = new QToolButton;
     btn->setIcon(icon);
     btn->setIconSize(QSize(42, 42));
     btn->setText(title);
@@ -227,9 +212,3 @@ void MainUI::setCurrentPage(PageId id)
 {
     pageButtonGrp->button((int)id)->click();
 }
-
-
-
-
-
-

@@ -18,23 +18,27 @@
  */
 
 /**
- * @brief The xs_corteo_index struct provides corteo indexing for tabulated screened Coulomb cross-sections
+ * @brief The xs_corteo_index struct provides corteo indexing for tabulated screened Coulomb
+ * cross-sections
  *
  * Quantities are tabulated as a function of reduced energy and impact parameter
  *
  * This structure defines two 4-bit corteo indexes:
- *   - e_index for the reduced energy with [21-(-19)]*2^4 + 1=641 points (rows) from \f$ 2^{-19} \f$ to \f$ 2^{21} \f$
- *   - s_index for the reduced impact parameter with [6-(-26)]*2^4 + 1=513 points (columns) from \f$ 2^{-26} \f$ to \f$ 2^{6} \f$
+ *   - e_index for the reduced energy with [21-(-19)]*2^4 + 1=641 points (rows) from \f$ 2^{-19} \f$
+ * to \f$ 2^{21} \f$
+ *   - s_index for the reduced impact parameter with [6-(-26)]*2^4 + 1=513 points (columns) from \f$
+ * 2^{-26} \f$ to \f$ 2^{6} \f$
  *
  * Required memory for the tabulated floating point data: 1.25 MB
  *
  * @ingroup xs_corteo
  */
-struct xs_corteo_index {
+struct xs_corteo_index
+{
     /// Corteo 4-bit index for the reduced energy
     typedef corteo::index<float, int, 4, -19, 21> e_index;
     /// Corteo 4-bit index for the reduced impact parameter
-    typedef corteo::index<float, int, 4, -26,  6> s_index;
+    typedef corteo::index<float, int, 4, -26, 6> s_index;
     /// number of rows (energy values)
     constexpr static const int rows = e_index::size;
     /// number of columns (impact parameter values)
@@ -51,38 +55,42 @@ struct xs_corteo_index {
      * @param s the reduced impact parameter
      * @return the table index
      */
-    static int table_index(const float& e, const float& s) {
-        return e_index(e)*cols + s_index(s);
+    static int table_index(const float &e, const float &s)
+    {
+        return e_index(e) * cols + s_index(s);
     }
 };
 
-const float* xs_zbl_data();
-const float* xs_krc_data();
-const float* xs_lj_data();
-const float* xs_moliere_data();
+const float *xs_zbl_data();
+const float *xs_krc_data();
+const float *xs_lj_data();
+const float *xs_moliere_data();
 // Returns a pointer to the pre-computed table
-template<Screening ScreeningType>
-struct corteo4bitdata {
-    static const float* data() { return nullptr; }
+template <Screening ScreeningType>
+struct corteo4bitdata
+{
+    static const float *data() { return nullptr; }
 };
-template<>
-struct corteo4bitdata<Screening::ZBL> {
-    static const float* data() { return xs_zbl_data(); }
+template <>
+struct corteo4bitdata<Screening::ZBL>
+{
+    static const float *data() { return xs_zbl_data(); }
 };
-template<>
-struct corteo4bitdata<Screening::LenzJensen> {
-    static const float* data() { return xs_lj_data(); }
+template <>
+struct corteo4bitdata<Screening::LenzJensen>
+{
+    static const float *data() { return xs_lj_data(); }
 };
-template<>
-struct corteo4bitdata<Screening::KrC> {
-    static const float* data() { return xs_krc_data(); }
+template <>
+struct corteo4bitdata<Screening::KrC>
+{
+    static const float *data() { return xs_krc_data(); }
 };
-template<>
-struct corteo4bitdata<Screening::Moliere> {
-    static const float* data() { return xs_moliere_data(); }
+template <>
+struct corteo4bitdata<Screening::Moliere>
+{
+    static const float *data() { return xs_moliere_data(); }
 };
-
-
 
 /**
  * @brief 4-bit corteo-tabulated screened Coulomb scattering integral
@@ -90,7 +98,7 @@ struct corteo4bitdata<Screening::Moliere> {
  * A 2-dimensional pre-caclulated table of \f$ \sin^2\theta/2 \f$ as a function of reduced energy
  * and reduced impact parameter, where \f$ \theta \f$ is
  * the center-of-mass scattering angle.
- * 
+ *
  * The type of screening is defined by the template parameter \ref ScreeningType
  * of enum type \ref Screening.
  *
@@ -101,14 +109,14 @@ struct corteo4bitdata<Screening::Moliere> {
  * and impact factor values as documented in \ref xs_corteo_index.
  *
  * @tparam ScreeningType the type of screening
- * 
+ *
  * @ingroup xs_corteo
  */
-template<Screening ScreeningType>
-struct xs_corteo4bit : public screening_function< ScreeningType >,
-                       public corteo4bitdata< ScreeningType >
+template <Screening ScreeningType>
+struct xs_corteo4bit : public screening_function<ScreeningType>,
+                       public corteo4bitdata<ScreeningType>
 {
-    using corteo4bitdata< ScreeningType >::data;
+    using corteo4bitdata<ScreeningType>::data;
 
     /// The 2D corteo index type
     typedef xs_corteo_index corteo_idx_t;
@@ -118,23 +126,23 @@ struct xs_corteo4bit : public screening_function< ScreeningType >,
     constexpr const static int cols = corteo_idx_t::cols;
 
     /// Returns the tabulated value of \f$ \sin^2\theta(\epsilon,s)/2 \f$
-    static double sin2Thetaby2(const double& e, const double& s)
+    static double sin2Thetaby2(const double &e, const double &s)
     {
-        const float* p = data();
-        int i = corteo_idx_t::table_index(e,s);
+        const float *p = data();
+        int i = corteo_idx_t::table_index(e, s);
         return p[i];
     }
     /// Returns the tabulated value of \f$ \sin^2\theta(i,j)/2 \f$
     static float sin2Thetaby2(int ie, int is)
     {
-        const float* p = data();
-        return p[ie*cols + is];
+        const float *p = data();
+        return p[ie * cols + is];
     }
-
 };
 
 // bilinear interp
-struct xs_corteo_lin_interp {
+struct xs_corteo_lin_interp
+{
 
     constexpr const static int stride = xs_corteo_index::cols;
     typedef xs_corteo_index::e_index e_index;
@@ -142,21 +150,25 @@ struct xs_corteo_lin_interp {
     typedef Eigen::Vector4i idx_vec_t;
     typedef Eigen::Vector4f coef_vec_t;
 
-    static void get_arrays(float e, float s, idx_vec_t& i, coef_vec_t& c) {
+    static void get_arrays(float e, float s, idx_vec_t &i, coef_vec_t &c)
+    {
         e_index ie(e);
         s_index is(s);
         int k = ie * stride + is;
-        i[0] = k++; i[1] = k;
-        k += stride-1;
-        i[2] = k++; i[3] = k;
+        i[0] = k++;
+        i[1] = k;
+        k += stride - 1;
+        i[2] = k++;
+        i[3] = k;
         float t = *ie++, u = *is++;
-        t = (e - t)/(*ie - t);
-        u = (s - u)/(*is - u);
-        c = {(1-t)*(1-u), (1-t)*u, t*(1-u), t*u};
+        t = (e - t) / (*ie - t);
+        u = (s - u) / (*is - u);
+        c = { (1 - t) * (1 - u), (1 - t) * u, t * (1 - u), t * u };
     }
 };
 
-struct xs_corteo_log_interp {
+struct xs_corteo_log_interp
+{
 
     constexpr const static int stride = xs_corteo_index::cols;
     typedef xs_corteo_index::e_index e_index;
@@ -166,47 +178,49 @@ struct xs_corteo_log_interp {
 
     xs_corteo_log_interp()
     {
-        for(e_index i; i<i.end(); i++)
+        for (e_index i; i < i.end(); i++)
             log_e_[i] = std::log2(*i);
-        for(s_index i; i<i.end(); i++)
+        for (s_index i; i < i.end(); i++)
             log_s_[i] = std::log2(*i);
     }
 
-    void get_arrays(float e, float s, idx_vec_t& i,
-                    coef_vec_t& c_lin, coef_vec_t& c_log) const
+    void get_arrays(float e, float s, idx_vec_t &i, coef_vec_t &c_lin, coef_vec_t &c_log) const
     {
         e_index ie(e);
         s_index is(s);
         int k = ie * stride + is;
-        i[0] = k++; i[1] = k;
-        k += stride-1;
-        i[2] = k++; i[3] = k;
+        i[0] = k++;
+        i[1] = k;
+        k += stride - 1;
+        i[2] = k++;
+        i[3] = k;
 
         float t = *ie, u = *is;
         float t1 = log_e_[ie++], u1 = log_s_[is++];
-        t = (e - t)/(*ie - t);
-        u = (s - u)/(*is - u);
-        c_lin = {(1-t)*(1-u), (1-t)*u, t*(1-u), t*u};
+        t = (e - t) / (*ie - t);
+        u = (s - u) / (*is - u);
+        c_lin = { (1 - t) * (1 - u), (1 - t) * u, t * (1 - u), t * u };
 
-        t1 = (std::log2(e) - t1)/(log_e_[ie] - t1);
-        u1 = (std::log2(s) - u1)/(log_s_[is] - u1);
-        c_log = {(1-t1)*(1-u1), (1-t1)*u1, t1*(1-u1), t1*u1};
+        t1 = (std::log2(e) - t1) / (log_e_[ie] - t1);
+        u1 = (std::log2(s) - u1) / (log_s_[is] - u1);
+        c_log = { (1 - t1) * (1 - u1), (1 - t1) * u1, t1 * (1 - u1), t1 * u1 };
     }
 
-    void get_arrays(float e, float s, idx_vec_t& i,
-                    coef_vec_t& c_log) const
+    void get_arrays(float e, float s, idx_vec_t &i, coef_vec_t &c_log) const
     {
         e_index ie(e);
         s_index is(s);
         int k = ie * stride + is;
-        i[0] = k++; i[1] = k;
-        k += stride-1;
-        i[2] = k++; i[3] = k;
+        i[0] = k++;
+        i[1] = k;
+        k += stride - 1;
+        i[2] = k++;
+        i[3] = k;
 
         float t1 = log_e_[ie++], u1 = log_s_[is++];
-        t1 = (std::log2(e) - t1)/(log_e_[ie] - t1);
-        u1 = (std::log2(s) - u1)/(log_s_[is] - u1);
-        c_log = {(1-t1)*(1-u1), (1-t1)*u1, t1*(1-u1), t1*u1};
+        t1 = (std::log2(e) - t1) / (log_e_[ie] - t1);
+        u1 = (std::log2(s) - u1) / (log_s_[is] - u1);
+        c_log = { (1 - t1) * (1 - u1), (1 - t1) * u1, t1 * (1 - u1), t1 * u1 };
     }
 
 private:
@@ -217,18 +231,19 @@ private:
 /**
  * @brief A lab system cross-section class utilizing corteo tabulated scattering integrals
  *
- * The class stores internally 2-dimensional tables of \f$ \sin^2(\theta_{CM}/2) \f$, \f$ \sin(\theta_L) \f$ and
- * \f$ \cos(\theta_L) \f$ as a function of log-spaced energy and impact parameter.
+ * The class stores internally 2-dimensional tables of \f$ \sin^2(\theta_{CM}/2) \f$, \f$
+ * \sin(\theta_L) \f$ and \f$ \cos(\theta_L) \f$ as a function of log-spaced energy and impact
+ * parameter.
  *
- * In a scattering event, bilinear interpolation is used to obtain the values of these quantities from the tables.
- * For \f$ \sin^2(\theta_{CM}/2) \f$ log-log interpolation is used, while for the sine and cosine of lab scattering angle
- * the interpolation is log-lin.
+ * In a scattering event, bilinear interpolation is used to obtain the values of these quantities
+ * from the tables. For \f$ \sin^2(\theta_{CM}/2) \f$ log-log interpolation is used, while for the
+ * sine and cosine of lab scattering angle the interpolation is log-lin.
  *
  * @tparam ScreeningType the type of screening
  *
  * @ingroup xs_corteo
  */
-template<Screening ScreeningType>
+template <Screening ScreeningType>
 class corteo_xs_lab : public xs_lab<xs_quad<ScreeningType>>
 {
     typedef xs_quad<ScreeningType> _XSQ;
@@ -244,44 +259,37 @@ class corteo_xs_lab : public xs_lab<xs_quad<ScreeningType>>
     xs_array_t log_xs_;
     xs_corteo_log_interp interp;
 
-    using abstract_xs_lab::mass_ratio_;
     using abstract_xs_lab::gamma_;
+    using abstract_xs_lab::mass_ratio_;
     using abstract_xs_lab::red_E_conv_;
     using abstract_xs_lab::screening_length_;
 
 public:
-    corteo_xs_lab() :
-        sinTable(array_size),
-        cosTable(array_size),
-        log_xs_(array_size)
-    {}
-    corteo_xs_lab(const corteo_xs_lab& x) :
-        abstract_xs_lab(x),
-        sinTable(x.sinTable),
-        cosTable(x.cosTable),
-        log_xs_(x.log_xs_)
-    {}
+    corteo_xs_lab() : sinTable(array_size), cosTable(array_size), log_xs_(array_size) { }
+    corteo_xs_lab(const corteo_xs_lab &x)
+        : abstract_xs_lab(x), sinTable(x.sinTable), cosTable(x.cosTable), log_xs_(x.log_xs_)
+    {
+    }
     virtual void init(float Z1, float M1, float Z2, float M2) override
     {
-        _XSL::init(Z1,M1,Z2,M2);
+        _XSL::init(Z1, M1, Z2, M2);
         /* compute scattering angle components */
         double costhetaLab, sinthetaLab;
         double mr = mass_ratio_;
-        for (e_index ie; ie!=ie.end(); ie++)
-            for (s_index is; is!=is.end(); is++)
-            {
-                double s2 = _XS::sin2Thetaby2(ie,is);
-                double costheta = 1.-2.*s2;
+        for (e_index ie; ie != ie.end(); ie++)
+            for (s_index is; is != is.end(); is++) {
+                double s2 = _XS::sin2Thetaby2(ie, is);
+                double costheta = 1. - 2. * s2;
 
-                if(costheta==-1.0 && mr==1.0) {
-                    costhetaLab = 0.0;  /* peculiar case of head-on collision of identical masses */
+                if (costheta == -1.0 && mr == 1.0) {
+                    costhetaLab = 0.0; /* peculiar case of head-on collision of identical masses */
                     sinthetaLab = 1.0;
                 } else {
-                    costhetaLab = (costheta+mr)/sqrt(1.+2.*mr*costheta+mr*mr);
-                    sinthetaLab = sqrt(1.-costhetaLab*costhetaLab);
+                    costhetaLab = (costheta + mr) / sqrt(1. + 2. * mr * costheta + mr * mr);
+                    sinthetaLab = sqrt(1. - costhetaLab * costhetaLab);
                 }
 
-                int k = ie*stride + is;
+                int k = ie * stride + is;
                 cosTable[k] = costhetaLab;
                 sinTable[k] = sinthetaLab;
                 log_xs_[k] = std::log2(s2);
@@ -289,57 +297,56 @@ public:
                 /* IRADINA, C. Borschel 2011: */
                 /* In some rare cases, when cos=1, then sin becomes "Not a Number".
                  * To prevent this, I will set the sine to 0 in those cases. */
-                if( std::isnan(sinTable[k]) ) {
-                    cosTable[k]=0.f;
-                    sinTable[k]=1.f;
+                if (std::isnan(sinTable[k])) {
+                    cosTable[k] = 0.f;
+                    sinTable[k] = 1.f;
                 }
             }
     }
-    virtual void scatter(float e, float s,
-                         float &recoil_erg, float &sintheta, float &costheta) const override
+    virtual void scatter(float e, float s, float &recoil_erg, float &sintheta,
+                         float &costheta) const override
     {
-        const float* p = _XS::data();
-        recoil_erg = e*gamma_;
+        const float *p = _XS::data();
+        recoil_erg = e * gamma_;
         e *= red_E_conv_;
         s /= screening_length_;
 
         Eigen::Vector4i i;
         Eigen::Vector4f coeff, log_coeff;
         // xs_corteo_lin_interp::get_arrays(e,s,i,coeff);
-        interp.get_arrays(e,s,i,coeff,log_coeff);
+        interp.get_arrays(e, s, i, coeff, log_coeff);
 
         sintheta = coeff.dot(sinTable(i));
         costheta = coeff.dot(cosTable(i));
         recoil_erg *= exp2(log_coeff.dot(log_xs_(i)));
-
     }
 };
-
 
 /**
  * @brief xs_lab implementation with ZBL potential and 4-bit corteo tabulated scattering integrals
  *
  * @ingroup xs_corteo
  */
-typedef corteo_xs_lab< Screening::ZBL > xs_lab_zbl;
+typedef corteo_xs_lab<Screening::ZBL> xs_lab_zbl;
 /**
- * @brief xs_lab implementation with Lenz-Jensen potential and 4-bit corteo tabulated scattering integrals
+ * @brief xs_lab implementation with Lenz-Jensen potential and 4-bit corteo tabulated scattering
+ * integrals
  *
  * @ingroup xs_corteo
  */
-typedef corteo_xs_lab< Screening::LenzJensen > xs_lab_lj;
+typedef corteo_xs_lab<Screening::LenzJensen> xs_lab_lj;
 /**
  * @brief xs_lab implementation with Kr-C potential and 4-bit corteo tabulated scattering integrals
  *
  * @ingroup xs_corteo
  */
-typedef corteo_xs_lab< Screening::KrC > xs_lab_krc;
+typedef corteo_xs_lab<Screening::KrC> xs_lab_krc;
 /**
- * @brief xs_lab implementation with Moliere potential and 4-bit corteo tabulated scattering integrals
+ * @brief xs_lab implementation with Moliere potential and 4-bit corteo tabulated scattering
+ * integrals
  *
  * @ingroup xs_corteo
  */
-typedef corteo_xs_lab< Screening::Moliere > xs_lab_moliere;
-
+typedef corteo_xs_lab<Screening::Moliere> xs_lab_moliere;
 
 #endif // CORTEO_XS_H

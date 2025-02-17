@@ -11,13 +11,13 @@ class ElementButton : public QToolButton
 {
     Q_OBJECT
 
-    PeriodicTableWidget* ptable{nullptr};
-    int Z_{0};
+    PeriodicTableWidget *ptable{ nullptr };
+    int Z_{ 0 };
 
-    static QString getIsotopeDesc(int z, int i) ;
+    static QString getIsotopeDesc(int z, int i);
 
 public:
-    ElementButton(int Z, PeriodicTableWidget* pt, QWidget *parent = nullptr);
+    ElementButton(int Z, PeriodicTableWidget *pt, QWidget *parent = nullptr);
     QSize sizeHint() const override;
 
     int Z() const { return Z_; }
@@ -29,8 +29,8 @@ signals:
     void isotopeSelected();
 };
 
-
-class PeriodicTableWidget : public QWidget {
+class PeriodicTableWidget : public QWidget
+{
 
     Q_OBJECT
 
@@ -44,9 +44,9 @@ private:
 
     QVector<ElementButton *> cb;
 
-    int _selectedElement{0};
-    int _selectedIsotope{0};
-    double _selectedMass{0.};
+    int _selectedElement{ 0 };
+    int _selectedIsotope{ 0 };
+    double _selectedMass{ 0. };
     QString _selectedIonSymbol;
 
     friend class ElementButton;
@@ -54,7 +54,7 @@ private:
     bool getIsotopes_;
 
 public:
-    explicit PeriodicTableWidget(bool isotopes, QWidget *parent=0);
+    explicit PeriodicTableWidget(bool isotopes, QWidget *parent = 0);
     int selectedZ() const { return _selectedElement; }
     int selectedIsotope() const { return _selectedIsotope; }
     double selectedMass() const { return _selectedMass; }
@@ -72,10 +72,10 @@ class PeriodicTableDialog : public QDialog
 {
     Q_OBJECT
 
-    PeriodicTableWidget* ptable;
+    PeriodicTableWidget *ptable;
 
 public:
-    PeriodicTableDialog(bool isotopes = false, QWidget *parent=0);
+    PeriodicTableDialog(bool isotopes = false, QWidget *parent = 0);
     int selectedZ() const { return ptable->selectedZ(); }
     double selectedMass() const { return ptable->selectedMass(); }
     QString selectedIonSymbol() const { return ptable->selectedIonSymbol(); }

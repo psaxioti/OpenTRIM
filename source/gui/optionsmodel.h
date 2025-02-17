@@ -8,17 +8,7 @@
 
 class OptionsItem
 {
-    enum type_t {
-        tEnum,
-        tFloat,
-        tInt,
-        tBool,
-        tString,
-        tVector3D,
-        tIntVector3D,
-        tStruct,
-        tInvalid
-    };
+    enum type_t { tEnum, tFloat, tInt, tBool, tString, tVector3D, tIntVector3D, tStruct, tInvalid };
 
 public:
     virtual ~OptionsItem();
@@ -34,42 +24,37 @@ public:
     QString whatsThis() const { return whatsThis_; }
     virtual QVariant displayValue() const { return value().toString(); }
     virtual QVariant value() const;
-    virtual bool setValue(const QVariant& v);
+    virtual bool setValue(const QVariant &v);
 
-    virtual QWidget* createEditor(QWidget* parent) const
-    { return nullptr; }
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const {}
+    virtual QWidget *createEditor(QWidget *parent) const { return nullptr; }
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const { }
     virtual QVariant getEditorData(QWidget *editor) { return QVariant(); }
-    virtual const char* editorSignal() const { return nullptr; }
+    virtual const char *editorSignal() const { return nullptr; }
 
     bool isRoot() const { return parent() == nullptr; }
 
-    bool direct_set(const char* path, const char* json);
+    bool direct_set(const char *path, const char *json);
 
 private:
     explicit OptionsItem(OptionsItem *parent = nullptr);
-    static type_t toType(const QString& typeName);
+    static type_t toType(const QString &typeName);
     friend class OptionsModel;
 
-    template<class J>
-    static OptionsItem* jsonHelper(OptionsItem::type_t type, const J& j, OptionsItem* parentItem);
-
+    template <class J>
+    static OptionsItem *jsonHelper(OptionsItem::type_t type, const J &j, OptionsItem *parentItem);
 
 protected:
-    OptionsItem(const QString& key,
-                OptionsItem *parent);
-    OptionsItem(const QString& key,
-                const QString& name,
-                OptionsItem *parent);
-    void prepareWidget(QWidget* w) const;
-    std::vector<OptionsItem*> m_childItems;
+    OptionsItem(const QString &key, OptionsItem *parent);
+    OptionsItem(const QString &key, const QString &name, OptionsItem *parent);
+    void prepareWidget(QWidget *w) const;
+    std::vector<OptionsItem *> m_childItems;
     OptionsItem *m_parentItem;
     QString key_, name_;
     std::string jpath_;
     QString toolTip_, whatsThis_;
 
-    bool get_(QString& qs) const;
-    bool set_(const QString& qs);
+    bool get_(QString &qs) const;
+    bool set_(const QString &qs);
 
     std::shared_ptr<mcdriver::options> options_;
 };
@@ -77,22 +62,18 @@ protected:
 class EnumOptionsItem : public OptionsItem
 {
 public:
-    EnumOptionsItem(const QStringList& values,
-                    const QStringList& labels,
-                    const QString& key,
-                    const QString& name,
-                    OptionsItem *parent);
-    const QStringList& values() { return enumValues_; }
-    const QStringList& valueLabels() { return enumValueLabels_; }
-    virtual QVariant displayValue() const override
-    { return enumValueLabels_.at(value().toInt()); }
+    EnumOptionsItem(const QStringList &values, const QStringList &labels, const QString &key,
+                    const QString &name, OptionsItem *parent);
+    const QStringList &values() { return enumValues_; }
+    const QStringList &valueLabels() { return enumValueLabels_; }
+    virtual QVariant displayValue() const override { return enumValueLabels_.at(value().toInt()); }
     virtual QVariant value() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "currentIndexChanged(int)"; }
+    virtual const char *editorSignal() const override { return "currentIndexChanged(int)"; }
+
 protected:
     QStringList enumValues_;
     QStringList enumValueLabels_;
@@ -101,18 +82,16 @@ protected:
 class FloatOptionsItem : public OptionsItem
 {
 public:
-    FloatOptionsItem(double fmin, double fmax, int digits,
-                    const QString& key,
-                    const QString& name,
-                    OptionsItem *parent);
+    FloatOptionsItem(double fmin, double fmax, int digits, const QString &key, const QString &name,
+                     OptionsItem *parent);
     virtual QVariant value() const override;
     virtual QVariant displayValue() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "editingFinished()"; }
+    virtual const char *editorSignal() const override { return "editingFinished()"; }
+
 protected:
     double fmin_, fmax_;
     int digits_;
@@ -121,17 +100,15 @@ protected:
 class IntOptionsItem : public OptionsItem
 {
 public:
-    IntOptionsItem(int imin, int imax,
-                     const QString& key,
-                     const QString& name,
-                     OptionsItem *parent);
+    IntOptionsItem(int imin, int imax, const QString &key, const QString &name,
+                   OptionsItem *parent);
     virtual QVariant value() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "valueChanged(int)"; }
+    virtual const char *editorSignal() const override { return "valueChanged(int)"; }
+
 protected:
     int imin_, imax_;
 };
@@ -139,64 +116,53 @@ protected:
 class BoolOptionsItem : public OptionsItem
 {
 public:
-    BoolOptionsItem(const QString& key,
-                   const QString& name,
-                   OptionsItem *parent);
+    BoolOptionsItem(const QString &key, const QString &name, OptionsItem *parent);
     virtual QVariant value() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "currentIndexChanged(int)"; }
+    virtual const char *editorSignal() const override { return "currentIndexChanged(int)"; }
 };
 
 class StringOptionsItem : public OptionsItem
 {
 public:
-    StringOptionsItem(const QString& key,
-                    const QString& name,
-                    OptionsItem *parent);
+    StringOptionsItem(const QString &key, const QString &name, OptionsItem *parent);
     virtual QVariant value() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "editingFinished()"; }
+    virtual const char *editorSignal() const override { return "editingFinished()"; }
 };
 
 class Vector3dOptionsItem : public FloatOptionsItem
 {
 public:
-    Vector3dOptionsItem(double fmin, double fmax, int digits,
-                        const QString& key,
-                      const QString& name,
-                      OptionsItem *parent);
+    Vector3dOptionsItem(double fmin, double fmax, int digits, const QString &key,
+                        const QString &name, OptionsItem *parent);
     virtual QVariant value() const override;
     virtual QVariant displayValue() const override;
 
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
 };
 
 class IVector3dOptionsItem : public IntOptionsItem
 {
 public:
-    IVector3dOptionsItem(int imin, int imax,
-                   const QString& key,
-                   const QString& name,
-                   OptionsItem *parent);
+    IVector3dOptionsItem(int imin, int imax, const QString &key, const QString &name,
+                         OptionsItem *parent);
     virtual QVariant value() const override;
     virtual QVariant displayValue() const override;
-    virtual bool setValue(const QVariant& v) override;
-    virtual QWidget* createEditor(QWidget* parent) const override;
-    virtual void setEditorData(QWidget *editor, const QVariant& v) const override;
+    virtual bool setValue(const QVariant &v) override;
+    virtual QWidget *createEditor(QWidget *parent) const override;
+    virtual void setEditorData(QWidget *editor, const QVariant &v) const override;
     virtual QVariant getEditorData(QWidget *editor) override;
-    virtual const char* editorSignal() const override
-    { return "editingFinished()"; }
+    virtual const char *editorSignal() const override { return "editingFinished()"; }
 };
 
 class OptionsItemDelegate : public QStyledItemDelegate
@@ -222,38 +188,34 @@ public:
 class OptionsModel : public QAbstractItemModel
 {
 
-        Q_OBJECT
+    Q_OBJECT
 
 public:
     explicit OptionsModel(QObject *parent = nullptr);
     ~OptionsModel();
 
-    void setOptions(const mcdriver::options& opt);
-    const mcdriver::options* options() const;
-    mcdriver::options* options();
+    void setOptions(const mcdriver::options &opt);
+    const mcdriver::options *options() const;
+    mcdriver::options *options();
 
     QVariant data(const QModelIndex &index, int role) const override;
     QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
 
-    QModelIndex index(int row, int column,
-                      const QModelIndex &parent = {}) const override;
-    QModelIndex index(const QString& key, int column = 0,
-                      const QModelIndex &parent = {}) const;
+    QModelIndex index(int row, int column, const QModelIndex &parent = {}) const override;
+    QModelIndex index(const QString &key, int column = 0, const QModelIndex &parent = {}) const;
     QModelIndex parent(const QModelIndex &index) const override;
 
     int rowCount(const QModelIndex &parent = {}) const override;
     int columnCount(const QModelIndex &parent = {}) const override;
 
     Qt::ItemFlags flags(const QModelIndex &index) const override;
-    bool setData(const QModelIndex &index, const QVariant &value,
-                 int role = Qt::EditRole) override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 
     OptionsItem *getItem(const QModelIndex &index) const;
 
 private:
-    OptionsItem* rootItem;
-
+    OptionsItem *rootItem;
 };
 
 #endif // OPTIONSMODEL_H

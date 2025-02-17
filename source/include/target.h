@@ -51,12 +51,13 @@ class target;
  * @brief target_item is the base class for all objects related to the target
  * @ingroup TargetG
  */
-class target_item {
+class target_item
+{
 protected:
-    target* target_;
+    target *target_;
+
 public:
-    target_item(target* t) : target_(t)
-    {}
+    target_item(target *t) : target_(t) { }
 };
 
 /**
@@ -67,11 +68,11 @@ class atom : public target_item
 {
 
 public:
-
     /**
      * @brief A target material's atom definition parameters
      */
-    struct parameters {
+    struct parameters
+    {
         /// Element specification
         element_t element;
         /// Atomic fraction
@@ -85,13 +86,12 @@ public:
         /// Replacement threshold energy (eV) of target atoms
         float Er;
         /// Frenkel pair recombination radius
-        float Rc{0.946};
+        float Rc{ 0.946 };
     };
 
 private:
-
     int id_;
-    material* mat_;
+    material *mat_;
     parameters p_;
     float X_; // proxy concentration
 
@@ -101,7 +101,7 @@ private:
     float nrt_L_;
 
 public:
-    explicit atom(const parameters& p);
+    explicit atom(const parameters &p);
 
     /**
      * @brief Return the unique id of this atom
@@ -125,10 +125,11 @@ public:
      * @return the atom's unique id number
      */
     int id() const { return id_; }
-    /// A pointer to the target material this atom belongs to. For the beam atom nullptr is returned.
-    const material* mat() const { return mat_; }
+    /// A pointer to the target material this atom belongs to. For the beam atom nullptr is
+    /// returned.
+    const material *mat() const { return mat_; }
     /// Returns the chemical name of the atom
-    const std::string& symbol() const { return p_.element.symbol; }
+    const std::string &symbol() const { return p_.element.symbol; }
     /// Returns the atomic number
     int Z() const { return p_.element.atomic_number; }
     /// Returns the atomic mass
@@ -146,17 +147,20 @@ public:
     /// Returns the recombination radius (nm) of target atoms
     float Rc() const { return p_.Rc; }
     /// Returns true if this atom's Z and M are equal to Z and M of other
-    bool operator==(const atom& other) const
-    { return (p_.element.atomic_number == other.p_.element.atomic_number) &&
-            (p_.element.atomic_mass == other.p_.element.atomic_mass); }
+    bool operator==(const atom &other) const
+    {
+        return (p_.element.atomic_number == other.p_.element.atomic_number)
+                && (p_.element.atomic_mass == other.p_.element.atomic_mass);
+    }
     /// Returns the damage energy [eV] corresponding to recoil energy T according to LSS approx.
     float LSS_Tdam(float T) const;
-    /// Returns the number of vacancies created by a recoil of damage energy Tdam according to Norgett-Roninson-Torrens model
+    /// Returns the number of vacancies created by a recoil of damage energy Tdam according to
+    /// Norgett-Roninson-Torrens model
     float NRT(float Tdam) const;
 
 private:
     atom();
-    atom(target* t, material* m, int id);
+    atom(target *t, material *m, int id);
 
     friend class target;
     friend class material;
@@ -173,7 +177,7 @@ class material : public target_item
     std::string name_;
     float massDensity_; // gr/cm^3
 
-    std::vector<atom*> atoms_;
+    std::vector<atom *> atoms_;
     std::vector<float> X_;
     std::vector<int> Z_;
     std::vector<float> cumX_;
@@ -201,14 +205,14 @@ class material : public target_item
     float nrt_L_;
 
 public:
-
-    struct material_desc_t {
+    struct material_desc_t
+    {
         std::string id;
-        float density{1.f};
+        float density{ 1.f };
         std::vector<atom::parameters> composition;
     };
 
-    explicit material(const char* name);
+    explicit material(const char *name);
 
     /**
      * @brief Set atomic density of the material
@@ -217,7 +221,11 @@ public:
      *
      * @param v density in [at/nm^3]
      */
-    void setAtomicDensity(float v) { atomicDensityNM_ = v; massDensity_ = -1; }
+    void setAtomicDensity(float v)
+    {
+        atomicDensityNM_ = v;
+        massDensity_ = -1;
+    }
     /**
      * @brief Set mass density of the material
      *
@@ -225,9 +233,13 @@ public:
      *
      * @param v density in [g/cm^3]
      */
-    void setMassDensity(float v) { massDensity_ = v; atomicDensityNM_ = -1; }
+    void setMassDensity(float v)
+    {
+        massDensity_ = v;
+        atomicDensityNM_ = -1;
+    }
     /// Returns the name of the material
-    const std::string& name() const { return name_; }
+    const std::string &name() const { return name_; }
     /// Returns the atomic density \f$ N \f$ [nm^-3]
     float atomicDensity() const { return atomicDensityNM_; }
     /// Returns the mass density [g/cm^3]
@@ -253,7 +265,7 @@ public:
      * @param x concentration
      * @return a pointer to the created atom object
      */
-    atom* addAtom(const atom::parameters& p);
+    atom *addAtom(const atom::parameters &p);
 
     /**
      * @brief Perform initialization of internal material parameters.
@@ -274,7 +286,7 @@ public:
      * @param g a random number generator
      * @return a pointer to the selected atom object
      */
-    const atom* selectAtom(random_vars& g) const;
+    const atom *selectAtom(random_vars &g) const;
 
     /**
      * @brief Returns the damage energy according to the LSS approximation
@@ -288,7 +300,8 @@ public:
     float LSS_Tdam(float recoilE) const;
 
     /**
-     * @brief Returns the number of vacancies created by a recoil with damage energy Tdam according to the Norgett-Roninson-Torrens model
+     * @brief Returns the number of vacancies created by a recoil with damage energy Tdam according
+     * to the Norgett-Roninson-Torrens model
      *
      * The effective displacement threshold \f$ \bar{E}_d \f$ of the material defined by
      * Ghoniem and Chou JNM1988 is used:
@@ -304,64 +317,66 @@ public:
     int id() const { return id_; }
 
     /// Returns a vector of atomic numbers of elements in the material
-    const std::vector<int>& Z() const { return Z_; }
+    const std::vector<int> &Z() const { return Z_; }
     /// Returns a vector of atomic concentration of elements in the material
-    const std::vector<float>& X() const { return X_; }
+    const std::vector<float> &X() const { return X_; }
     /// Returns a vector of pointers to atom objects
-    const std::vector<atom*>& atoms() const { return atoms_; }
+    const std::vector<atom *> &atoms() const { return atoms_; }
 
 private:
-    material(target* t, const char* name, int id);
+    material(target *t, const char *name, int id);
 
     friend class target;
 };
 
 /**
- * @brief The target class keeps a list of atoms, materials and regions as well as the geometrical grid.
+ * @brief The target class keeps a list of atoms, materials and regions as well as the geometrical
+ * grid.
  * @ingroup TargetG
  */
 class target
 {
 public:
-
     /**
-     * @brief The region stucture descrines a rectangular volume within the target filled with a specific material
+     * @brief The region stucture descrines a rectangular volume within the target filled with a
+     * specific material
      * @ingroup TargetG
      */
-    struct region {
+    struct region
+    {
         /// The id of this region
         std::string id;
         /// The id of the material that fills this region
         std::string material_id;
         /// Position of the region's lower left corner
-        vector3 origin{0.f, 0.f, 0.f};
+        vector3 origin{ 0.f, 0.f, 0.f };
         /// Position of the region's upper right corner
-        vector3 size{100.f, 100.f, 100.f};
+        vector3 size{ 100.f, 100.f, 100.f };
     };
 
     /**
      * @brief The target_desc_t class contains all information for the target
      */
-    struct target_desc_t {
-        vector3 origin{0.f, 0.f, 0.f};
-        vector3 size{100.f, 100.f, 100.f};
-        ivector3 cell_count{1, 1, 1};
-        ivector3 periodic_bc{0, 1, 1};
+    struct target_desc_t
+    {
+        vector3 origin{ 0.f, 0.f, 0.f };
+        vector3 size{ 100.f, 100.f, 100.f };
+        ivector3 cell_count{ 1, 1, 1 };
+        ivector3 periodic_bc{ 0, 1, 1 };
         std::vector<material::material_desc_t> materials{};
         std::vector<region> regions{};
     };
 
 protected:
-
-    std::vector<atom*> atoms_;
-    std::vector<material*> materials_;   
-    std::vector< region > regions_;
+    std::vector<atom *> atoms_;
+    std::vector<material *> materials_;
+    std::vector<region> regions_;
 
     // grid points
     grid3D grid_;
 
     // cells
-    ArrayND<const material*> cells_;
+    ArrayND<const material *> cells_;
 
     friend class material;
 
@@ -373,7 +388,7 @@ protected:
      * @param box the rectangular volume
      * @param m a pointer to the material filling the volume
      */
-    void fill(const box3D& box, const material* m);
+    void fill(const box3D &box, const material *m);
 
 public:
     /// Default constructor creates an empty target
@@ -384,41 +399,39 @@ public:
     /// Returns a reference to the geometric 3D grid
     // grid3D& grid() { return grid_; }
     /// Returns a constant reference to the geometric 3D grid
-    const grid3D& grid() const { return grid_; }
+    const grid3D &grid() const { return grid_; }
 
     /// Return a vector of the defined \ref target::region objects
-    const std::vector< region >& regions() const { return regions_; }
+    const std::vector<region> &regions() const { return regions_; }
     /// Returns a vector of references to all atoms defined in the target
-    const std::vector<atom*>& atoms() const { return atoms_; }
+    const std::vector<atom *> &atoms() const { return atoms_; }
     /// Returns a vector of references to all materials defined in the target
-    const std::vector<material*>& materials() const { return materials_; }
+    const std::vector<material *> &materials() const { return materials_; }
 
     /// Return a target_desc_t with all info on the target
     target_desc_t getDescription() const;
 
     /// Returns a pointer to the material in cell at index vector \p i
-    const material* cell(const ivector3& i) const
-    { return cells_(i.x(),i.y(),i.z()); }
+    const material *cell(const ivector3 &i) const { return cells_(i.x(), i.y(), i.z()); }
     /// Returns a pointer to the material in cell index \p i
-    const material* cell(int i) const
-    { return cells_.data()[i]; }
+    const material *cell(int i) const { return cells_.data()[i]; }
 
     /// Set the atomic number and mass of the projectile
     void setProjectile(const element_t &e);
     /// Returns a pointer to the projectile's atomic species description
-    const atom* projectile() const { return atoms_.front(); }
+    const atom *projectile() const { return atoms_.front(); }
 
     /// Add a material with given name and return a pointer to the \ref material class
-    material* addMaterial(const char* name);
+    material *addMaterial(const char *name);
 
     /// Add a material from a material descriptor \ref material::material_desc_t
-    material* addMaterial(const material::material_desc_t& md);
+    material *addMaterial(const material::material_desc_t &md);
 
     /// Return vector of atom labels, e.g. Fe in Fe2O3
     std::vector<std::string> atom_labels() const;
 
     /// Add a rectangular \ref target::region filled with a specific material
-    void addRegion(const region& r);
+    void addRegion(const region &r);
 
     /**
      * @brief Perform necessary initialization of all target objects.
@@ -440,7 +453,7 @@ public:
      * @param n Cell count in x, y, z dimensions
      * @param pbc 3d int vector. A 1 means periodic boundary conditions
      */
-    void createGrid(const vector3& sz, const ivector3& n, const ivector3& pbc);
+    void createGrid(const vector3 &sz, const ivector3 &n, const ivector3 &pbc);
 };
 
 #endif // TARGET_H
