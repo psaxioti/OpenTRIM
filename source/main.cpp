@@ -24,11 +24,16 @@ class running_sim_info
     size_t nstart_; // # of ions when started
     size_t ncurr_; // # of ions current
     size_t ntarget_; // max # of ions
-    int progress_; // 0..100
-    double elapsed_;
-    double total_elapsed_;
+    int progress_; // 0..pmax
+    double elapsed_; // elapsed time in s
     double etc_; // estimated time to completion (s)
     double ips_; // ions per second
+
+    // cli progress bar
+    // # of char blocks
+    const static int n_blocks_ = 40;
+    // max value of progress_
+    const static int max_progress_ = n_blocks_ << 3;
 
 public:
     // init : called before simulation starts
@@ -169,14 +174,13 @@ int main(int argc, char *argv[])
     info.init(D);
     info.print();
 
-    D.exec(progress_callback, 500);
+    D.exec(progress_callback, 200);
 
     const mcdriver::run_data &rd = D.run_history().back();
     cout << endl << endl << "Completed " << rd.total_ion_count << " ion histories." << endl;
-    cout << "Cpu time (s) = " << rd.cpu_time << endl;
-    cout << "Ions/cpu-s = " << rd.ips << endl;
-    cout << "Real time (s) = " << info.elapsed() << endl;
-    cout << "Ions/real-s = " << info.ips() << endl;
+    cout << "Threads: " << D.driverOptions().threads << endl;
+    cout << "Cpu time (s):  " << rd.cpu_time << ",\t" << "Ions/cpu-s:  " << rd.ips << endl;
+    cout << "Real time (s): " << info.elapsed() << ",\t" << "Ions/real-s: " << info.ips() << endl;
     cout << "Storing results in " << D.outFileName() << " ...";
     cout.flush();
     D.save(D.outFileName(), &cerr);
@@ -191,7 +195,7 @@ void running_sim_info::init(const mcdriver &d)
     nstart_ = d.getSim()->ion_count();
     ncurr_ = nstart_;
     ntarget_ = d.driverOptions().max_no_ions;
-    progress_ = int(100.0 * ncurr_ / ntarget_);
+    progress_ = int(1.0 * max_progress_ * ncurr_ / ntarget_);
     elapsed_ = 0.;
     etc_ = 0;
     ips_ = 0.;
@@ -206,30 +210,84 @@ void running_sim_info::update(const mcdriver &d)
     elapsed_ = fp_sec.count();
     ips_ = (ncurr_ - nstart_) / elapsed_;
     etc_ = ips_ > 0 ? (ntarget_ - ncurr_) / ips_ : 0;
-    progress_ = int(100.0 * ncurr_ / ntarget_);
+    progress_ = int(1.0 * max_progress_ * ncurr_ / ntarget_);
 }
 
+// format time t (s) as hh:mm:ss
+const char *mytimefmt_(double t, bool ceil = false)
+{
+    static char buff[32];
+
+    std::ldiv_t dv;
+    dv.quot = ceil ? std::ceil(t) : std::floor(t);
+    dv = ldiv(dv.quot, 60L);
+    long s = dv.rem;
+    dv = ldiv(dv.quot, 60L);
+    long m = dv.rem;
+
+    sprintf(buff, "%02ld:%02ld:%02ld", dv.quot, m, s);
+    return buff;
+}
+
+// print to console the progress bar, progress &
+// ETC = estimated time of completion
 void running_sim_info::print()
 {
-    cout << '\r';
-    cout << '[';
+    /*
+     * Unicode left block characters, fill ratio 1/8 to 8/8
+     * - UTF-8 encoding, each char is 3 bytes
+     * - Each char in block_chars[] is separated by a '0'
+     * - block_chars[0] is the full block char
+     * - block_chars[4*m], m=1..7, is the character with fill ratio m/8
+     *
+     * TODO: check in windows build
+     */
+    static const char block_chars[] = u8"█\0▏\0▎\0▍\0▌\0▋\0▊\0▉";
+    // separator char
+    static const char sep[] = u8"║";
 
-    int n = progress_ >> 1; // bar steps at 2%/step
+    cout << '\r'; // clear the line
+    cout << sep;
+
+    // 0 <= progress <= pmax
+    // 1 full block = pmax/8 = 2.5%
+    int n = progress_ >> 3; // # of full blocks
+    int m = progress_ & 0x07; // # of 1/8ths for the last block
+
+    int textColor = 90; // "bright black"
+    cout << "\033[" << textColor << "m";
 
     // add n #
     for (int j = 0; j < n; ++j)
-        cout << '#';
+        std::cout << block_chars;
+
+    if (m) {
+        // get a pointer to a partially filled char
+        const char *ws = block_chars + (m << 2);
+        std::cout << ws;
+        n++;
+    }
+
+    // reset color
+    cout << "\033[0m";
 
     // add spaces
-    for (int j = 0; j < 50 - n; ++j)
+    for (int j = 0; j < n_blocks_ - n; ++j)
         cout << ' ';
 
-    // add closing bracket & trailing percentage characters
-    cout << ']';
+    cout << sep;
 
+    // print progress percentage
     char buff[8];
-    sprintf(buff, "%3d%%", progress_);
+    sprintf(buff, "%3d%%", progress_ * 100 / max_progress_);
     cout << buff;
+
+    cout << sep;
+
+    // print ETC
+    cout << "ETC " << mytimefmt_(etc_, true);
+
+    cout << sep;
 
     cout.flush();
 }
