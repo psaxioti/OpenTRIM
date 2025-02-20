@@ -15,7 +15,7 @@ FetchContent_Declare(external_cxxopts
 FetchContent_MakeAvailable(external_cxxopts)
 
 FetchContent_Declare(external_highfive
-   GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
+   GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
    GIT_TAG v2.9.0
    GIT_SUBMODULES_RECURSE FALSE
    GIT_SHALLOW TRUE
@@ -25,7 +25,7 @@ FetchContent_Declare(external_highfive
 FetchContent_MakeAvailable(external_highfive)
 
 FetchContent_Declare(external_isotope
-   GIT_REPOSITORY git@github.com:Gregstrq/Isotope-data.git
+   GIT_REPOSITORY https://github.com/Gregstrq/Isotope-data.git
    GIT_TAG main
    GIT_SUBMODULES_RECURSE FALSE
    GIT_SHALLOW TRUE
@@ -35,7 +35,7 @@ FetchContent_Declare(external_isotope
 FetchContent_MakeAvailable(external_isotope)
 
 FetchContent_Declare(external_json
-   GIT_REPOSITORY git@github.com:nlohmann/json.git
+   GIT_REPOSITORY https://github.com/nlohmann/json.git
    GIT_TAG v3.11.3
    GIT_SUBMODULES_RECURSE FALSE
    GIT_SHALLOW TRUE
@@ -45,7 +45,7 @@ FetchContent_Declare(external_json
 FetchContent_MakeAvailable(external_json)
 
 FetchContent_Declare(external_periodic
-   GIT_REPOSITORY git@github.com:Bowserinator/Periodic-Table-JSON.git
+   GIT_REPOSITORY https://github.com/Bowserinator/Periodic-Table-JSON.git
    GIT_TAG master
    GIT_SUBMODULES_RECURSE FALSE
    GIT_SHALLOW TRUE
