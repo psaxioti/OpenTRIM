@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0)
     
 project(OpenTRIM 
-        VERSION 0.4.0
+        VERSION 1.0.0
         DESCRIPTION "Monte-Carlo simulation of ion transport in materials"
         HOMEPAGE_URL https://gitlab.com/ir2-lab/
         LANGUAGES C CXX)
@@ -51,7 +51,7 @@ if((CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (NOT CMAKE_CROSSCOMPILING))
 endif()
 message (STATUS "Install rpath =  ${CMAKE_INSTALL_RPATH}")
 
-
+find_package(Threads REQUIRED)
 
 find_package(Eigen3 3.4 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -163,6 +163,7 @@ target_sources(${LIB_TARGET}
 
 set(PROJECT_LIBS
     "-lm"
+    ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_PTHREAD_LIBS_INIT}
     ${HDF5_LIBRARIES}
     dedx
     xs_zbl xs_lj xs_krc xs_moliere
