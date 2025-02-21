@@ -16,7 +16,7 @@ Source15:      ext5.tar.gz
 Source16:      ext6.tar.gz
 
 BuildRequires:	cmake >= 3.12
-BuildRequires:	gcc8-c++
+BuildRequires:	( gcc-c++ >= 8.0 or gcc8-c++ )
 
 Requires:      %{name}-libs
 
@@ -59,7 +59,7 @@ Summary:	      Test files for ion transport simulation in materials
 Group:         Development/Languages/C and C++
 BuildArch:     noarch
 
-Requires:      %{name} or %{name}-gui
+Requires:      ( %{name} or %{name}-gui )
 
 %description   tests
 Test files for C++ Monte-Carlo code for simulating ion transport in materials with an emphasis on the calculation of material damage.
