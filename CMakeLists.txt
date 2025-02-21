@@ -75,13 +75,21 @@ add_library(dedx SHARED
     source/src/straggling.cpp
     ${gendedx_files}
 )
-target_sources(dedx
-    PUBLIC FILE_SET HEADERS
-        BASE_DIRS source/include
-        FILES 
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.23)
+    target_sources(dedx
+        PUBLIC FILE_SET HEADERS
+            BASE_DIRS source/include
+            FILES 
+                source/include/corteo.h
+                source/include/dedx.h
+    )
+else()
+    set_property(TARGET dedx
+        PROPERTY PUBLIC_HEADER
             source/include/corteo.h
             source/include/dedx.h
-)
+    )
+endif()
 
 add_dedx_library(zbl)
 add_dedx_library(lj)
@@ -105,10 +113,31 @@ add_library(${LIB_TARGET} SHARED
     source/src/mcdriver.cpp
     source/src/dedx_calc.cpp
 )
-target_sources(${LIB_TARGET}
-    PUBLIC FILE_SET HEADERS 
-        BASE_DIRS source/include
-        FILES
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.23)
+    target_sources(${LIB_TARGET}
+        PUBLIC FILE_SET HEADERS 
+            BASE_DIRS source/include
+            FILES
+                source/include/corteo_xs.h
+                source/include/xs.h
+                source/include/periodic_table.h
+                source/include/ion.h 
+                source/include/cascade_queue.h
+                source/include/random_vars.h
+                source/include/target.h 
+                source/include/flight_path_calc.h
+                source/include/dedx_calc.h
+                source/include/mccore.h 
+                source/include/geometry.h
+                source/include/ion_beam.h 
+                source/include/arrays.h
+                source/include/event_stream.h 
+                source/include/tally.h 
+                source/include/mcdriver.h 
+    )
+else()
+    set_property(TARGET ${LIB_TARGET}
+        PROPERTY PUBLIC_HEADER
             source/include/corteo_xs.h
             source/include/xs.h
             source/include/periodic_table.h
@@ -125,7 +154,8 @@ target_sources(${LIB_TARGET}
             source/include/event_stream.h 
             source/include/tally.h 
             source/include/mcdriver.h 
-)
+    )
+endif()
 target_sources(${LIB_TARGET}
     PRIVATE 
         source/include/json_defs_p.h
@@ -164,12 +194,19 @@ set(installable_libs
     xs_zbl xs_lj xs_krc xs_moliere
     ${LIB_TARGET} )
 
-install(TARGETS ${installable_libs} ${EXE_TARGET}
-    LIBRARY
-    FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME_LOWERCASE}
-    RUNTIME
-)
-
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.23)
+    install(TARGETS ${installable_libs} ${EXE_TARGET}
+        LIBRARY
+        FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME_LOWERCASE}
+        RUNTIME
+    )
+else()
+    install(TARGETS ${installable_libs} ${EXE_TARGET}
+        LIBRARY
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME_LOWERCASE}
+        RUNTIME
+    )
+endif()
 if (BUILD_GUI)
 
 add_subdirectory(source/gui)
