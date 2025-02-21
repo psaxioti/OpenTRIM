@@ -6,6 +6,12 @@
 #include <fstream>
 #include <iomanip>
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+	#define WINDOWS_BUILD
+	#include <Windows.h>
+	#include <cstdio>
+#endif
+
 using std::cerr;
 using std::cin;
 using std::cout;
@@ -60,6 +66,16 @@ void progress_callback(const mcdriver &d, void *)
 
 int main(int argc, char *argv[])
 {
+	
+#ifdef WINDOWS_BUILD
+	// https://stackoverflow.com/questions/45575863/how-to-print-utf-8-strings-to-stdcout-on-windows
+	// Set console code page to UTF-8 so console known how to interpret string data
+    SetConsoleOutputCP(CP_UTF8);
+
+    // Enable buffering to prevent VS from chopping up UTF-8 byte sequences
+    setvbuf(stdout, nullptr, _IOFBF, 1000);
+#endif
+
     std::string program_name(PROJECT_NAME);
     std::transform(program_name.begin(), program_name.end(), program_name.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -231,6 +247,60 @@ const char *mytimefmt_(double t, bool ceil = false)
 
 // print to console the progress bar, progress &
 // ETC = estimated time of completion
+#ifdef WINDOWS_BUILD  // on windows console use only full block char and no color
+
+void running_sim_info::print()
+{
+    /*
+     * Unicode left block characters, full and half
+     * - UTF-8 encoding, each char is 3 bytes
+     */
+    static const char block_chars[] = u8"█\0▌";
+    // separator char
+    static const char sep[] = u8"║";
+
+    cout << '\r'; // clear the line
+    cout << sep;
+
+    // 0 <= progress <= pmax
+    // 1 full block = pmax/8 = 2.5%
+    int n = progress_ >> 3; // # of full blocks
+    int m = (progress_ & 0x07) > 0x03; // # of 1/8ths for the last block
+
+    // add n #
+    for (int j = 0; j < n; ++j)
+        std::cout << block_chars;
+
+    if (m) {
+        // get a pointer to a partially filled char
+        const char *ws = block_chars + 4;
+        std::cout << ws;
+        n++;
+    }
+
+    // add spaces
+    for (int j = 0; j < n_blocks_ - n; ++j)
+        cout << ' ';
+
+    cout << sep;
+
+    // print progress percentage
+    char buff[8];
+    sprintf(buff, "%3d%%", progress_ * 100 / max_progress_);
+    cout << buff;
+
+    cout << sep;
+
+    // print ETC
+    cout << "ETC " << mytimefmt_(etc_, true);
+
+    cout << sep;
+
+    cout.flush();
+}
+
+#else // on linux use color and fancy UTF-8 chars
+
 void running_sim_info::print()
 {
     /*
@@ -267,7 +337,7 @@ void running_sim_info::print()
         std::cout << ws;
         n++;
     }
-
+	
     // reset color
     cout << "\033[0m";
 
@@ -291,3 +361,5 @@ void running_sim_info::print()
 
     cout.flush();
 }
+
+#endif
