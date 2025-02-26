@@ -38,7 +38,7 @@ GUI C++ Monte-Carlo code for simulating ion transport in materials with an empha
 Summary:	      Libraries for ion transport simulation in materials
 Group:         Productivity/Scientific/Physics
 
-BuildRequires:	eigen3-devel
+BuildRequires:	eigen3-devel >= 3.4
 BuildRequires:	hdf5-devel
 
 %description   libs
@@ -75,7 +75,10 @@ tar -zxf %{SOURCE15} -C external
 tar -zxf %{SOURCE16} -C external
 
 %build
-%cmake -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8 \
+%cmake \
+%if %(g++ -dumpversion) < 8
+   -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8 \
+%endif
    -DPACKAGE_BUILD=ON \
    -DCMAKE_BUILD_TYPE=Release \
    %{nil}
@@ -86,6 +89,10 @@ tar -zxf %{SOURCE16} -C external
 %cmake_install
 install -d %{buildroot}/%{_datadir}/%{name}/tests
 cp -r test/%{name}/* %{buildroot}/%{_datadir}/%{name}/tests/
+
+%post libs -p /sbin/ldconfig
+
+%postun libs -p /sbin/ldconfig
 
 %files
 %{_bindir}/%{name}
