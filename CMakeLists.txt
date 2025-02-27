@@ -58,7 +58,7 @@ message (STATUS "Install rpath =  ${CMAKE_INSTALL_RPATH}")
 
 find_package(Threads REQUIRED)
 
-find_package(Eigen3 3.4 REQUIRED)
+find_package(Eigen3 3.3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 include ${EIGEN3_INCLUDE_DIR}")
 
