@@ -5,7 +5,7 @@ set(FETCHCONTENT_QUIET FALSE)
 set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER)
 
 option(PACKAGE_BUILD "Flag for building binary package without internet and localy downloaded externals." OFF)
-if(NOT PACKAGE_BUILD)
+if(PACKAGE_BUILD)
    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
