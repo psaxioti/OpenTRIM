@@ -80,7 +80,7 @@ tar -zxf %{SOURCE16} -C external
    -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8 \
 %endif
    -DPACKAGE_BUILD=ON \
-   -DCMAKE_BUILD_TYPE=Release \
+   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
    %{nil}
 
 %cmake_build
