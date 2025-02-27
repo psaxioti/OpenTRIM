@@ -1,3 +1,5 @@
+%define debug_package %{nil}
+
 Name:          opentrim
 Version:	      0
 Release:	      0
@@ -80,7 +82,7 @@ tar -zxf %{SOURCE16} -C external
    -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9 \
 %endif
    -DPACKAGE_BUILD=ON \
-   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+   -DCMAKE_BUILD_TYPE=Release \
    %{nil}
 
 %cmake_build
