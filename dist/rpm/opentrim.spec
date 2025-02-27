@@ -16,7 +16,7 @@ Source15:      ext5.tar.gz
 Source16:      ext6.tar.gz
 
 BuildRequires:	cmake >= 3.12
-BuildRequires:	( gcc-c++ >= 8.0 or gcc9-c++ )
+BuildRequires:	( gcc-c++ >= 9.0 or gcc9-c++ )
 
 Requires:      %{name}-libs
 

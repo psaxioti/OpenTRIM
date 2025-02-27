@@ -5,9 +5,6 @@ set(FETCHCONTENT_QUIET FALSE)
 set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER)
 
 option(PACKAGE_BUILD "Flag for building binary package without internet and localy downloaded externals." OFF)
-if(PACKAGE_BUILD)
-   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
 
 FetchContent_Declare(external_cxxopts
    GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
